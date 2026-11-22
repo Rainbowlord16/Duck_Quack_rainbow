@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Duck Quack Simulator: Ultimate Grind Edition</title>
-    <!-- Custom Favicon -->
-    <link rel="icon" type="image/png" href="icon-transparent.png">
+    <!-- Custom Crisp SVG Duck Favicon (Dynamically updates with equipped skin!) -->
+    <link id="dynamicFavicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230f172a' stroke='%23fbbf24' stroke-width='4'/%3E%3Cpath d='M16 40 C16 28, 48 28, 50 40 C51 50, 42 54, 31 54 C20 54, 16 49, 16 40 Z' fill='%23facc15' stroke='%23090d16' stroke-width='3'/%3E%3Ccircle cx='28' cy='24' r='13' fill='%23facc15' stroke='%23090d16' stroke-width='3'/%3E%3Ccircle cx='24' cy='22' r='2.5' fill='%23090d16'/%3E%3Ccircle cx='32' cy='22' r='2.5' fill='%23090d16'/%3E%3Cpath d='M19 27 C19 24, 33 24, 33 27 C33 31, 19 31, 19 27 Z' fill='%23f97316' stroke='%23090d16' stroke-width='2.5'/%3E%3C/svg%3E">
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Font Awesome for Crisp Icons -->
@@ -1361,6 +1361,15 @@
         /* ==========================================================================
            7. HERO DUCK INTERACTION & WORLD VISUALS
            ========================================================================== */
+        function updateDuckFavicon(skin) {
+            const fav = document.getElementById('dynamicFavicon');
+            if (!fav) return;
+            const body = encodeURIComponent(skin.body);
+            const beak = encodeURIComponent(skin.beak);
+            const svg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><circle cx='32' cy='32' r='30' fill='%230f172a' stroke='%23fbbf24' stroke-width='4'/><path d='M16 40 C16 28, 48 28, 50 40 C51 50, 42 54, 31 54 C20 54, 16 49, 16 40 Z' fill='${body}' stroke='%23090d16' stroke-width='3'/><circle cx='28' cy='24' r='13' fill='${body}' stroke='%23090d16' stroke-width='3'/><circle cx='24' cy='22' r='2.5' fill='%23090d16'/><circle cx='32' cy='22' r='2.5' fill='%23090d16'/><path d='M19 27 C19 24, 33 24, 33 27 C33 31, 19 31, 19 27 Z' fill='${beak}' stroke='%23090d16' stroke-width='2.5'/></svg>`;
+            fav.href = `data:image/svg+xml,${svg}`;
+        }
+
         function renderWorldVisuals() {
             const w = WORLDS[game.currentWorld - 1];
             const bg = document.getElementById('worldSvgBg');
@@ -1382,6 +1391,7 @@
             }
 
             const skin = SKINS.find(s => s.id === game.equippedSkin) || SKINS[0];
+            updateDuckFavicon(skin);
             const aura = AURAS.find(a => a.id === game.equippedAura) || AURAS[0];
             const auraRing = document.getElementById('duckAuraRing');
             if (auraRing) {
