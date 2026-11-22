@@ -563,48 +563,53 @@
                     <h3 class="title-font text-base text-purple-300 mb-2">Cosmic Duck Auras</h3>
                     <div id="aurasGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3"></div>
                 </div>
+                <div>
+                    <h3 class="title-font text-base text-amber-300 mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-volume-high"></i> Quack Voice Box & Sound Effects
+                    </h3>
+                    <div id="quackSoundsGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5"></div>
+                </div>
             </div>
         </div>
 
         <!-- 7. ARCADE MINIGAMES & BOSS RAID MODAL -->
-        <div id="arcadeModal" class="modal-content hidden glass-panel w-full max-w-4xl max-h-[90vh] rounded-3xl flex flex-col overflow-hidden border border-violet-400/40">
+        <div id="arcadeModal" class="modal-content hidden glass-panel w-full max-w-4xl max-h-[90vh] rounded-3xl flex flex-col overflow-hidden border border-indigo-400/40">
             <div class="bg-slate-900/90 p-4 border-b border-white/10 flex justify-between items-center">
-                <h2 class="title-font text-xl text-violet-300 flex items-center gap-2">
-                    <i class="fa-solid fa-gamepad"></i> Duck Arcade & Boss Raids
+                <h2 class="title-font text-xl text-indigo-300 flex items-center gap-2">
+                    <i class="fa-solid fa-gamepad"></i> Arcade & Hydra Boss Raid
                 </h2>
                 <button onclick="closeModals()" class="text-slate-300 hover:text-white text-xl font-bold px-3">✕</button>
             </div>
             <div class="p-4 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4">
-                <!-- Minigame 1: Golden Bread Catcher -->
-                <div class="bg-slate-950/80 p-4 rounded-2xl border border-amber-400/30 flex flex-col gap-3">
-                    <div class="flex justify-between items-center">
-                        <h3 class="title-font text-base text-amber-300">🍞 Golden Bread Catcher</h3>
-                        <button onclick="startBreadCatcher()" class="arcade-btn bg-amber-500 text-slate-950 font-bold text-xs px-3 py-1.5 rounded-xl">Play (20s)</button>
+                <!-- Golden Bread Catcher -->
+                <div class="bg-slate-950/85 p-4 rounded-2xl border border-indigo-400/30 flex flex-col items-center gap-3">
+                    <div class="w-full flex justify-between items-center">
+                        <span class="title-font text-base text-amber-300">Golden Bread Catcher</span>
+                        <button onclick="startBreadCatcher()" class="arcade-btn bg-indigo-600 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl">PLAY (20s)</button>
                     </div>
-                    <canvas id="breadCatcherCanvas" width="360" height="220" class="w-full bg-slate-900 rounded-xl border border-white/10 cursor-pointer"></canvas>
-                    <p class="text-[11px] text-slate-400">Move mouse/touch inside box to catch falling golden loaves for instant Gems & Quacks!</p>
+                    <canvas id="breadCatcherCanvas" width="320" height="220" class="w-full bg-slate-900 rounded-xl border border-white/10"></canvas>
+                    <p class="text-[11px] text-slate-400 text-center">Move mouse or drag finger to catch falling golden loaves for Gems!</p>
                 </div>
 
-                <!-- Boss Raid Arena -->
-                <div class="bg-slate-950/80 p-4 rounded-2xl border border-rose-500/40 flex flex-col justify-between gap-3">
-                    <div>
-                        <div class="flex justify-between items-center">
-                            <h3 class="title-font text-base text-rose-400">🐉 Colossal Quack Hydra</h3>
-                            <span class="text-xs font-bold text-slate-300">Slain: <strong id="bossSlainCount" class="text-rose-300">0</strong></span>
+                <!-- Hydra Boss Raid -->
+                <div class="bg-slate-950/85 p-4 rounded-2xl border border-rose-500/30 flex flex-col justify-between items-center gap-3">
+                    <div class="w-full flex justify-between items-center">
+                        <span class="title-font text-base text-rose-400">Colossal Duck Hydra</span>
+                        <span class="text-xs font-bold text-slate-300">Slain: <strong id="bossSlainCount" class="text-amber-300">0</strong></span>
+                    </div>
+                    <div class="w-full">
+                        <div class="flex justify-between text-[11px] font-bold text-slate-300 mb-1">
+                            <span>BOSS HP</span>
+                            <span id="bossHpText">10,000 / 10,000</span>
                         </div>
-                        <div class="mt-3">
-                            <div class="flex justify-between text-xs font-bold mb-1">
-                                <span class="text-rose-300">Boss HP</span>
-                                <span id="bossHpText">10,000 / 10,000</span>
-                            </div>
-                            <div class="w-full h-4 bg-slate-900 rounded-full overflow-hidden border border-rose-500/30">
-                                <div id="bossHpBar" class="h-full bg-gradient-to-r from-rose-600 to-red-400 transition-all" style="width: 100%"></div>
-                            </div>
+                        <div class="w-full h-3.5 bg-slate-900 rounded-full overflow-hidden border border-white/10">
+                            <div id="bossHpBar" class="h-full bg-gradient-to-r from-rose-600 to-amber-500 transition-all duration-100" style="width: 100%"></div>
                         </div>
                     </div>
-                    <button onclick="attackBoss()" class="arcade-btn w-full bg-gradient-to-r from-rose-600 to-red-600 text-white title-font text-base py-4 rounded-2xl border border-rose-300/40">
-                        <i class="fa-solid fa-burst me-1.5"></i> STRIKE BOSS!
+                    <button onclick="attackBoss()" class="arcade-btn bg-gradient-to-br from-rose-600 to-red-700 text-white p-5 rounded-full border-2 border-rose-300/50 shadow-xl my-2">
+                        <i class="fa-solid fa-dragon text-4xl"></i>
                     </button>
+                    <p class="text-[11px] text-slate-400 text-center">Tap the Hydra to deal damage & win Gems + Void Shards!</p>
                 </div>
             </div>
         </div>
@@ -974,7 +979,8 @@
             if (modalId === 'rebirthModal') updateRebirthModal();
             if (modalId === 'petsModal') { renderEggsGrid(); renderPetInventory(); renderEvoCandidates(); renderPetIndex(); }
             if (modalId === 'ascensionModal') renderAscensionTree();
-            if (modalId === 'wardrobeModal') { renderSkinsList(); renderAurasList(); }
+            if (modalId === 'wardrobeModal') { renderSkinsList(); renderAurasList(); renderQuackSoundsList(); }
+            if (modalId === 'arcadeModal') updateBossUI();
             if (modalId === 'spinWheelModal') { drawFortuneWheel(); updateWheelStatusUI(); }
             if (modalId === 'questsModal') { renderQuests(); renderSeasonPass(); }
             if (modalId === 'profileModal') renderAchievements();
@@ -1008,19 +1014,96 @@
                 if (!audioCtx) audioCtx = new AudioCtx();
                 if (audioCtx.state === 'suspended') audioCtx.resume();
 
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
                 const now = audioCtx.currentTime;
 
                 if (type === 'quack') {
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(340 + Math.random() * 45, now);
-                    osc.frequency.exponentialRampToValueAtTime(145, now + 0.11);
-                    gain.gain.setValueAtTime(0.16, now);
-                    gain.gain.exponentialRampToValueAtTime(0.005, now + 0.11);
-                    osc.connect(gain); gain.connect(audioCtx.destination);
-                    osc.start(now); osc.stop(now + 0.11);
+                    let voice = game.quackSound || 'classic';
+                    if (voice === 'chaos') {
+                        const pool = ['classic', 'squeaky', 'cyber', 'gigachad', 'retro', 'helium', 'opera'];
+                        voice = pool[Math.floor(Math.random() * pool.length)];
+                    }
+
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+
+                    if (voice === 'squeaky') {
+                        // High-pitched rubber duck squeak
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(920, now);
+                        osc.frequency.exponentialRampToValueAtTime(1650, now + 0.06);
+                        osc.frequency.exponentialRampToValueAtTime(780, now + 0.14);
+                        gain.gain.setValueAtTime(0.22, now);
+                        gain.gain.exponentialRampToValueAtTime(0.005, now + 0.14);
+                        osc.connect(gain); gain.connect(audioCtx.destination);
+                        osc.start(now); osc.stop(now + 0.14);
+                    } else if (voice === 'cyber') {
+                        // Sci-fi laser synth honk
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(880, now);
+                        osc.frequency.exponentialRampToValueAtTime(190, now + 0.15);
+                        gain.gain.setValueAtTime(0.14, now);
+                        gain.gain.exponentialRampToValueAtTime(0.005, now + 0.15);
+                        osc.connect(gain); gain.connect(audioCtx.destination);
+                        osc.start(now); osc.stop(now + 0.15);
+                    } else if (voice === 'gigachad') {
+                        // Deep bass colossal honk
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(135, now);
+                        osc.frequency.exponentialRampToValueAtTime(62, now + 0.24);
+                        gain.gain.setValueAtTime(0.28, now);
+                        gain.gain.exponentialRampToValueAtTime(0.005, now + 0.24);
+                        osc.connect(gain); gain.connect(audioCtx.destination);
+                        osc.start(now); osc.stop(now + 0.24);
+                    } else if (voice === 'retro') {
+                        // 8-Bit arcade chiptune quack
+                        osc.type = 'square';
+                        osc.frequency.setValueAtTime(440, now);
+                        osc.frequency.setValueAtTime(587.33, now + 0.04);
+                        osc.frequency.setValueAtTime(329.63, now + 0.08);
+                        gain.gain.setValueAtTime(0.15, now);
+                        gain.gain.exponentialRampToValueAtTime(0.005, now + 0.13);
+                        osc.connect(gain); gain.connect(audioCtx.destination);
+                        osc.start(now); osc.stop(now + 0.13);
+                    } else if (voice === 'helium') {
+                        // Chipmunk helium double-chirp
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(1150, now);
+                        osc.frequency.exponentialRampToValueAtTime(1500, now + 0.05);
+                        osc.frequency.exponentialRampToValueAtTime(980, now + 0.11);
+                        gain.gain.setValueAtTime(0.24, now);
+                        gain.gain.exponentialRampToValueAtTime(0.005, now + 0.11);
+                        osc.connect(gain); gain.connect(audioCtx.destination);
+                        osc.start(now); osc.stop(now + 0.11);
+                    } else if (voice === 'opera') {
+                        // Dramatic vibrato soprano quack
+                        const vib = audioCtx.createOscillator();
+                        const vibGain = audioCtx.createGain();
+                        vib.frequency.setValueAtTime(28, now);
+                        vibGain.gain.setValueAtTime(35, now);
+                        vib.connect(vibGain);
+                        vibGain.connect(osc.frequency);
+
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(523.25, now);
+                        osc.frequency.exponentialRampToValueAtTime(659.25, now + 0.22);
+                        gain.gain.setValueAtTime(0.22, now);
+                        gain.gain.exponentialRampToValueAtTime(0.005, now + 0.24);
+                        osc.connect(gain); gain.connect(audioCtx.destination);
+                        vib.start(now); osc.start(now);
+                        vib.stop(now + 0.24); osc.stop(now + 0.24);
+                    } else {
+                        // Classic Mallard
+                        osc.type = 'sawtooth';
+                        osc.frequency.setValueAtTime(340 + Math.random() * 45, now);
+                        osc.frequency.exponentialRampToValueAtTime(145, now + 0.11);
+                        gain.gain.setValueAtTime(0.16, now);
+                        gain.gain.exponentialRampToValueAtTime(0.005, now + 0.11);
+                        osc.connect(gain); gain.connect(audioCtx.destination);
+                        osc.start(now); osc.stop(now + 0.11);
+                    }
                 } else if (type === 'crit') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
                     osc.type = 'triangle';
                     osc.frequency.setValueAtTime(580, now);
                     osc.frequency.exponentialRampToValueAtTime(980, now + 0.18);
@@ -1029,6 +1112,8 @@
                     osc.connect(gain); gain.connect(audioCtx.destination);
                     osc.start(now); osc.stop(now + 0.18);
                 } else if (type === 'hatch' || type === 'coin') {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(520, now);
                     osc.frequency.linearRampToValueAtTime(880, now + 0.22);
@@ -1122,11 +1207,15 @@
             { id: "void", name: "Astral Vortex", mult: 4.0, cost: 7500, style: "border: 5px double #c084fc; box-shadow: 0 0 45px rgba(192,132,252,0.8);" }
         ];
 
-        const TREE_NODES = [
-            { id: "t_click1", name: "Titanium Beak", desc: "+50% Click Power per rank", cost: 1, max: 10 },
-            { id: "t_auto1", name: "Duck Factory", desc: "+50% Auto-Quack speed per rank", cost: 1, max: 10 },
-            { id: "t_crit1", name: "Precision Quack", desc: "+4% Crit Chance & +1x Crit Mult", cost: 2, max: 8 },
-            { id: "t_slots", name: "Grand Squad", desc: "+1 Max Equipped Pet Slot", cost: 4, max: 4 }
+        const QUACK_SOUNDS = [
+            { id: "classic", name: "Classic Mallard", desc: "Authentic pond quack", icon: "fa-feather" },
+            { id: "squeaky", name: "Rubber Squeak", desc: "High-pitched bath toy", icon: "fa-face-grin-squint" },
+            { id: "cyber", name: "Cyber Laser", desc: "Sci-fi plasma honk", icon: "fa-robot" },
+            { id: "gigachad", name: "Giga-Honk", desc: "Earth-shaking bass", icon: "fa-dragon" },
+            { id: "retro", name: "8-Bit Arcade", desc: "Retro chiptune chirp", icon: "fa-gamepad" },
+            { id: "helium", name: "Helium Duck", desc: "Squeaky chipmunk pitch", icon: "fa-wind" },
+            { id: "opera", name: "Opera Diva", desc: "Dramatic vibrato note", icon: "fa-music" },
+            { id: "chaos", name: "Random Chaos", desc: "Different sound every tap!", icon: "fa-shuffle" }
         ];
 
         const POTION_DEFS = [
@@ -1187,6 +1276,15 @@
             { id: "q_boss", title: "Defeat 5 Hydra Bosses", target: 5, getVal: () => game.bossesDefeated, rewardGems: 800 }
         ];
 
+        const TREE_NODES = [
+            { id: "t_click1", name: "Golden Beak Resonance", desc: "+50% Multiplicative Click Power per rank", cost: 1, max: 20 },
+            { id: "t_auto1", name: "Eternal Pond Automation", desc: "+50% Multiplicative Auto-Quack speed per rank", cost: 1, max: 20 },
+            { id: "t_crit1", name: "Thunderclap Harmonics", desc: "+4% Crit Chance & +1.0x Crit Damage per rank", cost: 2, max: 15 },
+            { id: "t_slots", name: "Expanded Pet Squad", desc: "+1 Active Pet Equip Slot per rank", cost: 4, max: 4 },
+            { id: "t_gems", name: "Prismatic Feather Aura", desc: "+25% Bonus Gems from all sources per rank", cost: 3, max: 15 },
+            { id: "t_relics", name: "Ancient Excavation Mastery", desc: "+30% Relic & Artifact power per rank", cost: 3, max: 15 }
+        ];
+
         /* ==========================================================================
            5. PERSISTENT GAME STATE
            ========================================================================== */
@@ -1213,6 +1311,7 @@
             unlockedSkins: ["classic"],
             equippedAura: "none",
             unlockedAuras: ["none"],
+            quackSound: "classic",
             feverVal: 0,
             isFeverActive: false,
             autoClickerOn: false,
@@ -2056,22 +2155,169 @@
             if (!grid) return;
             grid.innerHTML = WORLDS.map(w => {
                 const unlocked = w.id <= game.highestWorld;
-                const active = w.id === game.currentWorld;
+                const current = w.id === game.currentWorld;
+                const canBuy = !unlocked && game.quacks >= w.req;
                 return `
-                    <div class="bg-slate-950/85 p-3.5 rounded-2xl border ${active ? 'border-amber-400' : 'border-white/10'} flex flex-col justify-between gap-2">
+                    <div class="bg-slate-950/85 p-3.5 rounded-2xl border ${current ? 'border-amber-400 bg-amber-950/20' : unlocked ? 'border-emerald-400/30' : 'border-white/10'} flex flex-col justify-between gap-2">
                         <div>
                             <div class="flex justify-between items-center">
                                 <span class="title-font text-sm text-amber-300">${w.id}. ${w.name}</span>
-                                <span class="text-xs font-extrabold text-cyan-300">${formatNum(w.mult)}x</span>
+                                <span class="text-[10px] font-extrabold bg-slate-900 text-cyan-300 px-2 py-0.5 rounded-full border border-cyan-400/30">${formatNum(w.mult)}x</span>
                             </div>
                             <p class="text-[11px] text-slate-400 mt-1">${w.desc}</p>
                         </div>
-                        <button onclick="travelToWorld(${w.id})" class="arcade-btn w-full ${active ? 'bg-slate-700 text-slate-300' : unlocked ? 'bg-emerald-500 text-slate-950' : 'bg-amber-500 text-slate-950'} font-extrabold text-xs py-2 rounded-xl">
-                            ${active ? 'CURRENT REALM' : unlocked ? 'ENTER REALM' : `UNLOCK (${formatNum(w.req)})`}
+                        <button onclick="travelToWorld(${w.id})" ${!unlocked && !canBuy ? 'disabled' : ''} class="arcade-btn w-full ${current ? 'bg-slate-700 text-slate-300' : unlocked ? 'bg-emerald-500 text-slate-950' : 'bg-amber-500 text-slate-950'} font-extrabold text-xs py-2 rounded-xl">
+                            ${current ? 'CURRENT REALM' : unlocked ? 'TRAVEL' : `UNLOCK (${formatNum(w.req)} Qk)`}
                         </button>
                     </div>
                 `;
             }).join('');
+        }
+
+        function renderPotionsGrid() {
+            const grid = document.getElementById('potionsGrid');
+            if (!grid) return;
+            grid.innerHTML = POTION_DEFS.map(p => {
+                const activeUntil = game.activePotions[p.id] || 0;
+                const remSec = Math.max(0, Math.ceil((activeUntil - Date.now()) / 1000));
+                const canAfford = p.curr === 'gems' ? game.gems >= p.cost : game.relics >= p.cost;
+                return `
+                    <div class="bg-slate-950/85 p-3.5 rounded-2xl border border-lime-400/30 flex flex-col justify-between gap-2.5">
+                        <div>
+                            <div class="flex justify-between items-center">
+                                <span class="title-font text-sm text-lime-300">${p.name}</span>
+                                ${remSec > 0 ? `<span class="text-[10px] font-black bg-lime-400 text-slate-950 px-2 py-0.5 rounded-full">${remSec}s LEFT</span>` : ''}
+                            </div>
+                            <p class="text-xs text-slate-300 mt-1">${p.desc}</p>
+                        </div>
+                        <button onclick="brewPotion('${p.id}')" ${!canAfford ? 'disabled' : ''} class="arcade-btn bg-gradient-to-r ${p.color} text-white font-extrabold text-xs py-2 rounded-xl">
+                            BREW (${p.cost} ${p.curr.toUpperCase()})
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function brewPotion(id) {
+            const p = POTION_DEFS.find(item => item.id === id);
+            if (!p) return;
+            if (p.curr === 'gems' && game.gems >= p.cost) game.gems -= p.cost;
+            else if (p.curr === 'relics' && game.relics >= p.cost) game.relics -= p.cost;
+            else return;
+
+            const alchBonus = 1 + ((game.masteries['m_alchemy'] || 1) - 1) * 0.1;
+            const addMs = p.duration * 1000 * alchBonus;
+            const base = Math.max(Date.now(), game.activePotions[p.id] || 0);
+            game.activePotions[p.id] = base + addMs;
+            game.potionsBrewed++;
+            advanceMastery('m_alchemy', 12);
+            playSound('hatch');
+            tickActivePotions();
+            renderPotionsGrid();
+            updateTopUI();
+            showToast(`Brewed ${p.name}!`, 'success');
+        }
+
+        function tickActivePotions() {
+            const strip = document.getElementById('activePotionsStrip');
+            if (!strip) return;
+            const now = Date.now();
+            const activeItems = POTION_DEFS.filter(p => (game.activePotions[p.id] || 0) > now);
+            strip.innerHTML = activeItems.map(p => {
+                const rem = Math.ceil((game.activePotions[p.id] - now) / 1000);
+                return `<span class="bg-slate-950/85 border border-lime-400/50 text-lime-300 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shadow"><i class="fa-solid fa-flask me-1"></i>${p.name}: ${rem}s</span>`;
+            }).join('');
+        }
+
+        function renderArtifactsGrid() {
+            const depthEl = document.getElementById('digDepthVal');
+            const relEl = document.getElementById('modalRelicsVal');
+            if (depthEl) depthEl.innerText = `${formatNum(game.digDepth)}m`;
+            if (relEl) relEl.innerText = formatNum(game.relics);
+
+            const grid = document.getElementById('artifactsGrid');
+            if (!grid) return;
+            grid.innerHTML = ARTIFACT_DEFS.map(a => {
+                const lvl = game.artifacts[a.id] || 0;
+                const cost = Math.floor(a.baseCost * Math.pow(1.6, lvl));
+                const maxed = lvl >= a.max;
+                return `
+                    <div class="bg-slate-950/85 p-3.5 rounded-2xl border border-orange-400/30 flex flex-col justify-between gap-2">
+                        <div>
+                            <div class="flex justify-between items-center">
+                                <span class="title-font text-xs text-orange-300">${a.name}</span>
+                                <span class="text-[10px] font-bold text-slate-400">Lv.${lvl}/${a.max}</span>
+                            </div>
+                            <p class="text-[11px] text-slate-300 mt-1">${a.desc}</p>
+                        </div>
+                        <button onclick="upgradeArtifact('${a.id}')" ${maxed || game.relics < cost ? 'disabled' : ''} class="arcade-btn bg-orange-500 text-slate-950 font-extrabold text-[11px] py-1.5 rounded-xl w-full">
+                            ${maxed ? 'MAXED' : `RESTORE (${cost} Relics)`}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function excavateDigSite(times) {
+            const gemCost = times === 10 ? 900 : 100;
+            if (game.gems < gemCost) {
+                showToast(`Need ${gemCost} Gems to excavate!`, 'warning');
+                return;
+            }
+            game.gems -= gemCost;
+            game.digDepth += times * 5;
+            const compassMult = 1 + ((game.artifacts['art_compass'] || 0) * 0.2);
+            const excMastery = 1 + ((game.masteries['m_excavation'] || 1) - 1) * 0.15;
+            const foundRelics = Math.max(1, Math.floor(times * (1 + Math.random() * 1.5) * compassMult * excMastery));
+            game.relics += foundRelics;
+            advanceMastery('m_excavation', times * 4);
+            playSound('coin');
+            renderArtifactsGrid();
+            updateTopUI();
+            showToast(`Dug ${times * 5}m deeper & uncovered +${foundRelics} Relics!`, 'success');
+        }
+
+        function upgradeArtifact(id) {
+            const a = ARTIFACT_DEFS.find(item => item.id === id);
+            if (!a) return;
+            const lvl = game.artifacts[id] || 0;
+            const cost = Math.floor(a.baseCost * Math.pow(1.6, lvl));
+            if (lvl < a.max && game.relics >= cost) {
+                game.relics -= cost;
+                game.artifacts[id] = lvl + 1;
+                playSound('crit');
+                renderArtifactsGrid();
+                updateTopUI();
+            }
+        }
+
+        function renderQuackSoundsList() {
+            const grid = document.getElementById('quackSoundsGrid');
+            if (!grid) return;
+            const current = game.quackSound || 'classic';
+            grid.innerHTML = QUACK_SOUNDS.map(s => {
+                const active = current === s.id;
+                return `
+                    <button onclick="selectQuackSound('${s.id}')" class="arcade-btn text-left p-3 rounded-2xl border flex flex-col justify-between gap-1.5 ${active ? 'bg-amber-500/20 border-amber-400' : 'bg-slate-950/85 border-white/10 hover:border-amber-400/50'}">
+                        <div class="flex items-center justify-between w-full">
+                            <span class="title-font text-xs text-amber-300 flex items-center gap-1.5">
+                                <i class="fa-solid ${s.icon}"></i> ${s.name}
+                            </span>
+                            ${active ? '<span class="text-[9px] font-black bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full">ACTIVE</span>' : ''}
+                        </div>
+                        <span class="text-[10px] text-slate-400">${s.desc}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        function selectQuackSound(id) {
+            game.quackSound = id;
+            playSound('quack');
+            renderQuackSoundsList();
+            saveGame(false);
+            const found = QUACK_SOUNDS.find(s => s.id === id);
+            if (found) showToast(`Quack Voice set to: ${found.name}!`, 'success');
         }
 
         function travelToWorld(id) {
