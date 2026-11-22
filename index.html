@@ -12,6 +12,18 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <!-- Google Fonts: Fredoka & Inter -->
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <!-- Firebase SDKs for Live Global Leaderboard -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        window.FirebaseModules = {
+            initializeApp, getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged,
+            getFirestore, doc, setDoc, collection, onSnapshot
+        };
+        if (window.initCloudLeaderboard) window.initCloudLeaderboard();
+    </script>
     <style>
         :root {
             --bg-dark: #090d16;
@@ -383,8 +395,9 @@
             <!-- Live Global Leaderboard Widget -->
             <div class="glass-panel rounded-2xl p-3.5 flex-1 flex flex-col gap-2">
                 <div class="flex items-center justify-between border-b border-white/10 pb-1.5">
-                    <span class="text-xs font-extrabold uppercase text-amber-300 tracking-wider">
-                        <i class="fa-solid fa-trophy text-amber-400 me-1"></i> Hall of Fame
+                    <span class="text-xs font-extrabold uppercase text-amber-300 tracking-wider flex items-center gap-1.5">
+                        <i class="fa-solid fa-trophy text-amber-400"></i> Live Leaderboard
+                        <span id="liveCloudDot" class="w-2 h-2 rounded-full bg-amber-400 animate-pulse" title="Connecting to Live Server..."></span>
                     </span>
                     <button onclick="openModal('leaderboardModal')" class="text-[11px] font-bold text-slate-300 hover:text-white">Full</button>
                 </div>
@@ -674,12 +687,29 @@
         </div>
 
         <!-- 11. LEADERBOARD MODAL -->
-        <div id="leaderboardModal" class="modal-content hidden glass-panel w-full max-w-lg max-h-[90vh] rounded-3xl flex flex-col overflow-hidden border border-amber-400/40">
+        <div id="leaderboardModal" class="modal-content hidden glass-panel w-full max-w-2xl max-h-[90vh] rounded-3xl flex flex-col overflow-hidden border border-amber-400/40">
             <div class="bg-slate-900/90 p-4 border-b border-white/10 flex justify-between items-center">
-                <h2 class="title-font text-xl text-amber-300 flex items-center gap-2">
-                    <i class="fa-solid fa-trophy"></i> Global Quack Leaderboard
-                </h2>
-                <button onclick="closeModals()" class="text-slate-300 hover:text-white text-xl font-bold px-3">✕</button>
+                <div>
+                    <h2 class="title-font text-xl text-amber-300 flex items-center gap-2">
+                        <i class="fa-solid fa-trophy"></i> Live Global Leaderboard
+                    </h2>
+                    <div class="text-[10px] text-slate-400 mt-0.5 font-mono">
+                        Status: <span id="lbSyncStatus" class="text-emerald-400 font-bold">Connecting...</span> | Your ID: <span id="lbUserIdDisplay" class="text-slate-300">...</span>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="syncLeaderboardScore(true)" class="arcade-btn bg-emerald-600 text-white text-[11px] font-bold px-3 py-1.5 rounded-xl">
+                        <i class="fa-solid fa-cloud-arrow-up me-1"></i> Sync Now
+                    </button>
+                    <button onclick="closeModals()" class="text-slate-300 hover:text-white text-xl font-bold px-3">✕</button>
+                </div>
+            </div>
+            <!-- Leaderboard Category Filter Tabs -->
+            <div class="flex bg-slate-950/80 border-b border-white/10 text-xs font-bold">
+                <button onclick="switchLeaderboardCategory('lifetimeQuacks')" id="lbTab_lifetimeQuacks" class="flex-1 py-2.5 text-center text-amber-300 border-b-2 border-amber-400">Lifetime Quacks</button>
+                <button onclick="switchLeaderboardCategory('rebirths')" id="lbTab_rebirths" class="flex-1 py-2.5 text-center text-slate-400">Rebirths</button>
+                <button onclick="switchLeaderboardCategory('bossesDefeated')" id="lbTab_bossesDefeated" class="flex-1 py-2.5 text-center text-slate-400">Boss Slays</button>
+                <button onclick="switchLeaderboardCategory('totalHatches')" id="lbTab_totalHatches" class="flex-1 py-2.5 text-center text-slate-400">Eggs Hatched</button>
             </div>
             <div id="fullLeaderboard" class="p-4 overflow-y-auto flex flex-col gap-2 text-xs"></div>
         </div>
@@ -1275,6 +1305,7 @@
                 game.playerName = val;
                 const headName = document.getElementById('headerPlayerName');
                 if (headName) headName.innerText = val;
+                syncLeaderboardScore(false);
                 renderLeaderboard();
                 showToast(`Updated name to ${val}`, 'success');
             }
@@ -2301,161 +2332,187 @@
         }
 
         function renderLeaderboard() {
-            const rivals = [
-                { name: "GenesisAlpha", score: 1e56 },
-                { name: "OmniverseKing", score: 5e46 },
-                { name: "AetherMallard", score: 1e35 },
-                { name: "QuackValkyrie", score: 5e26 },
-                { name: "SolarFeather", score: 1e19 },
-                { name: "NeonBeak", score: 2e13 },
-                { name: "PondCaptain", score: 5e7 },
-                { name: game.playerName, score: game.lifetimeQuacks, isPlayer: true }
-            ].sort((a, b) => b.score - a.score);
+            const category = activeLeaderboardCategory;
+            const entriesMap = new Map();
+
+            // Seed classic benchmark legends if cloud is still warming up or sparsely populated
+            const benchmarkLegends = [
+                { uid: 'legend_1', playerName: "GenesisAlpha", lifetimeQuacks: 1e56, rebirths: 420, bossesDefeated: 1850, totalHatches: 45000, highestWorld: 20, equippedSkin: 'royal', isLegend: true },
+                { uid: 'legend_2', playerName: "OmniverseKing", lifetimeQuacks: 5e46, rebirths: 310, bossesDefeated: 1200, totalHatches: 28000, highestWorld: 18, equippedSkin: 'ninja', isLegend: true },
+                { uid: 'legend_3', playerName: "AetherMallard", lifetimeQuacks: 1e35, rebirths: 195, bossesDefeated: 740, totalHatches: 15000, highestWorld: 15, equippedSkin: 'gamer', isLegend: true },
+                { uid: 'legend_4', playerName: "SolarFeather", lifetimeQuacks: 1e19, rebirths: 85, bossesDefeated: 310, totalHatches: 6200, highestWorld: 9, equippedSkin: 'classic', isLegend: true },
+                { uid: 'legend_5', playerName: "PondCaptain", lifetimeQuacks: 5e7, rebirths: 14, bossesDefeated: 42, totalHatches: 850, highestWorld: 4, equippedSkin: 'classic', isLegend: true }
+            ];
+            benchmarkLegends.forEach(l => entriesMap.set(l.uid, l));
+
+            // Merge real live cloud players
+            liveLeaderboardPlayers.forEach(p => {
+                if (p && p.uid) entriesMap.set(p.uid, p);
+            });
+
+            // Always ensure current player is represented up-to-date
+            const myUid = currentCloudUser ? currentCloudUser.uid : 'local_player';
+            entriesMap.set(myUid, {
+                uid: myUid,
+                playerName: game.playerName || 'Ultimate Quacker',
+                lifetimeQuacks: game.lifetimeQuacks || 0,
+                rebirths: game.rebirths || 0,
+                bossesDefeated: game.bossesDefeated || 0,
+                totalHatches: game.totalHatches || 0,
+                highestWorld: game.highestWorld || 1,
+                equippedSkin: game.equippedSkin || 'classic',
+                isMe: true
+            });
+
+            const sorted = Array.from(entriesMap.values()).map(item => ({
+                ...item,
+                isMe: item.uid === myUid
+            })).sort((a, b) => (b[category] || 0) - (a[category] || 0));
 
             const quick = document.getElementById('quickLeaderboard');
             const full = document.getElementById('fullLeaderboard');
 
-            const html = rivals.map((r, i) => `
-                <div class="flex justify-between items-center px-2.5 py-1.5 rounded-xl ${r.isPlayer ? 'bg-amber-500/20 border border-amber-400/50 text-amber-200 font-extrabold' : 'bg-slate-950/60 text-slate-300'}">
-                    <span>#${i + 1} ${r.name}</span>
-                    <span class="font-bold text-amber-300">${formatNum(r.score)}</span>
-                </div>
-            `).join('');
+            const formatMetric = (entry) => {
+                if (category === 'lifetimeQuacks') return `${formatNum(entry.lifetimeQuacks || 0)} Qk`;
+                if (category === 'rebirths') return `${formatNum(entry.rebirths || 0)} Rebirths`;
+                if (category === 'bossesDefeated') return `${formatNum(entry.bossesDefeated || 0)} Slain`;
+                if (category === 'totalHatches') return `${formatNum(entry.totalHatches || 0)} Eggs`;
+                return formatNum(entry[category] || 0);
+            };
 
-            if (quick) quick.innerHTML = html;
-            if (full) full.innerHTML = html;
+            if (quick) {
+                quick.innerHTML = sorted.slice(0, 8).map((r, i) => `
+                    <div class="flex justify-between items-center px-2.5 py-1.5 rounded-xl ${r.isMe ? 'bg-amber-500/25 border border-amber-400/60 text-amber-200 font-extrabold' : 'bg-slate-950/60 text-slate-300'}">
+                        <span class="truncate pr-2">#${i + 1} ${r.playerName} ${r.isMe ? '(You)' : ''}</span>
+                        <span class="font-bold text-amber-300 whitespace-nowrap">${formatMetric(r)}</span>
+                    </div>
+                `).join('');
+            }
+
+            if (full) {
+                full.innerHTML = sorted.map((r, i) => {
+                    const skin = SKINS.find(s => s.id === r.equippedSkin) || SKINS[0];
+                    const worldName = WORLDS[(r.highestWorld || 1) - 1]?.name || 'Starter Pond';
+                    const rankBadge = i === 0 ? 'bg-amber-400 text-slate-950' : i === 1 ? 'bg-slate-300 text-slate-950' : i === 2 ? 'bg-orange-400 text-slate-950' : 'bg-slate-800 text-slate-300';
+                    return `
+                        <div class="flex justify-between items-center px-3 py-2.5 rounded-2xl border ${r.isMe ? 'bg-amber-500/20 border-amber-400/70 shadow-lg' : 'bg-slate-950/75 border-white/10'}">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="w-7 h-7 rounded-xl font-black flex items-center justify-center text-xs shrink-0 ${rankBadge}">#${i + 1}</span>
+                                <div class="w-7 h-7 rounded-full border border-white/25 shrink-0 flex items-center justify-center" style="background:${skin.body}">
+                                    <i class="fa-solid fa-kiwi-bird text-slate-950 text-xs"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="font-extrabold text-sm text-white truncate flex items-center gap-1.5">
+                                        <span>${r.playerName}</span>
+                                        ${r.isMe ? '<span class="text-[10px] bg-amber-400 text-slate-950 px-1.5 py-0.2 rounded-full font-black">YOU</span>' : ''}
+                                        ${!r.isLegend ? '<span class="text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 px-1.5 rounded-full">LIVE</span>' : ''}
+                                    </div>
+                                    <div class="text-[10px] text-slate-400 truncate">Realm: ${worldName} • Rebirths: ${formatNum(r.rebirths || 0)}</div>
+                                </div>
+                            </div>
+                            <div class="text-right shrink-0 pl-2">
+                                <div class="title-font text-sm text-amber-300">${formatMetric(r)}</div>
+                                <div class="text-[10px] text-slate-400">${formatNum(r.lifetimeQuacks || 0)} Total Qk</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
         }
 
         /* ==========================================================================
-           11. ALCHEMY LAB, DIG SITE RELICS, MASTERIES, CARDS, GUILD & CODES
+           11B. REAL-TIME CLOUD LEADERBOARD ENGINE (FIRESTORE)
            ========================================================================== */
-        function tickActivePotions() {
-            const strip = document.getElementById('activePotionsStrip');
-            if (!strip) return;
-            const now = Date.now();
-            let html = '';
+        let cloudDb = null;
+        let cloudAuth = null;
+        let currentCloudUser = null;
+        let liveLeaderboardPlayers = [];
+        let activeLeaderboardCategory = 'lifetimeQuacks';
+        const cloudAppId = typeof __app_id !== 'undefined' ? __app_id : 'duck-quack-sim-ultimate';
 
-            POTION_DEFS.forEach(p => {
-                const exp = game.activePotions[p.id] || 0;
-                if (exp > now) {
-                    const secLeft = Math.ceil((exp - now) / 1000);
-                    html += `<span class="bg-slate-950/85 border border-lime-400/50 text-lime-200 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full shadow"><i class="fa-solid fa-flask me-1"></i>${p.name} (${secLeft}s)</span>`;
-                }
+        function switchLeaderboardCategory(cat) {
+            activeLeaderboardCategory = cat;
+            ['lifetimeQuacks', 'rebirths', 'bossesDefeated', 'totalHatches'].forEach(c => {
+                const btn = document.getElementById(`lbTab_${c}`);
+                if (!btn) return;
+                const isActive = c === cat;
+                btn.classList.toggle('text-amber-300', isActive);
+                btn.classList.toggle('border-b-2', isActive);
+                btn.classList.toggle('border-amber-400', isActive);
+                btn.classList.toggle('text-slate-400', !isActive);
             });
-            strip.innerHTML = html;
+            renderLeaderboard();
         }
 
-        function renderPotionsGrid() {
-            const grid = document.getElementById('potionsGrid');
-            if (!grid) return;
+        window.initCloudLeaderboard = async function() {
+            try {
+                if (!window.FirebaseModules || typeof __firebase_config === 'undefined') return;
+                const { initializeApp, getAuth, signInAnonymously, signInWithCustomToken, getFirestore, collection, onSnapshot } = window.FirebaseModules;
 
-            grid.innerHTML = POTION_DEFS.map(p => `
-                <div class="bg-slate-950/80 p-4 rounded-2xl border border-lime-500/30 flex flex-col justify-between gap-2">
-                    <div>
-                        <h4 class="title-font text-sm text-lime-300">${p.name}</h4>
-                        <p class="text-xs text-slate-300 mt-0.5">${p.desc}</p>
-                    </div>
-                    <button onclick="brewPotion('${p.id}')" class="arcade-btn bg-gradient-to-r ${p.color} text-white font-extrabold text-xs py-2 rounded-xl mt-2">
-                        BREW (${p.cost} ${p.curr.toUpperCase()})
-                    </button>
-                </div>
-            `).join('');
-        }
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                cloudAuth = getAuth(app);
+                cloudDb = getFirestore(app);
 
-        function brewPotion(id) {
-            const p = POTION_DEFS.find(item => item.id === id);
-            if (!p) return;
-
-            if (p.curr === 'gems' && game.gems < p.cost) {
-                showToast(`Need ${p.cost} Gems!`, 'warning');
-                return;
-            }
-            if (p.curr === 'relics' && game.relics < p.cost) {
-                showToast(`Need ${p.cost} Ancient Relics!`, 'warning');
-                return;
-            }
-
-            if (p.curr === 'gems') game.gems -= p.cost;
-            if (p.curr === 'relics') game.relics -= p.cost;
-
-            const alchBonus = 1 + ((game.masteries['m_alchemy'] || 1) - 1) * 0.1;
-            const addMs = p.duration * 1000 * alchBonus;
-            const currentExp = Math.max(Date.now(), game.activePotions[p.id] || 0);
-            game.activePotions[p.id] = currentExp + addMs;
-            game.potionsBrewed++;
-            advanceMastery('m_alchemy', 5);
-            playSound('crit');
-            tickActivePotions();
-            showToast(`Activated ${p.name}!`, 'success');
-        }
-
-        function excavateDigSite(times) {
-            const cost = times === 10 ? 900 : 100;
-            if (game.gems < cost) {
-                showToast(`Need ${cost} Gems to excavate!`, 'warning');
-                return;
-            }
-            game.gems -= cost;
-
-            let relicsFound = 0;
-            const compassMult = 1 + ((game.artifacts['art_compass'] || 0) * 0.2);
-            const archMastery = 1 + ((game.masteries['m_excavation'] || 1) - 1) * 0.15;
-
-            for (let i = 0; i < times; i++) {
-                game.digDepth += Math.floor(3 + Math.random() * 8);
-                if (Math.random() < 0.45) {
-                    relicsFound += Math.max(1, Math.floor((1 + Math.random() * 2) * compassMult * archMastery));
+                // Authenticate first before any Firestore read/write
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(cloudAuth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(cloudAuth);
                 }
+
+                currentCloudUser = cloudAuth.currentUser;
+                if (!currentCloudUser) return;
+
+                const statusEl = document.getElementById('lbSyncStatus');
+                const uidEl = document.getElementById('lbUserIdDisplay');
+                const dotEl = document.getElementById('liveCloudDot');
+                if (statusEl) statusEl.innerText = 'Live Connected';
+                if (uidEl) uidEl.innerText = currentCloudUser.uid;
+                if (dotEl) {
+                    dotEl.classList.remove('bg-amber-400');
+                    dotEl.classList.add('bg-emerald-400');
+                }
+
+                // Subscribe to public leaderboard collection (no orderBy/where compound queries)
+                const lbCol = collection(cloudDb, 'artifacts', cloudAppId, 'public', 'data', 'leaderboard');
+                onSnapshot(lbCol, (snapshot) => {
+                    const list = [];
+                    snapshot.forEach(docSnap => {
+                        list.push({ uid: docSnap.id, ...docSnap.data() });
+                    });
+                    liveLeaderboardPlayers = list;
+                    renderLeaderboard();
+                }, (err) => {
+                    console.error('Leaderboard listener error:', err);
+                });
+
+                // Initial score push
+                syncLeaderboardScore(false);
+            } catch (e) {
+                console.error('Cloud leaderboard init skipped:', e);
             }
+        };
 
-            game.relics += relicsFound;
-            advanceMastery('m_excavation', times * 2);
-            playSound('coin');
-            renderArtifactsGrid();
-            showToast(`Dug to ${game.digDepth}m! Found +${relicsFound} Ancient Relics!`, 'success');
-        }
-
-        function renderArtifactsGrid() {
-            const depthEl = document.getElementById('digDepthVal');
-            const relEl = document.getElementById('modalRelicsVal');
-            if (depthEl) depthEl.innerText = `${game.digDepth}m`;
-            if (relEl) relEl.innerText = formatNum(game.relics);
-
-            const grid = document.getElementById('artifactsGrid');
-            if (!grid) return;
-
-            grid.innerHTML = ARTIFACT_DEFS.map(art => {
-                const lvl = game.artifacts[art.id] || 0;
-                const cost = Math.floor(art.baseCost * Math.pow(1.6, lvl));
-                const maxed = lvl >= art.max;
-                return `
-                    <div class="bg-slate-950/80 p-3.5 rounded-2xl border ${lvl > 0 ? 'border-orange-400/50' : 'border-white/10'} flex flex-col justify-between gap-2">
-                        <div>
-                            <div class="flex justify-between items-center">
-                                <span class="title-font text-xs text-orange-300">${art.name}</span>
-                                <span class="text-[10px] font-bold text-slate-400">${lvl}/${art.max}</span>
-                            </div>
-                            <p class="text-[11px] text-slate-300 mt-1">${art.desc}</p>
-                        </div>
-                        <button onclick="upgradeArtifact('${art.id}')" ${maxed || game.relics < cost ? 'disabled' : ''} class="arcade-btn bg-orange-600 text-white font-extrabold text-[10px] py-1.5 rounded-xl w-full">
-                            ${maxed ? 'MAXED' : `RESTORE (${cost} Relics)`}
-                        </button>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function upgradeArtifact(id) {
-            const art = ARTIFACT_DEFS.find(a => a.id === id);
-            if (!art) return;
-            const lvl = game.artifacts[id] || 0;
-            const cost = Math.floor(art.baseCost * Math.pow(1.6, lvl));
-            if (lvl < art.max && game.relics >= cost) {
-                game.relics -= cost;
-                game.artifacts[id] = lvl + 1;
-                playSound('crit');
-                renderArtifactsGrid();
-                showToast(`Upgraded ${art.name} to Lv.${lvl + 1}!`, 'success');
+        async function syncLeaderboardScore(notify = false) {
+            if (!cloudDb || !currentCloudUser || !window.FirebaseModules) return;
+            try {
+                const { doc, setDoc } = window.FirebaseModules;
+                const userDocRef = doc(cloudDb, 'artifacts', cloudAppId, 'public', 'data', 'leaderboard', currentCloudUser.uid);
+                await setDoc(userDocRef, {
+                    uid: currentCloudUser.uid,
+                    playerName: (game.playerName || 'Ultimate Quacker').slice(0, 20),
+                    lifetimeQuacks: Number(game.lifetimeQuacks) || 0,
+                    rebirths: Number(game.rebirths) || 0,
+                    bossesDefeated: Number(game.bossesDefeated) || 0,
+                    totalHatches: Number(game.totalHatches) || 0,
+                    highestWorld: Number(game.highestWorld) || 1,
+                    equippedSkin: game.equippedSkin || 'classic',
+                    updatedAt: Date.now()
+                }, { merge: true });
+                if (notify) showToast('Score synced to Global Leaderboard!', 'success');
+            } catch (e) {
+                if (notify) showToast('Could not sync right now.', 'warning');
             }
         }
 
@@ -2757,7 +2814,10 @@
             if (headName) headName.innerText = game.playerName;
 
             setInterval(gameTick, 100);
-            setInterval(() => saveGame(false), 12000);
+            setInterval(() => {
+                saveGame(false);
+                syncLeaderboardScore(false);
+            }, 12000);
             setInterval(() => {
                 game.playtime++;
                 const mins = Math.floor(game.playtime / 60);
