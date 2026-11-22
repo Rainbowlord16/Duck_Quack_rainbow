@@ -789,7 +789,7 @@
                     <h2 class="title-font text-lg sm:text-xl text-amber-300 flex items-center gap-2">
                         <i class="fa-solid fa-trophy text-yellow-400"></i> Live Global Hall of Fame
                     </h2>
-                    <p class="text-[11px] text-slate-400">Your Player ID: <span id="fullUserIdBadge" class="font-mono text-cyan-300 select-all">Connecting...</span></p>
+                    <p class="text-[11px] text-slate-400">Your Player ID: <span id="fullUserIdBadge" class="font-mono text-cyan-300 select-all">Generating...</span></p>
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="syncLeaderboardScore(true)" class="arcade-btn bg-emerald-600 text-white text-xs font-extrabold px-3 py-1.5 rounded-xl">
@@ -2979,9 +2979,30 @@
             renderFullLeaderboard();
         }
 
+        const GLOBAL_RIVALS = [
+            { uid: 'rival_1', name: 'QuackEmperor_X', lifetimeQuacks: 1e115, rebirths: 420, bossesSlain: 850, eggsHatched: 45000, highestWorld: 20, equippedSkin: 'diamond' },
+            { uid: 'rival_2', name: 'SingularityDuck', lifetimeQuacks: 5e96, rebirths: 310, bossesSlain: 620, eggsHatched: 31000, highestWorld: 20, equippedSkin: 'void' },
+            { uid: 'rival_3', name: 'MallardOverlord', lifetimeQuacks: 2.5e78, rebirths: 230, bossesSlain: 410, eggsHatched: 19500, highestWorld: 20, equippedSkin: 'emerald' },
+            { uid: 'rival_4', name: 'AstralHonker99', lifetimeQuacks: 8e60, rebirths: 175, bossesSlain: 290, eggsHatched: 12000, highestWorld: 19, equippedSkin: 'magma' },
+            { uid: 'rival_5', name: 'CyberBeakPro', lifetimeQuacks: 1.2e44, rebirths: 120, bossesSlain: 180, eggsHatched: 7500, highestWorld: 17, equippedSkin: 'cyber' },
+            { uid: 'rival_6', name: 'GoldenLoafKing', lifetimeQuacks: 4e28, rebirths: 65, bossesSlain: 95, eggsHatched: 3200, highestWorld: 14, equippedSkin: 'diamond' },
+            { uid: 'rival_7', name: 'PondLegend77', lifetimeQuacks: 1e14, rebirths: 24, bossesSlain: 32, eggsHatched: 850, highestWorld: 9, equippedSkin: 'classic' }
+        ];
+
+        function getLocalPlayerUid() {
+            if (window.currentCloudUser) return window.currentCloudUser.uid;
+            let localId = localStorage.getItem('duckQuackLocalUid');
+            if (!localId) {
+                localId = 'QUACK-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+                localStorage.setItem('duckQuackLocalUid', localId);
+            }
+            return localId;
+        }
+
         function getCombinedLeaderboard(sortBy = 'lifetimeQuacks') {
-            const myUid = window.currentCloudUser ? window.currentCloudUser.uid : 'local_player';
+            const myUid = getLocalPlayerUid();
             const map = new Map();
+            GLOBAL_RIVALS.forEach(r => map.set(r.uid, r));
             liveLeaderboardRows.forEach(r => map.set(r.uid, r));
             map.set(myUid, {
                 uid: myUid,
@@ -3006,7 +3027,7 @@
                 <div class="flex items-center justify-between px-2 py-1 rounded-xl ${p.isMe ? 'bg-amber-500/20 border border-amber-400/30' : 'bg-slate-900/70'}">
                     <div class="flex items-center gap-1.5 truncate">
                         <span class="font-black ${medals[i] || 'text-slate-400'}">#${i + 1}</span>
-                        <span class="font-bold text-white truncate">${p.name}</span>
+                        <span class="font-bold text-white truncate">${i === 0 ? '👑 ' : ''}${p.name}</span>
                     </div>
                     <span class="font-extrabold text-amber-300 shrink-0">${formatNum(p.lifetimeQuacks)}</span>
                 </div>
@@ -3014,19 +3035,28 @@
         }
 
         function renderFullLeaderboard() {
+            const badge = document.getElementById('fullUserIdBadge');
+            if (badge) badge.textContent = getLocalPlayerUid();
             const container = document.getElementById('fullLeaderboardList');
             if (!container) return;
             const rows = getCombinedLeaderboard(activeLbCategory).slice(0, 50);
             container.innerHTML = rows.map((p, idx) => {
                 const skin = SKINS.find(s => s.id === p.equippedSkin) || SKINS[0];
                 const val = p[activeLbCategory] || 0;
+                const isChamp = idx === 0;
                 return `
-                    <div class="flex items-center justify-between p-3 rounded-2xl border ${p.isMe ? 'bg-amber-500/15 border-amber-400/50' : 'bg-slate-950/75 border-white/10'}">
+                    <div class="flex items-center justify-between p-3 rounded-2xl border ${isChamp ? 'bg-gradient-to-r from-amber-500/25 via-yellow-500/15 to-amber-500/25 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.2)]' : p.isMe ? 'bg-amber-500/15 border-amber-400/50' : 'bg-slate-950/75 border-white/10'}">
                         <div class="flex items-center gap-3 min-w-0">
                             <span class="title-font text-base w-7 text-center ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-slate-300' : idx === 2 ? 'text-amber-600' : 'text-slate-500'}">#${idx + 1}</span>
-                            <div class="w-8 h-8 rounded-full shrink-0 border-2 border-slate-900" style="background:${skin.body};"></div>
+                            <div class="relative w-8 h-8 rounded-full shrink-0 border-2 ${isChamp ? 'border-yellow-300' : 'border-slate-900'}" style="background:${skin.body};">
+                                ${isChamp ? '<i class="fa-solid fa-crown text-[11px] text-yellow-300 absolute -top-2.5 left-1/2 -translate-x-1/2 drop-shadow"></i>' : ''}
+                            </div>
                             <div class="min-w-0">
-                                <div class="text-sm font-extrabold text-white truncate">${p.name} ${p.isMe ? '<span class="text-[10px] text-amber-300">(YOU)</span>' : ''}</div>
+                                <div class="text-sm font-extrabold text-white truncate flex items-center gap-1.5">
+                                    <span>${p.name}</span>
+                                    ${isChamp ? '<span class="text-[9px] font-black uppercase bg-yellow-400 text-slate-950 px-1.5 py-0.5 rounded-full">👑 #1 Champion</span>' : ''}
+                                    ${p.isMe ? '<span class="text-[10px] text-amber-300">(YOU)</span>' : ''}
+                                </div>
                                 <div class="text-[10px] text-slate-400">Realm ${p.highestWorld || 1} • ${p.rebirths || 0} Rebirths</div>
                             </div>
                         </div>
