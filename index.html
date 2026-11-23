@@ -1962,6 +1962,7 @@
         }
 
         function onDuckClick(e) {
+            if (e && e.detail === 0) return;
             playSound('quack');
             game.totalTaps = (game.totalTaps || 0) + 1;
             game.passXp = (game.passXp || 0) + 10;
@@ -2861,6 +2862,15 @@
             layer.innerHTML = html;
         }
 
+        function getCommanderRank() {
+            const w = game.highestWorld || 1;
+            if (w >= 20) return "GENESIS OVERLORD";
+            if (w >= 15) return "OMNIVERSE GOD";
+            if (w >= 10) return "VOID EMPEROR";
+            if (w >= 5) return "QUACK BARON";
+            return "POND NOVICE";
+        }
+
         function renderAll() {
             const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
             setTxt('dispQuacks', formatNum(game.quacks));
@@ -2869,6 +2879,7 @@
             setTxt('dispFeathers', formatNum(game.feathers));
             setTxt('dispShards', formatNum(game.shards));
             setTxt('dispRelics', formatNum(game.relics));
+            setTxt('headerRankBadge', getCommanderRank());
 
             const idBadge = document.getElementById('fullUserIdBadge');
             if (idBadge && idBadge.textContent === 'Generating...') {
@@ -2883,7 +2894,17 @@
 
             const worldBg = document.getElementById('worldSvgBg');
             if (worldBg) {
-                worldBg.style.background = `radial-gradient(circle at 50% 30%, ${w.sky}33 0%, ${w.ground}44 75%, transparent 100%)`;
+                worldBg.innerHTML = `<svg viewBox="0 0 800 500" preserveAspectRatio="none" class="w-full h-full opacity-55">
+                    <defs>
+                        <radialGradient id="realmGlow" cx="50%" cy="35%" r="65%">
+                            <stop offset="0%" stop-color="${w.sky}" stop-opacity="0.55"/>
+                            <stop offset="100%" stop-color="${w.ground}" stop-opacity="0.1"/>
+                        </radialGradient>
+                    </defs>
+                    <rect width="800" height="500" fill="url(#realmGlow)"/>
+                    <path d="M0 370 Q200 325 400 370 T800 360 L800 500 L0 500 Z" fill="${w.ground}" opacity="0.45"/>
+                    <path d="M0 415 Q250 385 500 420 T800 405 L800 500 L0 500 Z" fill="${w.sky}" opacity="0.25"/>
+                </svg>`;
             }
 
             const now = Date.now();
@@ -2897,26 +2918,6 @@
                     return `<span class="bg-fuchsia-950/80 border border-fuchsia-400/40 text-fuchsia-200 text-[10px] font-bold px-2 py-0.5 rounded-full">${pDef ? pDef.name : pid} (${secs}s)</span>`;
                 }).join('');
             }
-            game.gems += 500;
-            updateSpinUI();
-            renderAll();
-            showToast("Wheel Prize: +500 Gems!", "success");
-        }
-
-        function renderAll() {
-            const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-            setTxt('dispQuacks', formatNum(game.quacks));
-            setTxt('dispGems', formatNum(game.gems));
-            setTxt('dispRP', formatNum(game.rp));
-            setTxt('dispFeathers', formatNum(game.feathers));
-            setTxt('dispShards', formatNum(game.shards));
-            setTxt('dispRelics', formatNum(game.relics));
-
-            const w = WORLDS.find(x => x.id === game.currentWorld) || WORLDS[0];
-            setTxt('headerWorldBadge', `W${w.id}: ${w.name}`);
-            setTxt('currentWorldName', w.name);
-            setTxt('currentWorldDesc', w.desc);
-            setTxt('worldTierTag', `${w.id} / 20`);
 
             setTxt('statQPC', formatNum(getQuacksPerClick()));
             setTxt('statQPS', formatNum(getQuacksPerSecond()) + '/s');
