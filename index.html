@@ -1308,15 +1308,43 @@
         let activeWeather = null;
         let weatherEndsAt = 0;
 
+        function sanitizeNumber(val, fallback = 0) {
+            const num = Number(val);
+            if (!Number.isFinite(num) || Number.isNaN(num) || num < 0) return fallback;
+            return num;
+        }
+
         function loadGame() {
             try {
                 const raw = localStorage.getItem('duckQuackUltimateSaveV3');
+                const savedAvatar = localStorage.getItem('duckQuackAvatarV3') || "";
                 if (raw) {
                     const parsed = JSON.parse(raw);
                     game = {
                         ...game,
                         ...parsed,
-                        upgrades: { ...game.upgrades, ...(parsed.upgrades || {}) },
+                        quacks: sanitizeNumber(parsed.quacks, 0),
+                        lifetimeQuacks: Math.max(sanitizeNumber(parsed.lifetimeQuacks, 0), sanitizeNumber(parsed.quacks, 0)),
+                        gems: sanitizeNumber(parsed.gems, 250),
+                        rp: sanitizeNumber(parsed.rp, 0),
+                        feathers: sanitizeNumber(parsed.feathers, 0),
+                        shards: sanitizeNumber(parsed.shards, 0),
+                        relics: sanitizeNumber(parsed.relics, 0),
+                        rebirths: Math.floor(sanitizeNumber(parsed.rebirths, 0)),
+                        transcendenceCount: Math.floor(sanitizeNumber(parsed.transcendenceCount, 0)),
+                        bossesSlain: Math.floor(sanitizeNumber(parsed.bossesSlain, 0)),
+                        totalTaps: Math.floor(sanitizeNumber(parsed.totalTaps, 0)),
+                        eggsHatched: Math.floor(sanitizeNumber(parsed.eggsHatched, 0)),
+                        currentWorld: Math.max(1, Math.floor(sanitizeNumber(parsed.currentWorld, 1))),
+                        highestWorld: Math.max(1, Math.floor(sanitizeNumber(parsed.highestWorld, 1))),
+                        profilePic: savedAvatar || parsed.profilePic || "",
+                        upgrades: {
+                            clickPower: Math.max(1, Math.floor(sanitizeNumber(parsed.upgrades?.clickPower, 1))),
+                            autoSpeed: Math.max(0, Math.floor(sanitizeNumber(parsed.upgrades?.autoSpeed, 0))),
+                            critChance: Math.max(1, Math.floor(sanitizeNumber(parsed.upgrades?.critChance, 1))),
+                            critMult: Math.max(1, Math.floor(sanitizeNumber(parsed.upgrades?.critMult, 1))),
+                            feverBoost: Math.max(1, Math.floor(sanitizeNumber(parsed.upgrades?.feverBoost, 1)))
+                        },
                         rpUpgrades: { ...game.rpUpgrades, ...(parsed.rpUpgrades || {}) },
                         ascensionNodes: parsed.ascensionNodes || {},
                         voidUpgrades: parsed.voidUpgrades || {},
@@ -1327,10 +1355,12 @@
                         ownedCards: parsed.ownedCards || {},
                         monuments: parsed.monuments || {},
                         redeemedCodes: parsed.redeemedCodes || {},
-                        unlockedSkins: parsed.unlockedSkins || ["classic"],
-                        unlockedAuras: parsed.unlockedAuras || ["none"],
-                        unlockedHats: parsed.unlockedHats || ["none"],
-                        unlockedShades: parsed.unlockedShades || ["none"]
+                        unlockedSkins: Array.isArray(parsed.unlockedSkins) && parsed.unlockedSkins.length ? parsed.unlockedSkins : ["classic"],
+                        unlockedAuras: Array.isArray(parsed.unlockedAuras) && parsed.unlockedAuras.length ? parsed.unlockedAuras : ["none"],
+                        unlockedHats: Array.isArray(parsed.unlockedHats) && parsed.unlockedHats.length ? parsed.unlockedHats : ["none"],
+                        unlockedShades: Array.isArray(parsed.unlockedShades) && parsed.unlockedShades.length ? parsed.unlockedShades : ["none"],
+                        pets: Array.isArray(parsed.pets) ? parsed.pets : [],
+                        discoveredPets: parsed.discoveredPets || {}
                     };
                     const elapsedSec = Math.min(28800, Math.floor((Date.now() - (game.lastSaveTime || Date.now())) / 1000));
                     if (elapsedSec > 15 && getQuacksPerSecond() > 0) {
@@ -1346,14 +1376,32 @@
 
         function saveGame() {
             game.lastSaveTime = Date.now();
+            game.quacks = sanitizeNumber(game.quacks, 0);
+            game.lifetimeQuacks = Math.max(sanitizeNumber(game.lifetimeQuacks, 0), game.quacks);
             try {
-                localStorage.setItem('duckQuackUltimateSaveV3', JSON.stringify(game));
-            } catch (e) {}
+                // Store avatar separately so large base64 data never hits storage limits for core progress
+                if (game.profilePic) {
+                    try { localStorage.setItem('duckQuackAvatarV3', game.profilePic); } catch (avatarErr) {}
+                } else {
+                    localStorage.removeItem('duckQuackAvatarV3');
+                }
+                const coreState = { ...game, profilePic: "" };
+                localStorage.setItem('duckQuackUltimateSaveV3', JSON.stringify(coreState));
+            } catch (e) {
+                console.warn("Storage write warning:", e);
+            }
         }
 
+        window.addEventListener('beforeunload', () => saveGame());
+        document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'hidden') saveGame();
+        });
+
         function exportSave() {
+            saveGame();
             const box = document.getElementById('saveStringBox');
-            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(game))));
+            const exportPayload = { ...game, profilePic: "" };
+            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(exportPayload))));
             box.value = encoded;
             box.select();
             document.execCommand('copy');
@@ -1795,13 +1843,14 @@
 
         function buyUpgrade(key) {
             const cost = getUpgradeCost(key);
-            if (game.quacks < cost) {
+            if (!Number.isFinite(cost) || game.quacks < cost) {
                 showToast('Not enough Quacks!', 'warning');
                 return;
             }
-            game.quacks -= cost;
-            game.upgrades[key] = (game.upgrades[key] || 0) + 1;
+            game.quacks = Math.max(0, game.quacks - cost);
+            game.upgrades[key] = Math.max(1, Math.floor(game.upgrades[key] || 0)) + 1;
             playSound('coin');
+            saveGame();
             updateTopUI();
         }
 
@@ -2414,33 +2463,35 @@
         }
 
         async function saveToCloud(notify = false) {
-            if (!cloudDb || !currentCloudUser || !window.FirebaseModules) {
-                if (notify) showToast('Cloud connection unavailable right now.', 'warning');
+            saveGame();
+            if (!window.cloudDb || !window.currentCloudUser || !window.FirebaseModules) {
+                if (notify) showToast('Saved locally! (Cloud offline in preview)', 'info');
                 return;
             }
             try {
                 const { doc, setDoc } = window.FirebaseModules;
-                const saveDocRef = doc(cloudDb, 'artifacts', cloudAppId, 'users', currentCloudUser.uid, 'saves', 'main');
+                const saveDocRef = doc(window.cloudDb, 'artifacts', window.cloudAppId, 'users', window.currentCloudUser.uid, 'saves', 'main');
+                const cleanPayload = { ...game, profilePic: (game.profilePic || "").slice(0, 65000) };
                 await setDoc(saveDocRef, {
-                    payload: JSON.stringify(game),
+                    payload: JSON.stringify(cleanPayload),
                     updatedAt: Date.now()
                 });
                 const badge = document.getElementById('cloudSaveStatusBadge');
                 if (badge) badge.innerText = `Synced ${new Date().toLocaleTimeString()}`;
                 if (notify) showToast('Full game progress backed up to Cloud!', 'success');
             } catch (e) {
-                if (notify) showToast('Cloud save failed.', 'error');
+                if (notify) showToast('Cloud save failed, saved locally.', 'warning');
             }
         }
 
         async function loadFromCloud(notify = false) {
-            if (!cloudDb || !currentCloudUser || !window.FirebaseModules) {
+            if (!window.cloudDb || !window.currentCloudUser || !window.FirebaseModules) {
                 if (notify) showToast('Cloud connection unavailable right now.', 'warning');
                 return;
             }
             try {
                 const { doc, getDoc } = window.FirebaseModules;
-                const saveDocRef = doc(cloudDb, 'artifacts', cloudAppId, 'users', currentCloudUser.uid, 'saves', 'main');
+                const saveDocRef = doc(window.cloudDb, 'artifacts', window.cloudAppId, 'users', window.currentCloudUser.uid, 'saves', 'main');
                 const snap = await getDoc(saveDocRef);
                 if (snap.exists() && snap.data().payload) {
                     localStorage.setItem('duckQuackUltimateSaveV3', snap.data().payload);
@@ -2949,9 +3000,9 @@
         let activeLbCategory = 'lifetimeQuacks';
 
         window.startLeaderboardListener = function () {
-            if (!cloudDb || !window.FirebaseModules) return;
+            if (!window.cloudDb || !window.FirebaseModules) return;
             const { collection, onSnapshot } = window.FirebaseModules;
-            const lbCol = collection(cloudDb, 'artifacts', cloudAppId, 'public', 'data', 'leaderboard');
+            const lbCol = collection(window.cloudDb, 'artifacts', window.cloudAppId, 'public', 'data', 'leaderboard');
             onSnapshot(lbCol, (snapshot) => {
                 const rows = [];
                 snapshot.forEach(docSnap => {
@@ -2966,8 +3017,11 @@
         };
 
         window.syncLeaderboardScore = async function (notify = false) {
+            saveGame();
+            renderMiniLeaderboard();
+            renderFullLeaderboard();
             if (!window.cloudDb || !window.currentCloudUser || !window.FirebaseModules) {
-                if (notify) showToast('Offline mode: score saved locally!', 'info');
+                if (notify) showToast('Leaderboard updated locally!', 'success');
                 return;
             }
             try {
@@ -2975,7 +3029,7 @@
                 const playerRef = doc(window.cloudDb, 'artifacts', window.cloudAppId, 'public', 'data', 'leaderboard', window.currentCloudUser.uid);
                 await setDoc(playerRef, {
                     name: (game.playerName || 'QuackCommander').slice(0, 18),
-                    profilePic: game.profilePic || "",
+                    profilePic: (game.profilePic || "").slice(0, 65000),
                     lifetimeQuacks: Math.floor(game.lifetimeQuacks || 0),
                     rebirths: game.rebirths || 0,
                     bossesSlain: game.bossesSlain || 0,
@@ -2986,7 +3040,7 @@
                 }, { merge: true });
                 if (notify) showToast('Synced to Global Leaderboard!', 'success');
             } catch (e) {
-                if (notify) showToast('Sync delayed, retrying soon.', 'warning');
+                if (notify) showToast('Updated locally (cloud sync queued).', 'info');
             }
         };
 
@@ -3187,66 +3241,6 @@
             renderFullLeaderboard();
         }
 
-        function renderMiniLeaderboard() {
-            const list = document.getElementById('miniLeaderboardList');
-            if (!list) return;
-            const top = getCombinedLeaderboard('lifetimeQuacks').slice(0, 3);
-            const medals = ['text-yellow-400', 'text-slate-300', 'text-amber-600'];
-            list.innerHTML = top.map((p, i) => `
-                <div class="flex items-center justify-between px-2 py-1 rounded-xl ${p.isMe ? 'bg-amber-500/20 border border-amber-400/30' : 'bg-slate-900/70'}">
-                    <div class="flex items-center gap-1.5 truncate">
-                        <span class="font-black ${medals[i] || 'text-slate-400'}">#${i + 1}</span>
-                        <span class="font-bold text-white truncate">${i === 0 ? '👑 ' : ''}${p.name}</span>
-                    </div>
-                    <span class="font-extrabold text-amber-300 shrink-0">${formatNum(p.lifetimeQuacks)}</span>
-                </div>
-            `).join('');
-        }
-
-        function renderFullLeaderboard() {
-            const badge = document.getElementById('fullUserIdBadge');
-            if (badge) badge.textContent = getLocalPlayerUid();
-            const container = document.getElementById('fullLeaderboardList');
-            if (!container) return;
-            const rows = getCombinedLeaderboard(activeLbCategory).slice(0, 50);
-            container.innerHTML = rows.map((p, idx) => {
-                const skin = SKINS.find(s => s.id === p.equippedSkin) || SKINS[0];
-                const val = p[activeLbCategory] || 0;
-                const isChamp = idx === 0;
-                return `
-                    <div class="flex items-center justify-between p-3 rounded-2xl border ${isChamp ? 'bg-gradient-to-r from-amber-500/25 via-yellow-500/15 to-amber-500/25 border-yellow-400 shadow-[0_0_20px_rgba(250,204,21,0.2)]' : p.isMe ? 'bg-amber-500/15 border-amber-400/50' : 'bg-slate-950/75 border-white/10'}">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="title-font text-base w-7 text-center ${idx === 0 ? 'text-yellow-400' : idx === 1 ? 'text-slate-300' : idx === 2 ? 'text-amber-600' : 'text-slate-500'}">#${idx + 1}</span>
-                            <div class="relative w-8 h-8 rounded-full shrink-0 border-2 ${isChamp ? 'border-yellow-300' : 'border-slate-900'}" style="background:${skin.body};">
-                                ${isChamp ? '<i class="fa-solid fa-crown text-[11px] text-yellow-300 absolute -top-2.5 left-1/2 -translate-x-1/2 drop-shadow"></i>' : ''}
-                            </div>
-                            <div class="min-w-0">
-                                <div class="text-sm font-extrabold text-white truncate flex items-center gap-1.5">
-                                    <span>${p.name}</span>
-                                    ${isChamp ? '<span class="text-[9px] font-black uppercase bg-yellow-400 text-slate-950 px-1.5 py-0.5 rounded-full">👑 #1 Champion</span>' : ''}
-                                    ${p.isMe ? '<span class="text-[10px] text-amber-300">(YOU)</span>' : ''}
-                                </div>
-                                <div class="text-[10px] text-slate-400">Realm ${p.highestWorld || 1} • ${p.rebirths || 0} Rebirths</div>
-                            </div>
-                        </div>
-                        <div class="title-font text-sm sm:text-base text-amber-300 shrink-0">${formatNum(val)}</div>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function savePlayerName() {
-            const val = document.getElementById('playerNameInput').value.trim();
-            if (!val) {
-                showToast('Please enter a valid display name.', 'warning');
-                return;
-            }
-            game.playerName = val.slice(0, 18);
-            saveGame();
-            window.syncLeaderboardScore(true);
-            renderMiniLeaderboard();
-        }
-
         function renderPromoCodesList() {
             const grid = document.getElementById('promoCodesListGrid');
             if (!grid) return;
@@ -3392,9 +3386,10 @@
 
             setInterval(() => {
                 saveGame();
+                renderMiniLeaderboard();
                 if (window.syncLeaderboardScore) window.syncLeaderboardScore(false);
                 if (window.currentCloudUser) saveToCloud(false);
-            }, 15000);
+            }, 5000);
         }
 
         window.onload = function () {
