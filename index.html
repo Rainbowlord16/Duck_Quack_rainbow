@@ -1564,11 +1564,29 @@
                 MASTERY_DEFS.forEach(m => { game.masteries[m.id] = 99; });
                 TRADING_CARDS.forEach(c => { game.ownedCards[c.id] = MAX_STAT; });
                 game.monuments = { mon_vault: MAX_STAT, mon_fountain: MAX_STAT, mon_observatory: MAX_STAT, mon_sanctum: MAX_STAT };
+                for (let t = 1; t <= 50; t++) { game.claimedPassTiers[t] = true; }
+                const farFuture = Date.now() + 365 * 24 * 60 * 60 * 1000;
+                POTION_DEFS.forEach(p => { game.activePotions[p.id] = farFuture; });
+                game.equippedSkin = "diamond";
+                game.equippedAura = "void";
+                game.equippedHat = "crown";
+                game.equippedShades = "visor";
+                game.pets = [];
+                Object.keys(PET_SPECIES).forEach((spKey, idx) => {
+                    game.pets.push({
+                        uid: 'max_pet_' + idx + '_' + spKey,
+                        speciesKey: spKey,
+                        evoTier: 5,
+                        equipped: false
+                    });
+                });
+                const godPets = game.pets.slice(-8);
+                godPets.forEach(p => { p.equipped = true; });
                 saveGame();
                 renderAll();
                 renderProfileAvatarPreview();
                 if (typeof syncLeaderboardScore === 'function') syncLeaderboardScore(true);
-                showToast('RainbowLord16 Admin Account MAXED to 999 Sp!', 'success');
+                showToast('RainbowLord16 Admin Account 100% MAXED!', 'success');
             } catch (err) {
                 showToast('Error restoring admin save: ' + err.message, 'error');
             }
