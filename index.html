@@ -108,6 +108,13 @@
         .rarity-legendary { border-color: #facc15; background: linear-gradient(145deg, rgba(161,98,7,0.65), rgba(15,23,42,0.85)); }
         .rarity-mythical { border-color: #f43f5e; background: linear-gradient(145deg, rgba(159,18,57,0.65), rgba(15,23,42,0.85)); }
         .rarity-godly { border-color: #22d3ee; background: linear-gradient(145deg, rgba(21,94,117,0.75), rgba(88,28,135,0.85)); }
+        @keyframes rainbowPrismCycle {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+        .rainbow-prism-anim {
+            animation: rainbowPrismCycle 3s linear infinite;
+        }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
         ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.35); border-radius: 999px; }
@@ -502,7 +509,7 @@
             <div class="p-4 border-b border-white/10 flex flex-wrap justify-between items-center gap-2 bg-slate-900/80">
                 <div>
                     <h2 class="title-font text-lg sm:text-xl text-purple-300 flex items-center gap-2"><i class="fa-solid fa-paw"></i> Pet Squad & Evolution Forge</h2>
-                    <p class="text-xs text-slate-400">5x Normal → Golden (3x) → Rainbow (9x) → Dark Matter (27x) → Astral (100x)</p>
+                    <p class="text-xs text-slate-400">5x Normal → Golden (3x) → Dark Matter (15x) → Astral (50x) → Rainbow Supreme (500x)</p>
                 </div>
                 <div class="flex items-center gap-2">
                     <button onclick="equipBestPets()" class="arcade-btn bg-emerald-600 text-white text-xs font-extrabold px-3 py-1.5 rounded-xl">Equip Best</button>
@@ -1108,9 +1115,9 @@
         const EVO_TIERS = [
             { tier: 1, name: "Normal", mult: 1, badge: "bg-slate-700 text-slate-200" },
             { tier: 2, name: "Golden", mult: 3, badge: "bg-amber-500 text-slate-950" },
-            { tier: 3, name: "Rainbow", mult: 9, badge: "bg-gradient-to-r from-pink-500 via-amber-400 to-cyan-400 text-slate-950" },
-            { tier: 4, name: "Dark Matter", mult: 27, badge: "bg-purple-700 text-purple-100" },
-            { tier: 5, name: "Astral", mult: 100, badge: "bg-cyan-400 text-slate-950" }
+            { tier: 3, name: "Dark Matter", mult: 15, badge: "bg-purple-700 text-purple-100" },
+            { tier: 4, name: "Astral", mult: 50, badge: "bg-cyan-400 text-slate-950" },
+            { tier: 5, name: "Rainbow Supreme", mult: 500, badge: "bg-gradient-to-r from-rose-500 via-amber-300 via-emerald-400 to-indigo-500 text-slate-950 rainbow-prism-anim" }
         ];
 
         const SKINS = [
@@ -1122,14 +1129,16 @@
             { id: "void", name: "Astral Void Duck", mult: 5.0, cost: 12000, body: "#9333ea", belly: "#e9d5ff", beak: "#22d3ee" },
             { id: "emerald", name: "Jade Emperor", mult: 7.5, cost: 30000, body: "#10b981", belly: "#a7f3d0", beak: "#fbbf24" },
             { id: "royal", name: "Royal Dominus King", mult: 12.0, cost: 75000, body: "#f59e0b", belly: "#fef9c3", beak: "#ea580c" },
-            { id: "diamond", name: "24K Diamond Idol", mult: 20.0, cost: 150000, body: "#67e8f9", belly: "#ffffff", beak: "#f43f5e" }
+            { id: "diamond", name: "24K Diamond Idol", mult: 20.0, cost: 150000, body: "#67e8f9", belly: "#ffffff", beak: "#f43f5e" },
+            { id: "rainbow_king", name: "Rainbow Sovereign", mult: 50.0, cost: 500000, body: "url(#rainbowGradBody)", belly: "#ffffff", beak: "#facc15", isRainbow: true }
         ];
 
         const AURAS = [
             { id: "none", name: "No Aura", mult: 1.0, cost: 0, style: "" },
             { id: "solar", name: "Solar Halo", mult: 1.4, cost: 400, style: "border: 4px dashed #facc15; box-shadow: 0 0 30px rgba(250,204,21,0.5);" },
             { id: "cyber", name: "Neon Matrix", mult: 2.0, cost: 1800, style: "border: 4px solid #22d3ee; box-shadow: 0 0 35px rgba(34,211,238,0.65);" },
-            { id: "void", name: "Astral Vortex", mult: 4.0, cost: 7500, style: "border: 5px double #c084fc; box-shadow: 0 0 45px rgba(192,132,252,0.8);" }
+            { id: "void", name: "Astral Vortex", mult: 4.0, cost: 7500, style: "border: 5px double #c084fc; box-shadow: 0 0 45px rgba(192,132,252,0.8);" },
+            { id: "rainbow_aura", name: "Prismatic Rainbow", mult: 10.0, cost: 25000, style: "border: 6px solid #f43f5e; box-shadow: 0 0 55px rgba(250,204,21,0.9), inset 0 0 25px rgba(56,189,248,0.8); animation: auraPulse 5s linear infinite, rainbowPrismCycle 2.5s linear infinite;" }
         ];
 
         const HATS = [
@@ -1137,7 +1146,8 @@
             { id: "crown", name: "Royal Crown", mult: 1.5, cost: 600, svg: `<polygon points="74,40 80,18 92,31 102,13 112,31 124,18 130,40" fill="#facc15" stroke="#0f172a" stroke-width="5" stroke-linejoin="round"/><circle cx="102" cy="30" r="3.5" fill="#ef4444"/>` },
             { id: "propeller", name: "Propeller Cap", mult: 1.35, cost: 350, svg: `<path d="M74 42 Q102 22 130 42 Z" fill="#3b82f6" stroke="#0f172a" stroke-width="4"/><rect x="99" y="18" width="6" height="10" fill="#facc15" stroke="#0f172a" stroke-width="3"/><ellipse cx="102" cy="18" rx="22" ry="4" fill="#ef4444" stroke="#0f172a" stroke-width="3"/>` },
             { id: "halo", name: "Angel Halo", mult: 2.0, cost: 2200, svg: `<ellipse cx="102" cy="22" rx="26" ry="7" fill="none" stroke="#fef08a" stroke-width="5"/><ellipse cx="102" cy="22" rx="26" ry="7" fill="none" stroke="#f59e0b" stroke-width="2"/>` },
-            { id: "wizard", name: "Astral Wizard", mult: 3.0, cost: 6500, svg: `<polygon points="68,42 102,4 136,42" fill="#7c3aed" stroke="#0f172a" stroke-width="5" stroke-linejoin="round"/><ellipse cx="102" cy="42" rx="40" ry="7" fill="#6d28d9" stroke="#0f172a" stroke-width="4"/><polygon points="102,18 105,25 112,25 106,29 108,36 102,32 96,36 98,29 92,25 99,25" fill="#facc15"/>` }
+            { id: "wizard", name: "Astral Wizard", mult: 3.0, cost: 6500, svg: `<polygon points="68,42 102,4 136,42" fill="#7c3aed" stroke="#0f172a" stroke-width="5" stroke-linejoin="round"/><ellipse cx="102" cy="42" rx="40" ry="7" fill="#6d28d9" stroke="#0f172a" stroke-width="4"/><polygon points="102,18 105,25 112,25 106,29 108,36 102,32 96,36 98,29 92,25 99,25" fill="#facc15"/>` },
+            { id: "rainbow_crown", name: "King of Rainbows Crown", mult: 5.0, cost: 20000, svg: `<g class="rainbow-prism-anim"><polygon points="70,42 78,12 91,29 102,8 113,29 126,12 134,42" fill="#f43f5e" stroke="#0f172a" stroke-width="5" stroke-linejoin="round"/><circle cx="88" cy="32" r="3.5" fill="#38bdf8"/><circle cx="102" cy="27" r="4.5" fill="#facc15"/><circle cx="116" cy="32" r="3.5" fill="#4ade80"/></g>` }
         ];
 
         const SHADES = [
@@ -1567,9 +1577,9 @@
                 for (let t = 1; t <= 50; t++) { game.claimedPassTiers[t] = true; }
                 const farFuture = Date.now() + 365 * 24 * 60 * 60 * 1000;
                 POTION_DEFS.forEach(p => { game.activePotions[p.id] = farFuture; });
-                game.equippedSkin = "diamond";
-                game.equippedAura = "void";
-                game.equippedHat = "crown";
+                game.equippedSkin = "rainbow_king";
+                game.equippedAura = "rainbow_aura";
+                game.equippedHat = "rainbow_crown";
                 game.equippedShades = "visor";
                 game.pets = [];
                 Object.keys(PET_SPECIES).forEach((spKey, idx) => {
@@ -1586,7 +1596,7 @@
                 renderAll();
                 renderProfileAvatarPreview();
                 if (typeof syncLeaderboardScore === 'function') syncLeaderboardScore(true);
-                showToast('RainbowLord16 Admin Account 100% MAXED!', 'success');
+                showToast('RainbowLord16 — KING OF RAINBOWS 100% MAXED!', 'success');
             } catch (err) {
                 showToast('Error restoring admin save: ' + err.message, 'error');
             }
@@ -2180,15 +2190,24 @@
 
             const fav = document.getElementById('duckFavicon');
             if (fav) {
-                const bodyHex = encodeURIComponent(skin.body);
+                const bodyHex = encodeURIComponent(skin.isRainbow ? '#ec4899' : skin.body);
                 const beakHex = encodeURIComponent(skin.beak);
                 fav.href = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230f172a' stroke='${bodyHex}' stroke-width='4'/%3E%3Cpath d='M16 40 C16 28, 48 28, 50 41 C52 52, 42 54, 32 54 C20 54, 16 49, 16 40 Z' fill='${bodyHex}' stroke='%23090d16' stroke-width='3'/%3E%3Ccircle cx='28' cy='24' r='13' fill='${bodyHex}' stroke='%23090d16' stroke-width='3'/%3E%3Ccircle cx='23' cy='22' r='2.6' fill='%23090d16'/%3E%3Ccircle cx='32' cy='22' r='2.6' fill='%23090d16'/%3E%3Cpath d='M18 27 C18 24, 33 24, 33 28 C33 32, 18 32, 18 27 Z' fill='${beakHex}' stroke='%23090d16' stroke-width='2.5'/%3E%3C/svg%3E`;
             }
 
-            wrap.innerHTML = `<svg viewBox="0 0 240 240" class="w-full h-full">
+            wrap.innerHTML = `<svg viewBox="0 0 240 240" class="w-full h-full ${skin.isRainbow ? 'rainbow-prism-anim' : ''}">
+                <defs>
+                    <linearGradient id="rainbowGradBody" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stop-color="#f43f5e"/>
+                        <stop offset="25%" stop-color="#facc15"/>
+                        <stop offset="50%" stop-color="#4ade80"/>
+                        <stop offset="75%" stop-color="#38bdf8"/>
+                        <stop offset="100%" stop-color="#c084fc"/>
+                    </linearGradient>
+                </defs>
                 <ellipse cx="120" cy="205" rx="74" ry="15" fill="rgba(0,0,0,0.35)"/>
                 <path d="M52 135 C52 95, 178 95, 184 140 C190 180, 155 190, 115 190 C70 190, 52 172, 52 135 Z" fill="${skin.body}" stroke="#0f172a" stroke-width="8"/>
-                <path d="M68 142 C72 115, 150 115, 156 144 C160 168, 136 176, 110 176 C80 176, 66 164, 68 142 Z" fill="${skin.belly}"/>
+                <path d="M68 142 C72 115, 150 115, 156 144 C160 168, 136 176, 110 176 C80 176, 66 164, 68 142 Z" fill="${skin.belly}" opacity="${skin.isRainbow ? '0.55' : '1'}"/>
                 <circle cx="102" cy="82" r="46" fill="${skin.body}" stroke="#0f172a" stroke-width="8"/>
                 <circle cx="84" cy="74" r="8" fill="#0f172a"/><circle cx="81" cy="71" r="3" fill="#fff"/>
                 <circle cx="114" cy="74" r="8" fill="#0f172a"/><circle cx="111" cy="71" r="3" fill="#fff"/>
@@ -2403,8 +2422,11 @@
             el.innerHTML = SKINS.map(s => {
                 const unlocked = game.unlockedSkins.includes(s.id);
                 const eq = game.equippedSkin === s.id;
+                const swatchStyle = s.isRainbow
+                    ? 'background: linear-gradient(135deg, #f43f5e, #facc15, #4ade80, #38bdf8, #c084fc);'
+                    : `background:${s.body};`;
                 return `<div class="bg-slate-950/80 p-3 rounded-2xl border ${eq ? 'border-amber-400' : 'border-white/10'} text-center">
-                    <div class="w-8 h-8 rounded-full mx-auto mb-1" style="background:${s.body}"></div>
+                    <div class="w-8 h-8 rounded-full mx-auto mb-1 ${s.isRainbow ? 'rainbow-prism-anim' : ''}" style="${swatchStyle}"></div>
                     <div class="text-xs font-extrabold text-white">${s.name}</div>
                     <div class="text-[10px] text-amber-300 mb-2">${s.mult}x Power</div>
                     <button onclick="selectSkin('${s.id}')" class="arcade-btn w-full ${eq ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-200'} text-[11px] font-bold py-1.5 rounded-xl">
@@ -2893,7 +2915,7 @@
 
         function getCommanderRank() {
             const w = game.highestWorld || 1;
-            if (w >= 20) return "GENESIS OVERLORD";
+            if (w >= 20) return "KING OF RAINBOWS";
             if (w >= 15) return "OMNIVERSE GOD";
             if (w >= 10) return "VOID EMPEROR";
             if (w >= 5) return "QUACK BARON";
