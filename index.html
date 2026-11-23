@@ -792,6 +792,9 @@
                         <button onclick="importSave()" class="arcade-btn bg-emerald-600 text-white text-xs font-bold py-2 rounded-xl">Import</button>
                         <button onclick="promptWipeSave()" class="arcade-btn bg-rose-600 text-white text-xs font-bold py-2 rounded-xl">Wipe Save</button>
                     </div>
+                    <button type="button" onclick="restoreMaxedAccount()" class="arcade-btn w-full bg-gradient-to-r from-amber-500 via-yellow-400 to-orange-500 text-slate-950 font-black text-xs py-2.5 rounded-xl mt-1 border border-amber-200">
+                        <i class="fa-solid fa-crown me-1"></i> Restore Maxed Commander Account
+                    </button>
                 </div>
             </div>
         </div>
@@ -1309,9 +1312,140 @@
         let weatherEndsAt = 0;
 
         function sanitizeNumber(val, fallback = 0) {
+            if (val === "MAX_CAP" || val === Infinity) return 1e300;
             const num = Number(val);
             if (!Number.isFinite(num) || Number.isNaN(num) || num < 0) return fallback;
-            return num;
+            return Math.min(num, 1e300);
+        }
+
+        function findBestStoredSave() {
+            const keys = ['duckQuackUltimateSaveV3', 'duckQuackUltimateSaveV2', 'duckQuackUltimateSaveV1', 'rbxDuckSimUltimateV1'];
+            let bestParsed = null;
+            let bestScore = -1;
+            for (const key of keys) {
+                try {
+                    const raw = localStorage.getItem(key);
+                    if (!raw) continue;
+                    const parsed = JSON.parse(raw);
+                    const score = (Number(parsed.lifetimeQuacks) || Number(parsed.quacks) || 0) + (Number(parsed.rebirths) || 0) * 1e10 + (Number(parsed.highestWorld) || 1) * 1e8;
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestParsed = parsed;
+                    }
+                } catch (err) {}
+            }
+            return bestParsed;
+        }
+
+        function loadGame() {
+            try {
+                const parsed = findBestStoredSave();
+                const savedAvatar = localStorage.getItem('duckQuackAvatarV3') || "";
+                if (parsed) {
+                    game = {
+                        ...game,
+                        ...parsed,
+                        quacks: sanitizeNumber(parsed.quacks, 0),
+                        lifetimeQuacks: Math.max(sanitizeNumber(parsed.lifetimeQuacks, 0), sanitizeNumber(parsed.quacks, 0)),
+                        gems: sanitizeNumber(parsed.gems, 250),
+                        rp: sanitizeNumber(parsed.rp, 0),
+                        feathers: sanitizeNumber(parsed.feathers, 0),
+                        shards: sanitizeNumber(parsed.shards, 0),
+                        relics: sanitizeNumber(parsed.relics, 0),
+                        rebirths: Math.floor(sanitizeNumber(parsed.rebirths, 0)),
+                        transcendenceCount: Math.floor(sanitizeNumber(parsed.transcendenceCount, 0)),
+                        bossesSlain: Math.floor(sanitizeNumber(parsed.bossesSlain, 0)),
+                        totalTaps: Math.floor(sanitizeNumber(parsed.totalTaps, 0)),
+                        eggsHatched: Math.floor(sanitizeNumber(parsed.eggsHatched, 0)),
+                        currentWorld: Math.max(1, Math.floor(sanitizeNumber(parsed.currentWorld, 1))),
+                        highestWorld: Math.max(1, Math.floor(sanitizeNumber(parsed.highestWorld, 1))),
+                        profilePic: savedAvatar || parsed.profilePic || "",
+                        upgrades: {
+                            clickPower: Math.max(1, Math.floor(sanitizeNumber(parsed.upgrades?.clickPower, 1))),
+                            autoSpeed: Math.max(0, Math.floor(sanitizeNumber(parsed.upgrades?.autoSpeed, 0))),
+                            critChance: Math.max(1, Math.floor(sanitizeNumber(parsed.upgrades?.critChance, 1))),
+                            critMult: Math.max(1, Math.floor(sanitizeNumber(parsed.upgrades?.critMult, 1))),
+                            feverBoost: Math.max(1, Math.floor(sanitizeNumber(parsed.upgrades?.feverBoost, 1)))
+                        },
+                        rpUpgrades: { ...game.rpUpgrades, ...(parsed.rpUpgrades || {}) },
+                        ascensionNodes: parsed.ascensionNodes || {},
+                        voidUpgrades: parsed.voidUpgrades || {},
+                        activePotions: parsed.activePotions || {},
+                        artifacts: parsed.artifacts || {},
+                        masteries: { ...game.masteries, ...(parsed.masteries || {}) },
+                        masteryXp: parsed.masteryXp || {},
+                        ownedCards: parsed.ownedCards || {},
+                        monuments: parsed.monuments || {},
+                        redeemedCodes: parsed.redeemedCodes || {},
+                        unlockedSkins: Array.isArray(parsed.unlockedSkins) && parsed.unlockedSkins.length ? parsed.unlockedSkins : ["classic"],
+                        unlockedAuras: Array.isArray(parsed.unlockedAuras) && parsed.unlockedAuras.length ? parsed.unlockedAuras : ["none"],
+                        unlockedHats: Array.isArray(parsed.unlockedHats) && parsed.unlockedHats.length ? parsed.unlockedHats : ["none"],
+                        unlockedShades: Array.isArray(parsed.unlockedShades) && parsed.unlockedShades.length ? parsed.unlockedShades : ["none"],
+                        pets: Array.isArray(parsed.pets) ? parsed.pets : [],
+                        discoveredPets: parsed.discoveredPets || {}
+                    };
+                    const elapsedSec = Math.min(28800, Math.floor((Date.now() - (game.lastSaveTime || Date.now())) / 1000));
+                    if (elapsedSec > 15 && getQuacksPerSecond() > 0) {
+                        const offlineEarn = Math.min(1e300, getQuacksPerSecond() * elapsedSec * 0.5);
+                        addQuacks(offlineEarn);
+                        setTimeout(() => showToast(`Welcome back! Earned ${formatNum(offlineEarn)} offline Quacks!`, 'success'), 600);
+                    }
+                }
+            } catch (e) {
+                console.error("Save load fallback:", e);
+            }
+        }
+
+        function saveGame() {
+            game.lastSaveTime = Date.now();
+            game.quacks = sanitizeNumber(game.quacks, 0);
+            game.lifetimeQuacks = Math.max(sanitizeNumber(game.lifetimeQuacks, 0), game.quacks);
+            try {
+                // Store avatar separately so large base64 data never hits storage limits for core progress
+                if (game.profilePic) {
+                    try { localStorage.setItem('duckQuackAvatarV3', game.profilePic); } catch (avatarErr) {}
+                } else {
+                    localStorage.removeItem('duckQuackAvatarV3');
+                }
+                const coreState = { ...game, profilePic: "" };
+                localStorage.setItem('duckQuackUltimateSaveV3', JSON.stringify(coreState));
+            } catch (e) {
+                console.warn("Storage write warning:", e);
+            }
+        }
+
+        function restoreMaxedAccount() {
+            game.quacks = 1.0303e104;
+            game.lifetimeQuacks = Math.max(game.lifetimeQuacks, 1.0303e104);
+            game.gems = Math.max(game.gems, 250000);
+            game.rp = Math.max(game.rp, 50000);
+            game.feathers = Math.max(game.feathers, 2500);
+            game.shards = Math.max(game.shards, 500);
+            game.relics = Math.max(game.relics, 1000);
+            game.rebirths = Math.max(game.rebirths, 160);
+            game.transcendenceCount = Math.max(game.transcendenceCount || 0, 12);
+            game.currentWorld = 20;
+            game.highestWorld = 20;
+            game.upgrades.clickPower = Math.max(game.upgrades.clickPower, 250);
+            game.upgrades.autoSpeed = Math.max(game.upgrades.autoSpeed, 250);
+            game.upgrades.critChance = Math.max(game.upgrades.critChance, 50);
+            game.unlockedSkins = SKINS.map(s => s.id);
+            game.unlockedAuras = AURAS.map(a => a.id);
+            game.unlockedHats = HATS.map(h => h.id);
+            game.unlockedShades = SHADES.map(sh => sh.id);
+            Object.keys(PET_SPECIES).forEach(k => { game.discoveredPets[k] = true; });
+            if (game.pets.length === 0) {
+                ['genesis_quack_god', 'infinity_leviathan', 'celestial_archon', 'chronos_guardian', 'galaxy_dragon'].forEach((sp, i) => {
+                    game.pets.push({ uid: `restored_${i}_${Date.now()}`, speciesKey: sp, evoTier: 5, equipped: i < 3 });
+                });
+            }
+            saveGame();
+            renderWorldVisuals();
+            updateTopUI();
+            renderMiniLeaderboard();
+            renderFullLeaderboard();
+            if (window.syncLeaderboardScore) window.syncLeaderboardScore(true);
+            showToast('Maxed Commander Account Restored (Realm 20 • 160 Rebirths • 103.03 TtG)!', 'success');
         }
 
         function loadGame() {
@@ -1627,8 +1761,9 @@
         }
 
         function addQuacks(amount) {
-            game.quacks += amount;
-            game.lifetimeQuacks += amount;
+            if (!Number.isFinite(amount) || amount <= 0) return;
+            game.quacks = Math.min(1e300, game.quacks + amount);
+            game.lifetimeQuacks = Math.min(1e300, Math.max(game.lifetimeQuacks, game.quacks) + amount);
             game.passXp += Math.min(25, Math.log10(amount + 10));
         }
 
