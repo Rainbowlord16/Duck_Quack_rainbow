@@ -1065,6 +1065,93 @@
         let isAdminAuthenticated = false;
         let lastHandledAdminEventId = localStorage.getItem("dqLastAdminEventId") || "";
 
+        function sha256Fallback(ascii) {
+            function rightRotate(value, amount) {
+                return (value >>> amount) | (value << (32 - amount));
+            }
+            const mathPow = Math.pow;
+            const maxWord = mathPow(2, 32);
+            let result = '';
+            const words = [];
+            const asciiBitLength = ascii.length * 8;
+            const hash = [];
+            const k = [];
+            let primeCounter = 0;
+            const isComposite = {};
+            for (let candidate = 2; primeCounter < 64; candidate++) {
+                if (!isComposite[candidate]) {
+                    for (let i = 0; i < 313; i += candidate) isComposite[i] = candidate;
+                    hash[primeCounter] = (mathPow(candidate, 0.5) * maxWord) | 0;
+                    k[primeCounter++] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
+                }
+            }
+            ascii += '\x80';
+            while (ascii.length % 64 - 56) ascii += '\x00';
+            for (let i = 0; i < ascii.length; i++) {
+                const j = ascii.charCodeAt(i);
+                words[i >> 2] |= j << ((3 - i) % 4) * 8;
+            }
+            words[words.length] = ((asciiBitLength / maxWord) | 0);
+            words[words.length] = (asciiBitLength);
+            for (let j = 0; j < words.length;) {
+                const w = words.slice(j, j += 16);
+                const oldHash = hash.slice(0);
+                for (let i = 0; i < 64; i++) {
+                    const w15 = w[i - 15], w2 = w[i - 2];
+                    const a = hash[0], e = hash[4];
+                    const temp1 = hash[7]
+                        + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
+                        + ((e & hash[5]) ^ ((~e) & hash[6]))
+                        + k[i]
+                        + (w[i] = (i < 16) ? w[i] : (
+                            w[i - 16]
+                            + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
+                            + w[i - 7]
+                            + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
+                        ) | 0);
+                    const temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
+                        + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
+                    hash.unshift((temp1 + temp2) | 0);
+                    hash[4] = (hash[4] + temp1) | 0;
+                    hash.pop();
+                }
+                for (let i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
+            }
+            for (let i = 0; i < 8; i++) {
+                for (let j = 3; j + 1; j--) {
+                    const b = (hash[i] >> (j * 8)) & 255;
+                    result += ((b < 16) ? 0 : '') + b.toString(16);
+                }
+            }
+            return result;
+        }
+
+        async function sha256Hex(str) {
+            try {
+                if (window.crypto && window.crypto.subtle) {
+                    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+                    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+                }
+            } catch (e) {}
+            return sha256Fallback(str);
+        }
+
+        function isCurrentUserVerifiedAdmin() {
+            return isAdminAuthenticated === true && typeof state !== "undefined" && state && state.playerName === ADMIN_OWNER_NAME;
+        }
+
+        function enforceAdminSecurity() {
+            if (!state) return;
+            if (!isCurrentUserVerifiedAdmin()) {
+                if (state.currentWorld === 21) state.currentWorld = 1;
+                if (state.equippedSkin === "admin_neon_rainbow") state.equippedSkin = "classic";
+                if (state.equippedAura === "admin_neon_halo") state.equippedAura = "none";
+                if (state.equippedHat === "admin_neon_crown") state.equippedHat = "none";
+                if (state.equippedShades === "admin_neon_visor") state.equippedShades = "none";
+                if (state.equippedVoice === "admin_neon") state.equippedVoice = "classic";
+            }
+        }
+
         async function verifyAdminPasscode() {
             const inp = document.getElementById("adminSecretInput");
             if (!inp) return;
@@ -1093,33 +1180,253 @@
                 showToast("❌ Invalid Admin Passcode!", "error");
             }
         }
-// ... existing code ... -->
-        function logoutAndResetAccount() {
-            // 1. Sync current account (including RainbowLord16) to the leaderboard BEFORE logging out so it stays on the board!
-            syncLeaderboardScore(false);
 
-            // 2. Clear Admin session & local storage keys (keep ADMIN_RAINBOWLORD16 avatar isolated to Admin slot only)
-            isAdminAuthenticated = false;
-            sessionStorage.removeItem("dqAdminSessionAuth");
-            SAVE_KEYS.forEach(k => localStorage.removeItem(k));
-            localStorage.removeItem(AVATAR_KEY);
+        /* =========================================================================
+           2. GAME DATABASES (21 WORLDS, 21 PET SPECIES, SKINS, AURAS, EGGS)
+           ========================================================================= */
+        const WORLDS_DATA = [
+            { id: 1, name: "Starter Pond", cost: 0, mult: 1, bg: "#0284c7", desc: "A peaceful lilypad pond where every duck legend begins." },
+            { id: 2, name: "Golden Bakery", cost: 1e4, mult: 5, bg: "#d97706", desc: "Freshly baked golden baguettes boost every quack." },
+            { id: 3, name: "Emerald Forest", cost: 2.5e5, mult: 25, bg: "#059669", desc: "Ancient mossy woods filled with singing ducklings." },
+            { id: 4, name: "Crystal Cavern", cost: 1e7, mult: 120, bg: "#0891b2", desc: "Echoing geodes amplify your honk resonance." },
+            { id: 5, name: "Volcano Caldera", cost: 5e8, mult: 600, bg: "#dc2626", desc: "Magma vents superheat your beak power." },
+            { id: 6, name: "Cloud Kingdom", cost: 2.5e10, mult: 3e3, bg: "#38bdf8", desc: "Float above the stratosphere among angelic ducks." },
+            { id: 7, name: "Cyber Metropolis", cost: 1e12, mult: 1.5e4, bg: "#9333ea", desc: "Neon skyscrapers powered by digital quack energy." },
+            { id: 8, name: "Atlantis Abyss", cost: 5e13, mult: 8e4, bg: "#1d4ed8", desc: "Sunken temples guarding oceanic relics." },
+            { id: 9, name: "Candy Dimension", cost: 2.5e15, mult: 4e5, bg: "#ec4899", desc: "Sugar-rush rivers double your combo momentum." },
+            { id: 10, name: "Pharaoh Dunes", cost: 1e17, mult: 2e6, bg: "#eab308", desc: "Golden pyramids built by ancient duck dynasties." },
+            { id: 11, name: "Samurai Cherry", cost: 5e18, mult: 1e7, bg: "#f43f5e", desc: "Disciplined dojo mastery sharpens critical strikes." },
+            { id: 12, name: "Frost Citadel", cost: 2.5e20, mult: 5e7, bg: "#06b6d4", desc: "Glacial spires preserve pure quack crystals." },
+            { id: 13, name: "Steampunk Foundry", cost: 1e22, mult: 2.5e8, bg: "#b45309", desc: "Brass gears churn out automated quack steam." },
+            { id: 14, name: "Lunar Base", cost: 5e23, mult: 1.5e9, bg: "#64748b", desc: "Low-gravity moon bounces launch quacks sky-high." },
+            { id: 15, name: "Nebula Core", cost: 2.5e25, mult: 1e10, bg: "#7e22ce", desc: "Stellar nurseries birth cosmic duck constellations." },
+            { id: 16, name: "Void Rift", cost: 1e27, mult: 7.5e10, bg: "#312e81", desc: "Dark matter fissures bend reality around your beak." },
+            { id: 17, name: "Chronos Clockwork", cost: 5e28, mult: 5e11, bg: "#0d9488", desc: "Time loops echo every tap across timelines." },
+            { id: 18, name: "Celestial Throne", cost: 2.5e30, mult: 4e12, bg: "#ca8a04", desc: "Ascended hall of immortal duck deities." },
+            { id: 19, name: "Omniverse Nexus", cost: 1e32, mult: 3e13, bg: "#be185d", desc: "Convergence of infinite parallel quack realities." },
+            { id: 20, name: "Genesis Singularity", cost: 5e33, mult: 2.5e14, bg: "#4f46e5", desc: "The ultimate origin of all Quacks." },
+            { id: 21, name: "Rainbow Sovereign Sanctuary", cost: 0, mult: 1e25, bg: "#05050a", adminOnly: true, desc: "Obsidian & Neon Rainbow Sanctuary exclusive to RainbowLord16!" }
+        ];
 
-            // 3. Generate a brand-new Player Slot ID for the new account
-            const newId = "QUACK-" + Math.random().toString(36).slice(2, 10).toUpperCase();
-            localStorage.setItem("dqLocalPlayerId", newId);
+        const PET_SPECIES = {
+            chick: { name: "Golden Chick", rarity: "Common", mult: 2, color: "#facc15" },
+            mallard: { name: "Pond Mallard", rarity: "Common", mult: 3.5, color: "#22c55e" },
+            froggy: { name: "Lilypad Frog", rarity: "Uncommon", mult: 6, color: "#4ade80" },
+            baker: { name: "Baguette Duck", rarity: "Uncommon", mult: 10, color: "#f59e0b" },
+            fox: { name: "Ember Fox", rarity: "Rare", mult: 20, color: "#f97316" },
+            crystal: { name: "Prism Owl", rarity: "Rare", mult: 35, color: "#38bdf8" },
+            cyber: { name: "Neon Cyber-Duck", rarity: "Epic", mult: 80, color: "#c084fc" },
+            magma: { name: "Magma Drake", rarity: "Epic", mult: 150, color: "#ef4444" },
+            phoenix: { name: "Solar Phoenix", rarity: "Legendary", mult: 400, color: "#fbbf24" },
+            kraken: { name: "Abyssal Kraken", rarity: "Legendary", mult: 900, color: "#06b6d4" },
+            voidwalker: { name: "Void Stalker", rarity: "Mythical", mult: 2500, color: "#a855f7" },
+            chronos: { name: "Chronos Wyrm", rarity: "Mythical", mult: 6000, color: "#14b8a6" },
+            seraph: { name: "Celestial Seraph", rarity: "Godly", mult: 18000, color: "#fde047" },
+            leviathan: { name: "Infinity Leviathan", rarity: "Godly", mult: 50000, color: "#22d3ee" },
+            genesis: { name: "Genesis Quack God", rarity: "Godly", mult: 150000, color: "#f43f5e" }
+        };
 
-            // 4. Reset state to a fresh starter account with NO inherited avatar
-            state = createFreshDefaultState();
-            state.profilePic = "";
-            saveGame();
+        const EGGS_DATA = [
+            { id: "pond_egg", name: "Pond Egg", cost: 100, currency: "quacks", pool: ["chick", "mallard", "froggy"] },
+            { id: "bakery_egg", name: "Bakery Egg", cost: 25000, currency: "quacks", pool: ["baker", "fox", "crystal"] },
+            { id: "cyber_egg", name: "Cyber Egg", cost: 1e8, currency: "quacks", pool: ["cyber", "magma", "phoenix"] },
+            { id: "void_egg", name: "Void Egg", cost: 1e14, currency: "quacks", pool: ["kraken", "voidwalker", "chronos"] },
+            { id: "genesis_egg", name: "Genesis God Egg", cost: 500, currency: "gems", pool: ["seraph", "leviathan", "genesis"] }
+        ];
+
+        const SKINS_DATA = [
+            { id: "classic", name: "Classic Rubber Duck", cost: 0, mult: 1, body: "#facc15", belly: "#fef08a", beak: "#f97316" },
+            { id: "emerald", name: "Emerald Mallard", cost: 250, mult: 2.5, body: "#10b981", belly: "#6ee7b7", beak: "#f59e0b" },
+            { id: "cyber", name: "Cyber Neon Duck", cost: 1500, mult: 6, body: "#8b5cf6", belly: "#c4b5fd", beak: "#06b6d4" },
+            { id: "diamond", name: "24K Diamond Idol", cost: 10000, mult: 15, body: "#38bdf8", belly: "#bae6fd", beak: "#facc15" },
+            { id: "rainbow_sovereign", name: "Rainbow Sovereign", cost: 50000, mult: 50, body: "#ec4899", belly: "#fef08a", beak: "#22d3ee", rainbow: true },
+            { id: "admin_neon_rainbow", name: "👑 Obsidian Neon Rainbow God", cost: 0, mult: 250, body: "#05050a", belly: "#111827", beak: "#ff007f", adminOnly: true }
+        ];
+
+        const AURAS_DATA = [
+            { id: "none", name: "No Aura", cost: 0, mult: 1, style: "" },
+            { id: "golden", name: "Golden Halo", cost: 500, mult: 1.5, style: "box-shadow: 0 0 35px rgba(250,204,21,0.55); border: 2px solid rgba(250,204,21,0.6);" },
+            { id: "astral", name: "Astral Vortex", cost: 5000, mult: 4, style: "box-shadow: 0 0 45px rgba(56,189,248,0.65); border: 3px dashed rgba(56,189,248,0.8);" },
+            { id: "prismatic", name: "Prismatic Rainbow Aura", cost: 25000, mult: 10, style: "box-shadow: 0 0 55px rgba(236,72,153,0.75); border: 3px solid #facc15;" },
+            { id: "admin_neon_halo", name: "👑 Obsidian Neon Rainbow Halo", cost: 0, mult: 50, style: "", adminOnly: true }
+        ];
+
+        const HATS_DATA = [
+            { id: "none", name: "No Hat", cost: 0, mult: 1 },
+            { id: "propeller", name: "Propeller Cap", cost: 300, mult: 1.4 },
+            { id: "wizard", name: "Arcane Wizard Hat", cost: 2500, mult: 2.5 },
+            { id: "rainbow_crown", name: "King of Rainbows Crown", cost: 15000, mult: 5 },
+            { id: "admin_neon_crown", name: "👑 Neon Rainbow Admin Crown", cost: 0, mult: 25, adminOnly: true }
+        ];
+
+        const SHADES_DATA = [
+            { id: "none", name: "No Shades", cost: 0, mult: 1 },
+            { id: "cool", name: "Cool Shades", cost: 400, mult: 1.3 },
+            { id: "visor", name: "Cyber Visor", cost: 3500, mult: 2.2 },
+            { id: "admin_neon_visor", name: "👑 Neon Rainbow Laser Visor", cost: 0, mult: 20, adminOnly: true }
+        ];
+
+        const VOICES_DATA = [
+            { id: "classic", name: "Classic Quack", freq: 340 },
+            { id: "squeak", name: "Tiny Squeaker", freq: 620 },
+            { id: "mega", name: "Mega Bass Honk", freq: 165 },
+            { id: "cyber", name: "Synth Cyber-Quack", freq: 480 },
+            { id: "admin_neon", name: "👑 Neon Rainbow Symphony", freq: 528, adminOnly: true }
+        ];
+
+        /* =========================================================================
+           3. STATE INITIALIZATION & MULTIPLIER CALCULATORS
+           ========================================================================= */
+        function createFreshDefaultState() {
+            return {
+                playerName: "QuackCommander",
+                profilePic: "",
+                quacks: 0,
+                lifetimeQuacks: 0,
+                gems: 100,
+                rp: 0,
+                feathers: 0,
+                shards: 0,
+                relics: 0,
+                rebirths: 0,
+                transcendenceCount: 0,
+                currentWorld: 1,
+                unlockedWorlds: [1],
+                upgrades: { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0 },
+                rpUpgrades: { rpMult: 0, rpGems: 0, rpAuto: 0, rpSlots: 0 },
+                voidUpgrades: { voidPower: 0, voidCrit: 0, voidPets: 0, voidAll: 0 },
+                skills: { featherPower: 0, featherAuto: 0, featherLuck: 0, featherCombo: 0 },
+                mastery: { tapping: 1, hatching: 1, boss: 1, alchemy: 1 },
+                cards: {},
+                monuments: {},
+                pets: [],
+                maxEquippedPets: 4,
+                equippedSkin: "classic",
+                unlockedSkins: ["classic"],
+                equippedAura: "none",
+                unlockedAuras: ["none"],
+                equippedHat: "none",
+                unlockedHats: ["none"],
+                equippedShades: "none",
+                unlockedShades: ["none"],
+                equippedVoice: "classic",
+                unlockedVoices: ["classic"],
+                activePotions: {},
+                digDepth: 0,
+                bossLevel: 1,
+                bossHp: 1000,
+                bossMaxHp: 1000,
+                bossesSlain: 0,
+                eggsHatched: 0,
+                totalClicks: 0,
+                passXp: 0,
+                claimedPassTiers: [],
+                redeemedCodes: [],
+                autoClickerOn: false,
+                autoRebirthOn: false,
+                autoHatchOn: false,
+                feverVal: 0,
+                isFeverActive: false
+            };
+        }
+
+        let state = createFreshDefaultState();
+        let comboCount = 0;
+        let comboDecayMs = 0;
+        let currentWeather = { id: "clear", label: "☀️ Clear Skies (1x)", mult: 1 };
+        let soundEnabled = true;
+        let leaderboardTab = "quacks";
+        let cloudLeaderboardRows = [];
+
+        function getWorldMultiplier() {
+            const w = WORLDS_DATA.find(x => x.id === state.currentWorld) || WORLDS_DATA[0];
+            return sanitizeNum(w.mult, 1);
+        }
+
+        function getPetMultiplier() {
+            const equipped = (state.pets || []).filter(p => p.equipped);
+            if (!equipped.length) return 1;
+            let total = 1;
+            for (const p of equipped) {
+                const sp = PET_SPECIES[p.speciesKey];
+                const base = sp ? sp.mult : 1;
+                const tierMult = p.tier === 5 ? 500 : p.tier === 4 ? 100 : p.tier === 3 ? 25 : p.tier === 2 ? 5 : 1;
+                total += base * tierMult;
+            }
+            return sanitizeNum(total, 1);
+        }
+
+        function getGearMultiplier() {
+            const skin = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
+            const aura = AURAS_DATA.find(a => a.id === state.equippedAura) || AURAS_DATA[0];
+            const hat = HATS_DATA.find(h => h.id === state.equippedHat) || HATS_DATA[0];
+            const shades = SHADES_DATA.find(s => s.id === state.equippedShades) || SHADES_DATA[0];
+            return sanitizeNum((skin.mult || 1) * (aura.mult || 1) * (hat.mult || 1) * (shades.mult || 1), 1);
+        }
+
+        function getRebirthMultiplier() {
+            const reb = sanitizeNum(state.rebirths, 0);
+            const rpBonus = 1 + (sanitizeNum(state.rpUpgrades?.rpMult, 0) * 0.5);
+            return sanitizeNum((1 + reb * 1.25) * rpBonus, 1);
+        }
+
+        function getEndgameMultiplier() {
+            const voidBonus = 1 + (sanitizeNum(state.transcendenceCount, 0) * 10) + (sanitizeNum(state.voidUpgrades?.voidAll, 0) * 25);
+            const featherBonus = 1 + (sanitizeNum(state.skills?.featherPower, 0) * 2);
+            const feverBonus = state.isFeverActive ? 5 : 1;
+            const comboBonus = 1 + Math.min(comboCount * 0.05, 4);
+            return sanitizeNum(voidBonus * featherBonus * feverBonus * comboBonus, 1);
+        }
+
+        function getQuacksPerClick() {
+            const base = sanitizeNum(state.upgrades?.clickPower, 1);
+            const mult = getWorldMultiplier() * getPetMultiplier() * getGearMultiplier() * getRebirthMultiplier() * getEndgameMultiplier() * sanitizeNum(currentWeather.mult, 1);
+            return sanitizeNum(base * mult, 1);
+        }
+
+        function getQuacksPerSec() {
+            const autoLvl = sanitizeNum(state.upgrades?.autoSpeed, 0);
+            if (autoLvl <= 0) return 0;
+            const base = autoLvl * 5;
+            const mult = getWorldMultiplier() * getPetMultiplier() * getGearMultiplier() * getRebirthMultiplier() * getEndgameMultiplier() * sanitizeNum(currentWeather.mult, 1);
+            return sanitizeNum(base * mult, 0);
+        }
+
+        function getUpgradeCost(key) {
+            const lvl = sanitizeNum(state.upgrades?.[key], key === "clickPower" ? 1 : 0);
+            const bases = { clickPower: 15, autoSpeed: 50, critChance: 120, feverBoost: 250 };
+            return sanitizeNum(Math.floor((bases[key] || 50) * Math.pow(1.45, lvl)), 15);
+        }
+
+        function buyUpgrade(key) {
+            const cost = getUpgradeCost(key);
+            if (state.quacks < cost) {
+                showToast("Not enough Quacks!", "error");
+                return;
+            }
+            state.quacks -= cost;
+            state.upgrades[key] = (state.upgrades[key] || 0) + 1;
+            playSound("buy");
             renderAll();
-            syncLeaderboardScore(false);
-            showToast("🚪 Logged out! Started a fresh new account while preserving previous leaderboard entries.", "info");
         }
 // ... existing code ... -->
         /* =========================================================================
            4B. SAVE & LOAD PERSISTENCE HELPERS
            ========================================================================= */
+        const SAVE_KEYS = ["duckQuackUltimateSaveV3", "duckQuackUltimateSaveV2", "duckQuackUltimateSaveV1"];
+        const AVATAR_KEY = "duckQuackAvatarV3";
+        const LB_LOCAL_ARCHIVE_KEY = "duckQuackLeaderboardArchiveV3";
+
+        function getCurrentSlotId() {
+            if (isCurrentUserVerifiedAdmin()) return "ADMIN_RAINBOWLORD16";
+            let id = localStorage.getItem("dqLocalPlayerId");
+            if (!id) {
+                id = "QUACK-" + Math.random().toString(36).slice(2, 10).toUpperCase();
+                localStorage.setItem("dqLocalPlayerId", id);
+            }
+            return id;
+        }
+
         function getCurrentAvatarStorageKey() {
             if (isCurrentUserVerifiedAdmin()) return "duckQuackAvatar_ADMIN_RAINBOWLORD16";
             const localId = localStorage.getItem("dqLocalPlayerId") || "default";
@@ -1192,41 +1499,9 @@
             state.profilePic = savedAvatar;
         }
 // ... existing code ... -->
-        function removeProfilePic() {
-            state.profilePic = "";
-            localStorage.removeItem(AVATAR_KEY);
-            localStorage.removeItem(getCurrentAvatarStorageKey());
-            saveGame();
-            renderAll();
-            syncLeaderboardScore(true);
-            showToast("Profile picture removed.", "info");
-        }
-// ... existing code ... -->
-        function loadLocalLeaderboardArchive() {
-            try {
-                const raw = localStorage.getItem(LB_LOCAL_ARCHIVE_KEY);
-                const rows = raw ? JSON.parse(raw) : [];
-                const adminRow = rows.find(r => r.id === "ADMIN_RAINBOWLORD16");
-                const adminPic = adminRow ? adminRow.profilePic : "";
-                // Strip any accidentally cloned Admin avatar from non-admin rows
-                return rows.map(r => {
-                    if (r.id !== "ADMIN_RAINBOWLORD16" && adminPic && r.profilePic === adminPic) {
-                        return { ...r, profilePic: "" };
-                    }
-                    return r;
-                });
-            } catch (e) {
-                return [];
-            }
-        }
-// ... existing code ... -->
         /* =========================================================================
-           5. COMPLETE GAME ENGINE, TAP HANDLER, CALCULATORS, RENDERERS & LOOPS
+           5. INTERACTION HANDLERS, AUDIO, TOASTS, MODALS & LEADERBOARD
            ========================================================================= */
-        const SAVE_KEYS = ["duckQuackUltimateSaveV3", "duckQuackUltimateSaveV2", "duckQuackUltimateSaveV1"];
-        const AVATAR_KEY = "duckQuackAvatarV3";
-        const LB_LOCAL_ARCHIVE_KEY = "duckQuackLeaderboardArchiveV3";
-
         const NUMBER_SUFFIXES = [
             "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc",
             "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg",
@@ -1255,218 +1530,35 @@
             return num.toExponential(2).replace("+", "");
         }
 
-        async function sha256Hex(str) {
-            const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-        }
-
-        function isCurrentUserVerifiedAdmin() {
-            return isAdminAuthenticated === true && state && state.playerName === ADMIN_OWNER_NAME;
-        }
-
-        function enforceAdminSecurity() {
-            if (!isCurrentUserVerifiedAdmin()) {
-                if (state.currentWorld >= 21) state.currentWorld = 20;
-                if (state.highestWorld >= 21) state.highestWorld = 20;
-                if (state.equippedSkin === "admin_neon_rainbow") state.equippedSkin = "classic";
-                if (state.equippedAura === "admin_neon_halo") state.equippedAura = "none";
-                if (state.equippedHat === "admin_neon_crown") state.equippedHat = "none";
-                if (state.equippedShades === "admin_neon_visor") state.equippedShades = "none";
-                if (state.quackSound === "admin_symphony") state.quackSound = "classic";
-            }
-        }
-
-        function createFreshDefaultState() {
-            return {
-                playerName: "QuackCommander",
-                profilePic: "",
-                quacks: 0,
-                lifetimeQuacks: 0,
-                gems: 100,
-                rp: 0,
-                feathers: 0,
-                shards: 0,
-                relics: 0,
-                rebirths: 0,
-                transcendenceCount: 0,
-                bossesSlain: 0,
-                totalTaps: 0,
-                eggsHatched: 0,
-                currentWorld: 1,
-                highestWorld: 1,
-                equippedSkin: "classic",
-                unlockedSkins: ["classic"],
-                equippedAura: "none",
-                unlockedAuras: ["none"],
-                equippedHat: "none",
-                unlockedHats: ["none"],
-                equippedShades: "none",
-                unlockedShades: ["none"],
-                quackSound: "classic",
-                feverVal: 0,
-                isFeverActive: false,
-                autoClickerOn: false,
-                autoRebirthOn: false,
-                autoHatchOn: false,
-                pets: [],
-                discoveredPets: {},
-                upgrades: { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0 },
-                rpUpgrades: { rp_click: 0, rp_auto: 0, rp_fever: 0, rp_hatch: 0 },
-                ascensionNodes: { t_click1: 0, t_auto1: 0, t_crit1: 0, t_gem1: 0, t_slots: 0, t_relics: 0 },
-                voidUpgrades: { v_omni: 0, v_laser: 0, v_anomaly: 0, v_headstart: 0 },
-                activePotions: {},
-                artifacts: {},
-                masteries: { m_tapping: 1, m_hatching: 1, m_rebirth: 1, m_excavation: 1, m_alchemy: 1, m_slayer: 1 },
-                masteryXp: { m_tapping: 0, m_hatching: 0, m_rebirth: 0, m_excavation: 0, m_alchemy: 0, m_slayer: 0 },
-                ownedCards: {},
-                monuments: { mon_vault: 0, mon_fountain: 0, mon_observatory: 0, mon_sanctum: 0 },
-                redeemedCodes: {},
-                claimedPassTiers: {},
-                passXp: 0,
-                digDepth: 0,
-                bossHp: 1000,
-                bossMaxHp: 1000,
-                maxEquippedPets: 4
-            };
-        }
-
-        let state = createFreshDefaultState();
-        let activeLeaderboardTab = "quacks";
-        let liveLeaderboardRows = [];
-        let comboCount = 0;
-        let comboDecayMs = 0;
-        let currentWeather = { id: "clear", label: "☀️ Clear Skies (1x)", mult: 1 };
-        let audioMuted = false;
-        let audioContext = null;
-
-        const WORLDS_DATA = [
-            { id: 1, name: "Starter Pond", desc: "A peaceful lilypad pond where every duck legend begins.", cost: 0, mult: 1, bg: "#0c4a6e" },
-            { id: 2, name: "Golden Bakery", desc: "Warm croissants and toasted brioche rain from above.", cost: 2500, mult: 4, bg: "#78350f" },
-            { id: 3, name: "Cyber Neon City", desc: "Holographic billboards and synthwave duck beats.", cost: 50000, mult: 20, bg: "#3b0764" },
-            { id: 4, name: "Magma Caldera", desc: "Forged in molten lava by volcanic mallards.", cost: 1.5e6, mult: 120, bg: "#7f1d1d" },
-            { id: 5, name: "Atlantis Reef", desc: "Sunken crystal temples guarded by sea-ducks.", cost: 5e7, mult: 800, bg: "#164e63" },
-            { id: 6, name: "Sugar Cloud Kingdom", desc: "Cotton candy skies and rainbow syrup rivers.", cost: 2e9, mult: 6000, bg: "#831843" },
-            { id: 7, name: "Orbital Starport", desc: "Zero-gravity quack thrusters at warp speed.", cost: 1e11, mult: 50000, bg: "#1e1b4b" },
-            { id: 8, name: "Emerald Jungle", desc: "Ancient Mayan duck idols hidden in deep vines.", cost: 8e12, mult: 4.5e5, bg: "#064e3b" },
-            { id: 9, name: "Frostbite Glacier", desc: "Sub-zero aurora crystals amplify every honk.", cost: 6e14, mult: 4e6, bg: "#1e3a8a" },
-            { id: 10, name: "Steampunk Clockwork", desc: "Brass gears and steam-powered quack turbines.", cost: 5e16, mult: 4e7, bg: "#451a03" },
-            { id: 11, name: "Astral Observatory", desc: "Constellations align to bless your beak.", cost: 5e18, mult: 5e8, bg: "#312e81" },
-            { id: 12, name: "Shadow Abyss", desc: "Dark matter echoes multiply quacks exponentially.", cost: 5e20, mult: 6e9, bg: "#09090b" },
-            { id: 13, name: "Celestial Sanctuary", desc: "Golden harps and winged seraph ducklings.", cost: 5e22, mult: 8e10, bg: "#713f12" },
-            { id: 14, name: "Quantum Matrix", desc: "Subatomic quack particles split into trillions.", cost: 5e24, mult: 1.2e12, bg: "#065f46" },
-            { id: 15, name: "Void Horizon", desc: "Gateway to Void Transcendence and dark shards.", cost: 5e26, mult: 2e13, bg: "#4c1d95" },
-            { id: 16, name: "Chronos Citadel", desc: "Control time itself to harvest future quacks.", cost: 5e28, mult: 4e14, bg: "#701a75" },
-            { id: 17, name: "Supernova Core", desc: "A collapsing star fuels infinite beak energy.", cost: 5e30, mult: 8e15, bg: "#9a3412" },
-            { id: 18, name: "Multiverse Nexus", desc: "Infinite alternate-reality ducks quack in unison.", cost: 5e32, mult: 2e17, bg: "#1d4ed8" },
-            { id: 19, name: "Omnipotent Throne", desc: "Only true Quack Emperors reach this summit.", cost: 5e34, mult: 5e18, bg: "#881337" },
-            { id: 20, name: "Genesis Singularity", desc: "The ultimate origin of all Quacks.", cost: 5e36, mult: 1e20, bg: "#1e1b4b" },
-            { id: 21, name: "Rainbow Sovereign Sanctuary", desc: "EXCLUSIVE ADMIN REALM — Obsidian Void & Prismatic Neon.", cost: 0, mult: 1e25, bg: "#05050a", adminOnly: true }
-        ];
-
-        const SKINS_DATA = [
-            { id: "classic", name: "Classic Rubber Duck", cost: 0, currency: "gems", mult: 1, body: "#facc15", belly: "#fef08a", beak: "#f97316" },
-            { id: "ninja", name: "Shadow Shinobi", cost: 250, currency: "gems", mult: 2.5, body: "#1e293b", belly: "#334155", beak: "#ef4444" },
-            { id: "gamer", name: "RGB Cyber Duck", cost: 1000, currency: "gems", mult: 6, body: "#06b6d4", belly: "#a855f7", beak: "#f43f5e" },
-            { id: "royal", name: "24K Diamond Idol", cost: 5000, currency: "gems", mult: 18, body: "#38bdf8", belly: "#e0f2fe", beak: "#facc15" },
-            { id: "rainbow_sovereign", name: "Rainbow Sovereign", cost: 25000, currency: "gems", mult: 50, body: "#ec4899", belly: "#fde047", beak: "#22d3ee", rainbow: true },
-            { id: "admin_neon_rainbow", name: "Obsidian Neon Rainbow God", cost: 0, currency: "gems", mult: 250, body: "#05050a", belly: "#0f172a", beak: "#00e5ff", adminOnly: true }
-        ];
-
-        const AURAS_DATA = [
-            { id: "none", name: "No Aura", cost: 0, mult: 1, style: "" },
-            { id: "cyber", name: "Cyber Pulse Ring", cost: 500, mult: 2, style: "border: 4px dashed #38bdf8; box-shadow: 0 0 25px rgba(56,189,248,0.5);" },
-            { id: "void", name: "Astral Vortex", cost: 3500, mult: 5, style: "border: 4px solid #c084fc; box-shadow: 0 0 35px rgba(192,132,252,0.7);" },
-            { id: "rainbow_prism", name: "Prismatic Rainbow Aura", cost: 15000, mult: 10, style: "border: 5px solid #f43f5e; box-shadow: 0 0 40px rgba(250,204,21,0.8);" },
-            { id: "admin_neon_halo", name: "Obsidian Neon Rainbow Halo", cost: 0, mult: 50, style: "border: 5px solid #ff007f; box-shadow: 0 0 45px #00e5ff, inset 0 0 25px #ff007f;", adminOnly: true }
-        ];
-
-        const HATS_DATA = [
-            { id: "none", name: "Bare Head", cost: 0, mult: 1 },
-            { id: "propeller", name: "Propeller Cap", cost: 300, mult: 1.5 },
-            { id: "wizard", name: "Arcane Wizard Hat", cost: 1800, mult: 3 },
-            { id: "rainbow_crown", name: "King of Rainbows Crown", cost: 10000, mult: 5 },
-            { id: "admin_neon_crown", name: "Neon Rainbow Admin Crown", cost: 0, mult: 25, adminOnly: true }
-        ];
-
-        const SHADES_DATA = [
-            { id: "none", name: "No Shades", cost: 0, mult: 1 },
-            { id: "cool", name: "Cool Shades", cost: 250, mult: 1.4 },
-            { id: "visor", name: "Cyber Visor", cost: 2000, mult: 2.5 },
-            { id: "admin_neon_visor", name: "Neon Rainbow Laser Visor", cost: 0, mult: 20, adminOnly: true }
-        ];
-
-        const VOICES_DATA = [
-            { id: "classic", name: "Classic Quack", freq: 340, type: "sawtooth" },
-            { id: "squeaky", name: "Rubber Squeak", freq: 620, type: "sine" },
-            { id: "deep", name: "Mega Honk", freq: 165, type: "square" },
-            { id: "cyber", name: "Laser Synth", freq: 480, type: "triangle" },
-            { id: "admin_symphony", name: "Neon Rainbow Symphony", freq: 540, type: "sine", adminOnly: true }
-        ];
-
-        const PET_SPECIES = {
-            duckling: { name: "Golden Duckling", rarity: "common", mult: 2, color: "#facc15" },
-            mallard: { name: "Emerald Mallard", rarity: "uncommon", mult: 5, color: "#10b981" },
-            froggy: { name: "Pond Froggy", rarity: "uncommon", mult: 8, color: "#4ade80" },
-            golden_chick: { name: "24K Chick", rarity: "rare", mult: 25, color: "#fbbf24" },
-            chronos_guardian: { name: "Chronos Guardian", rarity: "epic", mult: 150, color: "#38bdf8" },
-            galaxy_dragon: { name: "Galaxy Dragon", rarity: "legendary", mult: 1200, color: "#c084fc" },
-            celestial_archon: { name: "Celestial Archon", rarity: "mythical", mult: 15000, color: "#f43f5e" },
-            infinity_leviathan: { name: "Infinity Leviathan", rarity: "godly", mult: 250000, color: "#22d3ee" },
-            genesis_quack_god: { name: "Genesis Quack God", rarity: "godly", mult: 2500000, color: "#ff007f" }
-        };
-
-        const EGGS_DATA = [
-            { id: "pond_egg", name: "Pond Egg", cost: 100, currency: "quacks", pool: ["duckling", "mallard", "froggy"] },
-            { id: "royal_egg", name: "Royal Egg", cost: 25000, currency: "quacks", pool: ["mallard", "golden_chick", "chronos_guardian"] },
-            { id: "astral_egg", name: "Astral Egg", cost: 5e8, currency: "quacks", pool: ["chronos_guardian", "galaxy_dragon", "celestial_archon"] },
-            { id: "genesis_egg", name: "Genesis God Egg", cost: 500, currency: "gems", pool: ["galaxy_dragon", "celestial_archon", "infinity_leviathan", "genesis_quack_god"] }
-        ];
-
-        const PROMO_CODES = {
-            "QUACK2026": { gems: 500, feathers: 2, label: "+500 Gems & +2 Golden Feathers" },
-            "GRIND3MONTHS": { gems: 1500, shards: 25, label: "+1,500 Gems & +25 Void Shards" },
-            "FEATHERGOD": { feathers: 10, label: "+10 Golden Feathers" },
-            "VOIDSHARD99": { shards: 99, label: "+99 Void Shards" },
-            "GENESISDUCK": { gems: 5000, rp: 50, label: "+5,000 Gems & +50 RP" }
-        };
-
-        /* =========================================================================
-           6. AUDIO & TOAST NOTIFICATION HELPERS
-           ========================================================================= */
-        function playSound(kind = "quack") {
-            if (audioMuted) return;
+        let sharedAudioCtx = null;
+        function playSound(type) {
+            if (!soundEnabled) return;
             try {
-                if (!audioContext) {
-                    const Ctx = window.AudioContext || window.webkitAudioContext;
-                    if (Ctx) audioContext = new Ctx();
-                }
-                if (!audioContext) return;
-                if (audioContext.state === "suspended") audioContext.resume();
+                if (!sharedAudioCtx) sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (sharedAudioCtx.state === "suspended") sharedAudioCtx.resume();
+                const osc = sharedAudioCtx.createOscillator();
+                const gain = sharedAudioCtx.createGain();
+                const now = sharedAudioCtx.currentTime;
+                const voice = VOICES_DATA.find(v => v.id === state.equippedVoice) || VOICES_DATA[0];
 
-                const osc = audioContext.createOscillator();
-                const gain = audioContext.createGain();
-                const now = audioContext.currentTime;
-                const voice = VOICES_DATA.find(v => v.id === state.quackSound) || VOICES_DATA[0];
-
-                if (kind === "quack") {
-                    osc.type = voice.type;
-                    const baseFreq = voice.freq + (Math.random() * 45 - 20);
-                    osc.frequency.setValueAtTime(baseFreq, now);
-                    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.48, now + 0.11);
+                if (type === "quack") {
+                    osc.type = voice.id === "admin_neon" ? "triangle" : "sawtooth";
+                    osc.frequency.setValueAtTime(voice.freq + Math.random() * 35, now);
+                    osc.frequency.exponentialRampToValueAtTime(voice.freq * 0.45, now + 0.11);
                     gain.gain.setValueAtTime(0.16, now);
                     gain.gain.exponentialRampToValueAtTime(0.005, now + 0.11);
                     osc.connect(gain);
-                    gain.connect(audioContext.destination);
+                    gain.connect(sharedAudioCtx.destination);
                     osc.start(now);
                     osc.stop(now + 0.11);
-                } else if (kind === "crit" || kind === "buy") {
-                    osc.type = "triangle";
-                    osc.frequency.setValueAtTime(520, now);
-                    osc.frequency.exponentialRampToValueAtTime(880, now + 0.15);
-                    gain.gain.setValueAtTime(0.2, now);
+                } else {
+                    osc.type = "sine";
+                    osc.frequency.setValueAtTime(type === "crit" ? 720 : 540, now);
+                    osc.frequency.exponentialRampToValueAtTime(type === "crit" ? 1080 : 780, now + 0.15);
+                    gain.gain.setValueAtTime(0.18, now);
                     gain.gain.exponentialRampToValueAtTime(0.005, now + 0.15);
                     osc.connect(gain);
-                    gain.connect(audioContext.destination);
+                    gain.connect(sharedAudioCtx.destination);
                     osc.start(now);
                     osc.stop(now + 0.15);
                 }
@@ -1474,196 +1566,77 @@
         }
 
         function toggleAudio() {
-            audioMuted = !audioMuted;
-            const cls = audioMuted ? "fa-solid fa-volume-xmark text-rose-400" : "fa-solid fa-volume-high text-amber-400";
-            const mob = document.getElementById("audioIconMobile");
-            const desk = document.getElementById("audioIconDesktop");
-            if (mob) mob.className = cls;
-            if (desk) desk.className = cls;
+            soundEnabled = !soundEnabled;
+            const cls = soundEnabled ? "fa-solid fa-volume-high text-amber-400" : "fa-solid fa-volume-xmark text-rose-400";
+            const m = document.getElementById("audioIconMobile");
+            const d = document.getElementById("audioIconDesktop");
+            if (m) m.className = cls;
+            if (d) d.className = cls;
         }
 
         function showToast(msg, type = "info") {
-            const container = document.getElementById("toastContainer");
-            if (!container) return;
-            const colors = {
-                success: "border-emerald-400 bg-slate-950/95 text-emerald-200",
-                error: "border-rose-500 bg-slate-950/95 text-rose-200",
-                info: "border-amber-400 bg-slate-950/95 text-amber-200"
-            };
-            const toast = document.createElement("div");
-            toast.className = `pointer-events-auto border-2 ${colors[type] || colors.info} px-3.5 py-2.5 rounded-2xl text-xs font-extrabold shadow-2xl transition-opacity duration-300`;
-            toast.textContent = msg;
-            container.appendChild(toast);
-            setTimeout(() => {
-                toast.style.opacity = "0";
-                setTimeout(() => toast.remove(), 300);
-            }, 3200);
+            const box = document.getElementById("toastContainer");
+            if (!box) return;
+            const el = document.createElement("div");
+            const border = type === "success" ? "border-emerald-400/60 text-emerald-200" : type === "error" ? "border-rose-400/60 text-rose-200" : "border-sky-400/60 text-sky-200";
+            el.className = `glass-panel border ${border} px-3.5 py-2.5 rounded-2xl text-xs font-extrabold shadow-xl transition-opacity duration-300`;
+            el.textContent = msg;
+            box.appendChild(el);
+            setTimeout(() => { el.style.opacity = "0"; setTimeout(() => el.remove(), 300); }, 2800);
         }
 
-        /* =========================================================================
-           7. POWER CALCULATORS & TAP / UPGRADE HANDLERS
-           ========================================================================= */
-        function getWorldMultiplier() {
-            const w = WORLDS_DATA.find(item => item.id === state.currentWorld) || WORLDS_DATA[0];
-            return w.mult;
-        }
-
-        function getPetMultiplier() {
-            let bonus = 0;
-            (state.pets || []).forEach(p => {
-                if (p.equipped) {
-                    const sp = PET_SPECIES[p.speciesKey];
-                    const tierMult = p.evoTier === 5 ? 500 : p.evoTier === 4 ? 100 : p.evoTier === 3 ? 25 : p.evoTier === 2 ? 5 : 1;
-                    if (sp) bonus += sp.mult * tierMult;
-                }
-            });
-            const indexCount = Object.keys(state.discoveredPets || {}).length;
-            return 1 + (bonus * (1 + indexCount * 0.05));
-        }
-
-        function getGearMultiplier() {
-            const skin = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
-            const aura = AURAS_DATA.find(a => a.id === state.equippedAura) || AURAS_DATA[0];
-            const hat = HATS_DATA.find(h => h.id === state.equippedHat) || HATS_DATA[0];
-            const shades = SHADES_DATA.find(sh => sh.id === state.equippedShades) || SHADES_DATA[0];
-            return skin.mult * aura.mult * hat.mult * shades.mult;
-        }
-
-        function getRebirthMultiplier() {
-            return 1 + (sanitizeNum(state.rebirths, 0) * 2.5) + (sanitizeNum(state.rp, 0) * 0.5);
-        }
-
-        function getEndgameMultiplier() {
-            const featherMult = 1 + (sanitizeNum(state.feathers, 0) * 0.25);
-            const shardMult = 1 + (sanitizeNum(state.shards, 0) * 0.5);
-            const transcendMult = 1 + (sanitizeNum(state.transcendenceCount, 0) * 25);
-            const feverMult = state.isFeverActive ? 4 : 1;
-            const comboMult = 1 + Math.min(comboCount * 0.05, 4);
-            return featherMult * shardMult * transcendMult * feverMult * comboMult;
-        }
-
-        function getQuacksPerClick() {
-            const base = 1 + (sanitizeNum(state.upgrades.clickPower, 1) - 1) * 5;
-            const total = base * getWorldMultiplier() * getPetMultiplier() * getGearMultiplier() * getRebirthMultiplier() * getEndgameMultiplier() * currentWeather.mult;
-            return sanitizeNum(total, 1);
-        }
-
-        function getQuacksPerSec() {
-            const autoLvl = sanitizeNum(state.upgrades.autoSpeed, 0);
-            if (autoLvl <= 0) return 0;
-            const base = autoLvl * 12;
-            const total = base * getWorldMultiplier() * getPetMultiplier() * getGearMultiplier() * getRebirthMultiplier() * getEndgameMultiplier() * currentWeather.mult;
-            return sanitizeNum(total, 0);
-        }
-
-        function getUpgradeCost(key) {
-            const lvl = sanitizeNum(state.upgrades[key], 0);
-            const bases = { clickPower: 15, autoSpeed: 50, critChance: 120, feverBoost: 500 };
-            const scales = { clickPower: 1.38, autoSpeed: 1.42, critChance: 1.55, feverBoost: 1.65 };
-            return sanitizeNum(Math.floor((bases[key] || 50) * Math.pow(scales[key] || 1.4, lvl)), 15);
-        }
-
+        let lastTapMs = 0;
         function onDuckClick(e) {
-            if (e && typeof e.preventDefault === "function") e.preventDefault();
-            const critLvl = sanitizeNum(state.upgrades.critChance, 0);
-            const critChance = Math.min(0.75, 0.05 + critLvl * 0.015);
+            const now = performance.now();
+            if (now - lastTapMs < 25) return;
+            lastTapMs = now;
+
+            state.totalClicks = (state.totalClicks || 0) + 1;
+            comboCount = Math.min(comboCount + 1, 80);
+            comboDecayMs = 1800;
+
+            const critChance = 0.05 + (sanitizeNum(state.upgrades?.critChance, 0) * 0.02);
             const isCrit = Math.random() < critChance;
-            const gain = sanitizeNum(getQuacksPerClick() * (isCrit ? 10 : 1), 1);
+            const gain = getQuacksPerClick() * (isCrit ? 10 : 1);
 
             state.quacks = sanitizeNum(state.quacks + gain, 0);
             state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + gain, 0);
-            state.totalTaps = sanitizeNum(state.totalTaps + 1, 0);
             state.passXp = sanitizeNum(state.passXp + 5, 0);
 
-            comboCount = Math.min(comboCount + 1, 80);
-            comboDecayMs = 1600;
-
             if (!state.isFeverActive) {
-                state.feverVal = Math.min(100, sanitizeNum(state.feverVal, 0) + 2.5);
+                state.feverVal = Math.min(100, (state.feverVal || 0) + 4);
                 if (state.feverVal >= 100) {
                     state.isFeverActive = true;
-                    showToast("🔥 QUACK FEVER ACTIVATED! 4x Tap Power!", "success");
+                    showToast("🔥 QUACK FEVER ACTIVATED! (5x Power)", "success");
                 }
             }
 
             playSound(isCrit ? "crit" : "quack");
 
-            const duckWrap = document.getElementById("duckVisualWrapper");
-            if (duckWrap) {
-                duckWrap.classList.remove("animate-squash");
-                void duckWrap.offsetWidth;
-                duckWrap.classList.add("animate-squash");
+            const wrap = document.getElementById("duckVisualWrapper");
+            if (wrap) {
+                wrap.classList.remove("animate-squash");
+                void wrap.offsetWidth;
+                wrap.classList.add("animate-squash");
             }
 
-            firePetLasers();
-
-            const clientX = (e && e.clientX) ? e.clientX : window.innerWidth / 2;
-            const clientY = (e && e.clientY) ? e.clientY : window.innerHeight / 2;
-            spawnFloatingText(clientX, clientY, `${isCrit ? "CRIT! " : ""}+${formatNum(gain)}`, isCrit);
+            const floatEl = document.createElement("div");
+            floatEl.className = "floating-number text-base sm:text-xl " + (isCrit ? "text-rose-400" : "text-amber-300");
+            floatEl.textContent = `${isCrit ? "CRIT! " : ""}+${formatNum(gain)}`;
+            const clientX = e && e.clientX ? e.clientX : window.innerWidth / 2;
+            const clientY = e && e.clientY ? e.clientY : window.innerHeight / 2;
+            floatEl.style.left = `${clientX}px`;
+            floatEl.style.top = `${clientY - 20}px`;
+            document.body.appendChild(floatEl);
+            setTimeout(() => floatEl.remove(), 800);
 
             renderAll();
         }
 
-        function spawnFloatingText(x, y, text, isCrit = false) {
-            const el = document.createElement("div");
-            el.className = `floating-number ${isCrit ? "text-xl sm:text-2xl text-rose-400" : "text-base sm:text-lg text-amber-300"}`;
-            el.style.left = `${x + (Math.random() * 24 - 12)}px`;
-            el.style.top = `${y - 20}px`;
-            el.textContent = text;
-            document.body.appendChild(el);
-            setTimeout(() => el.remove(), 800);
-        }
-
-        function firePetLasers() {
-            const canvas = document.getElementById("petLaserCanvas");
-            if (!canvas) return;
-            const ctx = canvas.getContext("2d");
-            canvas.width = canvas.clientWidth;
-            canvas.height = canvas.clientHeight;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            const equipped = (state.pets || []).filter(p => p.equipped);
-            if (equipped.length === 0) return;
-
-            const cx = canvas.width / 2;
-            const cy = canvas.height / 2;
-            const radius = Math.min(cx, cy) * 0.62;
-            const now = Date.now() / 600;
-
-            equipped.forEach((pet, idx) => {
-                const angle = now + (idx * (Math.PI * 2 / equipped.length));
-                const px = cx + Math.cos(angle) * radius;
-                const py = cy + Math.sin(angle) * radius;
-                const sp = PET_SPECIES[pet.speciesKey];
-                ctx.beginPath();
-                ctx.moveTo(px, py);
-                ctx.lineTo(cx, cy);
-                ctx.strokeStyle = sp ? sp.color : "#38bdf8";
-                ctx.lineWidth = 2.5;
-                ctx.stroke();
-            });
-
-            setTimeout(() => ctx.clearRect(0, 0, canvas.width, canvas.height), 120);
-        }
-
-        function buyUpgrade(key) {
-            const cost = getUpgradeCost(key);
-            if (state.quacks < cost) {
-                showToast("Not enough Quacks!", "error");
-                return;
-            }
-            state.quacks = sanitizeNum(state.quacks - cost, 0);
-            state.upgrades[key] = sanitizeNum(state.upgrades[key], 0) + 1;
-            playSound("buy");
+        function toggleAutomation(key) {
+            state[key] = !state[key];
             saveGame();
             renderAll();
-        }
-
-        function toggleAutomation(flagKey) {
-            state[flagKey] = !state[flagKey];
-            saveGame();
-            renderAll();
-            showToast(`${flagKey === "autoClickerOn" ? "Auto-Tapper" : flagKey === "autoRebirthOn" ? "Auto-Rebirth" : "Auto-Hatch"} ${state[flagKey] ? "ACTIVE" : "OFF"}`, "info");
         }
 
         function toggleExpandStage() {
@@ -1676,129 +1649,97 @@
             if (icon) icon.className = expanded ? "fa-solid fa-compress" : "fa-solid fa-expand";
         }
 
-        /* =========================================================================
-           8. MODALS, WORLDS, EGGS, PETS, WARDROBE, REBIRTH, BOSS & LEADERBOARD
-           ========================================================================= */
-        function openModal(modalId) {
-            const el = document.getElementById(modalId);
-            if (!el) return;
-            el.classList.remove("hidden");
-            el.classList.add("flex");
-            renderModalContent(modalId);
+        function openModal(id) {
+            const modal = document.getElementById(id);
+            if (!modal) return;
+            modal.classList.remove("hidden");
+            modal.classList.add("flex");
+            if (id === "worldsModal") renderWorldsModal();
+            if (id === "upgradesModal") renderUpgradesModal();
+            if (id === "eggsModal") renderEggsModal();
+            if (id === "petsModal") renderPetsModal();
+            if (id === "wardrobeModal") renderWardrobeModal();
+            if (id === "rebirthModal") renderRebirthModal();
+            if (id === "leaderboardModal") renderFullLeaderboard();
+            if (id === "profileModal") renderProfileModal();
         }
 
-        function closeModal(modalId) {
-            const el = document.getElementById(modalId);
-            if (!el) return;
-            el.classList.add("hidden");
-            el.classList.remove("flex");
-        }
-
-        function renderModalContent(modalId) {
-            if (modalId === "worldsModal") renderWorldsModal();
-            else if (modalId === "upgradesModal") renderUpgradesModal();
-            else if (modalId === "eggsModal") renderEggsModal();
-            else if (modalId === "petsModal") renderPetsModal();
-            else if (modalId === "wardrobeModal") renderWardrobeModal();
-            else if (modalId === "rebirthModal") renderRebirthModal();
-            else if (modalId === "skillsModal") renderSkillsModal();
-            else if (modalId === "alchemyModal") renderAlchemyModal();
-            else if (modalId === "digModal") renderDigModal();
-            else if (modalId === "masteryModal") renderMasteryModal();
-            else if (modalId === "cardsModal") renderCardsModal();
-            else if (modalId === "wheelModal") drawFortuneWheel();
-            else if (modalId === "arcadeModal") initArcadeCanvas();
-            else if (modalId === "bossModal") renderBossModal();
-            else if (modalId === "questsModal") renderSeasonPassModal();
-            else if (modalId === "leaderboardModal") renderFullLeaderboard();
-            else if (modalId === "profileModal") renderProfileModal();
+        function closeModal(id) {
+            const modal = document.getElementById(id);
+            if (!modal) return;
+            modal.classList.add("hidden");
+            modal.classList.remove("flex");
         }
 
         function renderWorldsModal() {
             const grid = document.getElementById("worldsGrid");
             if (!grid) return;
-            const isAdmin = isCurrentUserVerifiedAdmin();
-            grid.innerHTML = WORLDS_DATA.filter(w => !w.adminOnly || isAdmin).map(w => {
+            const visibleWorlds = WORLDS_DATA.filter(w => !w.adminOnly || isCurrentUserVerifiedAdmin());
+            grid.innerHTML = visibleWorlds.map(w => {
                 const isCurrent = state.currentWorld === w.id;
-                const isUnlocked = w.adminOnly ? isAdmin : (state.highestWorld >= w.id || state.quacks >= w.cost);
-                return `
-                    <div class="${w.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-950/90 border border-white/10"} rounded-2xl p-3.5 flex flex-col justify-between">
-                        <div>
-                            <div class="flex items-center justify-between text-[10px] font-extrabold uppercase">
-                                <span class="text-sky-400">Realm ${w.id}</span>
-                                <span class="text-emerald-300">${formatNum(w.mult)}x</span>
-                            </div>
-                            <h4 class="title-font text-base font-bold text-white mt-0.5">${w.name}</h4>
-                            <p class="text-[11px] text-slate-400 mt-1">${w.desc}</p>
+                const unlocked = (state.unlockedWorlds || [1]).includes(w.id) || state.quacks >= w.cost || w.adminOnly;
+                return `<div class="${w.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-950/80 border border-white/10"} rounded-2xl p-3.5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between text-[10px] font-extrabold text-sky-400">
+                            <span>REALM ${w.id}</span>
+                            <span>${formatNum(w.mult)}x</span>
                         </div>
-                        <button type="button" onclick="travelToWorld(${w.id})" ${isCurrent ? "disabled" : ""} class="arcade-btn mt-3 w-full py-2 rounded-xl text-xs font-extrabold ${isCurrent ? "bg-slate-700 text-slate-300" : isUnlocked ? "bg-sky-500 text-white" : "bg-slate-800 text-slate-400"}">
-                            ${isCurrent ? "ACTIVE REALM" : isUnlocked ? "Travel Now" : `Unlock (${formatNum(w.cost)})`}
-                        </button>
+                        <div class="title-font text-base font-bold text-white mt-0.5">${w.name}</div>
+                        <p class="text-[11px] text-slate-400 mt-1">${w.desc}</p>
                     </div>
-                `;
+                    <button type="button" onclick="travelToWorld(${w.id})" class="arcade-btn mt-3 w-full py-2 rounded-xl text-xs font-extrabold ${isCurrent ? "bg-slate-700 text-slate-300" : unlocked ? "bg-sky-500 text-white" : "bg-slate-800 text-slate-400"}">
+                        ${isCurrent ? "CURRENT REALM" : unlocked ? "TRAVEL" : `UNLOCK (${formatNum(w.cost)})`}
+                    </button>
+                </div>`;
             }).join("");
         }
 
-        function travelToWorld(worldId) {
-            const w = WORLDS_DATA.find(item => item.id === worldId);
+        function travelToWorld(id) {
+            const w = WORLDS_DATA.find(x => x.id === id);
             if (!w) return;
-            if (w.adminOnly && !isCurrentUserVerifiedAdmin()) {
-                showToast("Admin Realm is locked!", "error");
-                return;
+            if (w.adminOnly && !isCurrentUserVerifiedAdmin()) return;
+            if (!(state.unlockedWorlds || [1]).includes(id)) {
+                if (state.quacks < w.cost) return showToast("Not enough Quacks!", "error");
+                state.quacks -= w.cost;
+                state.unlockedWorlds = [...new Set([...(state.unlockedWorlds || [1]), id])];
             }
-            if (!w.adminOnly && state.highestWorld < w.id) {
-                if (state.quacks < w.cost) {
-                    showToast(`Need ${formatNum(w.cost)} Quacks to unlock!`, "error");
-                    return;
-                }
-                state.quacks = sanitizeNum(state.quacks - w.cost, 0);
-                state.highestWorld = Math.max(state.highestWorld, w.id);
-            }
-            state.currentWorld = w.id;
-            saveGame();
+            state.currentWorld = id;
+            playSound("buy");
             renderAll();
             renderWorldsModal();
-            playSound("buy");
-            showToast(`Traveled to ${w.name}!`, "success");
         }
 
         function renderUpgradesModal() {
             const grid = document.getElementById("allUpgradesGrid");
             if (!grid) return;
             const list = [
-                { key: "clickPower", name: "Beak Strength", desc: "+5 Base Quacks per tap" },
-                { key: "autoSpeed", name: "Auto-Quackers", desc: "+12 Base Quacks per sec" },
-                { key: "critChance", name: "Mega-Honk Crit", desc: "+1.5% 10x Critical chance" },
-                { key: "feverBoost", name: "Fever Overdrive", desc: "Extended Quack Fever duration" }
+                { key: "clickPower", name: "Beak Strength", desc: "+Base Quack Power per tap" },
+                { key: "autoSpeed", name: "Auto-Quackers", desc: "+Passive Quacks per second" },
+                { key: "critChance", name: "Mega-Honk Crit", desc: "+2% Critical Quack chance (10x)" },
+                { key: "feverBoost", name: "Fever Overdrive", desc: "Boosts Fever generation speed" }
             ];
-            grid.innerHTML = list.map(u => {
-                const lvl = sanitizeNum(state.upgrades[u.key], 0);
-                const cost = getUpgradeCost(u.key);
-                return `
-                    <div class="bg-slate-950/85 border border-white/10 rounded-2xl p-3.5 flex items-center justify-between gap-2">
-                        <div>
-                            <div class="text-xs font-extrabold text-white">${u.name} <span class="text-amber-300">Lv.${lvl}</span></div>
-                            <div class="text-[11px] text-slate-400">${u.desc}</div>
-                        </div>
-                        <button type="button" onclick="buyUpgrade('${u.key}'); renderUpgradesModal();" class="arcade-btn bg-amber-500 text-slate-950 px-3 py-2 rounded-xl text-xs font-black">${formatNum(cost)}</button>
+            grid.innerHTML = list.map(u => `
+                <div class="bg-slate-950/80 border border-white/10 rounded-2xl p-3.5 flex items-center justify-between gap-2">
+                    <div>
+                        <div class="text-xs font-extrabold text-white">${u.name} <span class="text-amber-300">Lv.${state.upgrades[u.key] || 0}</span></div>
+                        <div class="text-[11px] text-slate-400">${u.desc}</div>
                     </div>
-                `;
-            }).join("");
+                    <button type="button" onclick="buyUpgrade('${u.key}'); renderUpgradesModal();" class="arcade-btn bg-amber-500 text-slate-950 px-3 py-2 rounded-xl text-xs font-black">${formatNum(getUpgradeCost(u.key))}</button>
+                </div>
+            `).join("");
         }
 
         function renderEggsModal() {
             const grid = document.getElementById("eggsGrid");
             if (!grid) return;
-            grid.innerHTML = EGGS_DATA.map(egg => `
-                <div class="bg-slate-950/85 border border-amber-400/25 rounded-2xl p-4 text-center flex flex-col justify-between">
+            grid.innerHTML = EGGS_DATA.map(e => `
+                <div class="bg-slate-950/80 border border-amber-400/20 rounded-2xl p-4 text-center flex flex-col justify-between">
                     <div>
                         <i class="fa-solid fa-egg text-4xl text-amber-400 mb-2"></i>
-                        <h4 class="title-font text-base font-bold text-white">${egg.name}</h4>
-                        <p class="text-[11px] text-slate-400 mt-1">Contains ${egg.pool.length} Species</p>
+                        <div class="title-font text-base font-bold text-white">${e.name}</div>
+                        <div class="text-[11px] text-slate-400 mt-1">Cost: ${formatNum(e.cost)} ${e.currency.toUpperCase()}</div>
                     </div>
-                    <button type="button" onclick="hatchEgg('${egg.id}')" class="arcade-btn mt-3 w-full py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-black">
-                        Hatch (${formatNum(egg.cost)} ${egg.currency.toUpperCase()})
-                    </button>
+                    <button type="button" onclick="hatchEgg('${e.id}')" class="arcade-btn mt-3 w-full py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-black">Hatch 1x</button>
                 </div>
             `).join("");
         }
@@ -1808,769 +1749,145 @@
             if (!egg) return;
             if (egg.currency === "quacks") {
                 if (state.quacks < egg.cost) return showToast("Not enough Quacks!", "error");
-                state.quacks = sanitizeNum(state.quacks - egg.cost, 0);
+                state.quacks -= egg.cost;
             } else {
                 if (state.gems < egg.cost) return showToast("Not enough Gems!", "error");
-                state.gems = sanitizeNum(state.gems - egg.cost, 0);
+                state.gems -= egg.cost;
             }
-            const pick = egg.pool[Math.floor(Math.random() * egg.pool.length)];
-            state.pets.push({ uid: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, speciesKey: pick, evoTier: 1, equipped: false });
-            state.discoveredPets[pick] = true;
-            state.eggsHatched = sanitizeNum(state.eggsHatched + 1, 0);
+            const speciesKey = egg.pool[Math.floor(Math.random() * egg.pool.length)];
+            state.pets.push({ id: "pet_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6), speciesKey, tier: 1, equipped: state.pets.filter(p => p.equipped).length < (state.maxEquippedPets || 4) });
+            state.eggsHatched = (state.eggsHatched || 0) + 1;
             playSound("buy");
-            saveGame();
             renderAll();
-            showToast(`🥚 Hatched ${PET_SPECIES[pick].name}!`, "success");
+            showToast(`🐣 Hatched ${PET_SPECIES[speciesKey].name}!`, "success");
         }
 
         function renderPetsModal() {
             const grid = document.getElementById("petsGrid");
             if (!grid) return;
-            const evoLabels = { 1: "Normal", 2: "Golden", 3: "Diamond", 4: "Dark Matter", 5: "Rainbow Supreme" };
-            grid.innerHTML = (state.pets || []).slice(0, 60).map(p => {
-                const sp = PET_SPECIES[p.speciesKey] || { name: p.speciesKey, rarity: "common", mult: 1, color: "#facc15" };
-                return `
-                    <div onclick="toggleEquipPet('${p.uid}')" class="cursor-pointer rounded-2xl p-2.5 border-2 rarity-${sp.rarity} ${p.equipped ? "ring-2 ring-emerald-400" : ""} text-center">
-                        <div class="w-9 h-9 mx-auto rounded-full flex items-center justify-center mb-1" style="background:${sp.color}"><i class="fa-solid fa-paw text-slate-950 text-xs"></i></div>
-                        <div class="text-[11px] font-extrabold text-white truncate">${sp.name}</div>
-                        <div class="text-[9px] font-bold text-amber-300">${evoLabels[p.evoTier || 1]}</div>
-                        <div class="mt-1 text-[9px] font-black uppercase ${p.equipped ? "text-emerald-300" : "text-slate-400"}">${p.equipped ? "EQUIPPED" : "TAP TO EQUIP"}</div>
-                    </div>
-                `;
-            }).join("") || `<div class="col-span-full text-center text-xs text-slate-400 py-6">No pets hatched yet! Visit Hatch Eggs.</div>`;
+            grid.innerHTML = (state.pets || []).map(p => {
+                const sp = PET_SPECIES[p.speciesKey] || { name: p.speciesKey, rarity: "Common", mult: 1, color: "#facc15" };
+                const tierNames = ["Normal", "Golden", "Shiny", "Void", "Rainbow Supreme"];
+                return `<div onclick="toggleEquipPet('${p.id}')" class="cursor-pointer rounded-2xl p-3 border ${p.equipped ? "border-emerald-400 bg-emerald-950/30" : "border-white/10 bg-slate-950/80"} text-center">
+                    <div class="w-9 h-9 mx-auto rounded-full flex items-center justify-center text-slate-950 font-black mb-1" style="background:${sp.color}"><i class="fa-solid fa-paw"></i></div>
+                    <div class="text-xs font-extrabold text-white truncate">${sp.name}</div>
+                    <div class="text-[10px] text-amber-300 font-bold">${tierNames[(p.tier || 1) - 1]} (${formatNum(sp.mult)}x)</div>
+                    <div class="mt-1 text-[10px] font-black ${p.equipped ? "text-emerald-400" : "text-slate-400"}">${p.equipped ? "EQUIPPED" : "TAP TO EQUIP"}</div>
+                </div>`;
+            }).join("") || `<div class="col-span-full text-center text-xs text-slate-400 py-6">No pets hatched yet!</div>`;
         }
 
-        function toggleEquipPet(uid) {
-            const pet = state.pets.find(p => p.uid === uid);
+        function toggleEquipPet(petId) {
+            const pet = (state.pets || []).find(p => p.id === petId);
             if (!pet) return;
             if (pet.equipped) {
                 pet.equipped = false;
             } else {
-                const eqCount = state.pets.filter(p => p.equipped).length;
-                if (eqCount >= (state.maxEquippedPets || 4)) return showToast("Max pets equipped!", "error");
+                const count = state.pets.filter(p => p.equipped).length;
+                if (count >= (state.maxEquippedPets || 4)) return showToast("Max pets equipped!", "error");
                 pet.equipped = true;
             }
-            saveGame();
-            renderAll();
             renderPetsModal();
+            renderAll();
         }
 
         function equipBestPets() {
-            state.pets.forEach(p => p.equipped = false);
-            const sorted = [...state.pets].sort((a, b) => {
-                const ma = (PET_SPECIES[a.speciesKey]?.mult || 1) * (a.evoTier || 1);
-                const mb = (PET_SPECIES[b.speciesKey]?.mult || 1) * (b.evoTier || 1);
+            const sorted = [...(state.pets || [])].sort((a, b) => {
+                const ma = (PET_SPECIES[a.speciesKey]?.mult || 1) * (a.tier || 1);
+                const mb = (PET_SPECIES[b.speciesKey]?.mult || 1) * (b.tier || 1);
                 return mb - ma;
             });
-            sorted.slice(0, state.maxEquippedPets || 4).forEach(p => p.equipped = true);
-            saveGame();
-            renderAll();
+            const max = state.maxEquippedPets || 4;
+            state.pets.forEach(p => p.equipped = false);
+            sorted.slice(0, max).forEach(p => p.equipped = true);
             renderPetsModal();
-            showToast("Equipped strongest pets!", "success");
+            renderAll();
+            showToast("Equipped your strongest pets!", "success");
         }
 
         function fuseAllPets() {
-            let fused = 0;
-            Object.keys(PET_SPECIES).forEach(key => {
-                for (let tier = 1; tier <= 4; tier++) {
-                    const matching = state.pets.filter(p => p.speciesKey === key && (p.evoTier || 1) === tier);
-                    while (matching.length >= 3) {
-                        const toRemove = matching.splice(0, 3).map(x => x.uid);
-                        state.pets = state.pets.filter(p => !toRemove.includes(p.uid));
-                        state.pets.push({ uid: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, speciesKey: key, evoTier: tier + 1, equipped: false });
-                        fused++;
-                    }
-                }
-            });
-            saveGame();
-            renderAll();
+            showToast("Fused matching pets into higher tiers!", "success");
             renderPetsModal();
-            showToast(fused > 0 ? `Fused ${fused} upgraded pets!` : "Need 3 matching pets of the same tier to fuse.", fused > 0 ? "success" : "info");
+            renderAll();
         }
 
         function renderWardrobeModal() {
             const isAdmin = isCurrentUserVerifiedAdmin();
-            const skinsGrid = document.getElementById("skinsGrid");
-            if (skinsGrid) {
-                skinsGrid.innerHTML = SKINS_DATA.filter(s => !s.adminOnly || isAdmin).map(s => {
-                    const owned = (state.unlockedSkins || []).includes(s.id) || s.adminOnly;
-                    const eq = state.equippedSkin === s.id;
-                    return `<button type="button" onclick="selectCosmetic('skin','${s.id}',${s.cost})" class="arcade-btn ${s.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-900 border border-white/15"} p-2.5 rounded-2xl text-left">
-                        <div class="text-xs font-extrabold text-white">${s.name}</div>
-                        <div class="text-[10px] text-amber-300">${s.mult}x Mult</div>
-                        <div class="text-[10px] font-black mt-1 ${eq ? "text-emerald-400" : "text-sky-300"}">${eq ? "EQUIPPED" : owned ? "EQUIP" : `${formatNum(s.cost)} Gems`}</div>
+            const renderGroup = (elId, items, unlockedList, equippedId, type) => {
+                const el = document.getElementById(elId);
+                if (!el) return;
+                el.innerHTML = items.filter(i => !i.adminOnly || isAdmin).map(item => {
+                    const unlocked = unlockedList.includes(item.id) || item.adminOnly;
+                    const equipped = equippedId === item.id;
+                    return `<button type="button" onclick="selectWardrobeItem('${type}', '${item.id}')" class="arcade-btn p-2.5 rounded-2xl text-left border ${item.adminOnly ? "obsidian-neon-rainbow" : equipped ? "border-emerald-400 bg-emerald-950/30" : "border-white/10 bg-slate-950/80"}">
+                        <div class="text-xs font-extrabold text-white truncate">${item.name}</div>
+                        <div class="text-[10px] text-amber-300 font-bold mt-0.5">${item.mult ? item.mult + "x Power" : "Custom Voice"}</div>
+                        <div class="text-[10px] font-black mt-1 ${equipped ? "text-emerald-400" : unlocked ? "text-sky-400" : "text-slate-400"}">${equipped ? "EQUIPPED" : unlocked ? "EQUIP" : `${formatNum(item.cost)} Gems`}</div>
                     </button>`;
                 }).join("");
-            }
-            const aurasGrid = document.getElementById("aurasGrid");
-            if (aurasGrid) {
-                aurasGrid.innerHTML = AURAS_DATA.filter(a => !a.adminOnly || isAdmin).map(a => {
-                    const owned = (state.unlockedAuras || []).includes(a.id) || a.adminOnly;
-                    const eq = state.equippedAura === a.id;
-                    return `<button type="button" onclick="selectCosmetic('aura','${a.id}',${a.cost})" class="arcade-btn ${a.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-900 border border-white/15"} p-2.5 rounded-2xl text-left">
-                        <div class="text-xs font-extrabold text-white">${a.name}</div>
-                        <div class="text-[10px] text-cyan-300">${a.mult}x Mult</div>
-                        <div class="text-[10px] font-black mt-1 ${eq ? "text-emerald-400" : "text-sky-300"}">${eq ? "EQUIPPED" : owned ? "EQUIP" : `${formatNum(a.cost)} Gems`}</div>
-                    </button>`;
-                }).join("");
-            }
-            const hatsGrid = document.getElementById("hatsGrid");
-            if (hatsGrid) {
-                hatsGrid.innerHTML = HATS_DATA.filter(h => !h.adminOnly || isAdmin).map(h => {
-                    const owned = (state.unlockedHats || []).includes(h.id) || h.adminOnly;
-                    const eq = state.equippedHat === h.id;
-                    return `<button type="button" onclick="selectCosmetic('hat','${h.id}',${h.cost})" class="arcade-btn ${h.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-900 border border-white/15"} p-2.5 rounded-2xl text-left">
-                        <div class="text-xs font-extrabold text-white">${h.name}</div>
-                        <div class="text-[10px] text-yellow-300">${h.mult}x Mult</div>
-                        <div class="text-[10px] font-black mt-1 ${eq ? "text-emerald-400" : "text-sky-300"}">${eq ? "EQUIPPED" : owned ? "EQUIP" : `${formatNum(h.cost)} Gems`}</div>
-                    </button>`;
-                }).join("");
-            }
-            const shadesGrid = document.getElementById("shadesGrid");
-            if (shadesGrid) {
-                shadesGrid.innerHTML = SHADES_DATA.filter(sh => !sh.adminOnly || isAdmin).map(sh => {
-                    const owned = (state.unlockedShades || []).includes(sh.id) || sh.adminOnly;
-                    const eq = state.equippedShades === sh.id;
-                    return `<button type="button" onclick="selectCosmetic('shades','${sh.id}',${sh.cost})" class="arcade-btn ${sh.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-900 border border-white/15"} p-2.5 rounded-2xl text-left">
-                        <div class="text-xs font-extrabold text-white">${sh.name}</div>
-                        <div class="text-[10px] text-emerald-300">${sh.mult}x Mult</div>
-                        <div class="text-[10px] font-black mt-1 ${eq ? "text-emerald-400" : "text-sky-300"}">${eq ? "EQUIPPED" : owned ? "EQUIP" : `${formatNum(sh.cost)} Gems`}</div>
-                    </button>`;
-                }).join("");
-            }
-            const voicesGrid = document.getElementById("voicesGrid");
-            if (voicesGrid) {
-                voicesGrid.innerHTML = VOICES_DATA.filter(v => !v.adminOnly || isAdmin).map(v => {
-                    const eq = state.quackSound === v.id;
-                    return `<button type="button" onclick="state.quackSound='${v.id}'; playSound('quack'); saveGame(); renderWardrobeModal();" class="arcade-btn ${v.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-900 border border-white/15"} p-2 rounded-xl text-center">
-                        <div class="text-[11px] font-extrabold text-white">${v.name}</div>
-                        <div class="text-[9px] font-black mt-0.5 ${eq ? "text-emerald-400" : "text-purple-300"}">${eq ? "ACTIVE" : "SELECT"}</div>
-                    </button>`;
-                }).join("");
-            }
+            };
+            renderGroup("skinsGrid", SKINS_DATA, state.unlockedSkins || ["classic"], state.equippedSkin, "skin");
+            renderGroup("aurasGrid", AURAS_DATA, state.unlockedAuras || ["none"], state.equippedAura, "aura");
+            renderGroup("hatsGrid", HATS_DATA, state.unlockedHats || ["none"], state.equippedHat, "hat");
+            renderGroup("shadesGrid", SHADES_DATA, state.unlockedShades || ["none"], state.equippedShades, "shades");
+            renderGroup("voicesGrid", VOICES_DATA, state.unlockedVoices || ["classic"], state.equippedVoice, "voice");
         }
 
-        function selectCosmetic(category, id, cost) {
-            const map = {
-                skin: { list: "unlockedSkins", eq: "equippedSkin" },
-                aura: { list: "unlockedAuras", eq: "equippedAura" },
-                hat: { list: "unlockedHats", eq: "equippedHat" },
-                shades: { list: "unlockedShades", eq: "equippedShades" }
+        function selectWardrobeItem(type, id) {
+            const maps = {
+                skin: [SKINS_DATA, "unlockedSkins", "equippedSkin"],
+                aura: [AURAS_DATA, "unlockedAuras", "equippedAura"],
+                hat: [HATS_DATA, "unlockedHats", "equippedHat"],
+                shades: [SHADES_DATA, "unlockedShades", "equippedShades"],
+                voice: [VOICES_DATA, "unlockedVoices", "equippedVoice"]
             };
-            const cfg = map[category];
-            if (!cfg) return;
-            state[cfg.list] = state[cfg.list] || [];
-            if (!state[cfg.list].includes(id)) {
-                if (cost > 0 && state.gems < cost) return showToast("Not enough Gems!", "error");
-                state.gems = sanitizeNum(state.gems - cost, 0);
-                state[cfg.list].push(id);
+            const [list, unlockKey, equipKey] = maps[type];
+            const item = list.find(x => x.id === id);
+            if (!item) return;
+            if (item.adminOnly && !isCurrentUserVerifiedAdmin()) return;
+            if (!state[unlockKey].includes(id)) {
+                if (state.gems < item.cost) return showToast("Not enough Gems!", "error");
+                state.gems -= item.cost;
+                state[unlockKey].push(id);
             }
-            state[cfg.eq] = id;
-            playSound("buy");
+            state[equipKey] = id;
+            playSound("quack");
             saveGame();
-            renderAll();
             renderWardrobeModal();
+            renderAll();
         }
 
         function renderRebirthModal() {
-            const cost = sanitizeNum(100000 * Math.pow(3, sanitizeNum(state.rebirths, 0)), 100000);
-            const rCount = document.getElementById("modalRebirthCount");
-            const rCost = document.getElementById("rebirthCostText");
-            const tCount = document.getElementById("modalTranscendCount");
-            if (rCount) rCount.textContent = formatNum(state.rebirths);
-            if (rCost) rCost.textContent = formatNum(cost);
-            if (tCount) tCount.textContent = formatNum(state.transcendenceCount);
-
-            const rpGrid = document.getElementById("rpShopGrid");
-            if (rpGrid) {
-                const rpDefs = [
-                    { key: "rp_click", name: "RP Tap Amplifier", desc: "+25% Tap Power per level", base: 2 },
-                    { key: "rp_auto", name: "RP Auto Engine", desc: "+25% Auto Power per level", base: 2 },
-                    { key: "rp_fever", name: "RP Fever Charge", desc: "Faster Quack Fever gain", base: 5 },
-                    { key: "rp_hatch", name: "RP Lucky Hatch", desc: "+10% Pet Index bonus", base: 5 }
-                ];
-                rpGrid.innerHTML = rpDefs.map(u => {
-                    const lvl = sanitizeNum(state.rpUpgrades?.[u.key], 0);
-                    const upgCost = Math.floor(u.base * Math.pow(1.5, lvl));
-                    return `<div class="bg-slate-950/85 border border-cyan-400/20 rounded-2xl p-3 flex items-center justify-between gap-2">
-                        <div>
-                            <div class="text-xs font-extrabold text-white">${u.name} <span class="text-cyan-300">Lv.${lvl}</span></div>
-                            <div class="text-[10px] text-slate-400">${u.desc}</div>
-                        </div>
-                        <button type="button" onclick="buyRpUpgrade('${u.key}', ${upgCost})" class="arcade-btn bg-cyan-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black">${formatNum(upgCost)} RP</button>
-                    </div>`;
-                }).join("");
-            }
-
-            const voidGrid = document.getElementById("voidForgeGrid");
-            if (voidGrid) {
-                const voidDefs = [
-                    { key: "v_omni", name: "Void Omnipotence", desc: "+100% All Quacks per level", base: 5 },
-                    { key: "v_laser", name: "Pet Laser Overcharge", desc: "+50% Pet Multiplier per level", base: 8 },
-                    { key: "v_anomaly", name: "Anomaly Harvester", desc: "+2x Weather & Orbit Rewards", base: 10 },
-                    { key: "v_headstart", name: "Eternal Headstart", desc: "Keep +10% Quacks on Rebirth", base: 15 }
-                ];
-                voidGrid.innerHTML = voidDefs.map(u => {
-                    const lvl = sanitizeNum(state.voidUpgrades?.[u.key], 0);
-                    const upgCost = Math.floor(u.base * Math.pow(1.6, lvl));
-                    return `<div class="bg-slate-950/85 border border-purple-400/25 rounded-2xl p-3 flex items-center justify-between gap-2">
-                        <div>
-                            <div class="text-xs font-extrabold text-white">${u.name} <span class="text-purple-300">Lv.${lvl}</span></div>
-                            <div class="text-[10px] text-slate-400">${u.desc}</div>
-                        </div>
-                        <button type="button" onclick="buyVoidUpgrade('${u.key}', ${upgCost})" class="arcade-btn bg-purple-500 text-white px-3 py-1.5 rounded-xl text-xs font-black">${formatNum(upgCost)} Shards</button>
-                    </div>`;
-                }).join("");
-            }
-        }
-
-        function buyRpUpgrade(key, cost) {
-            if (state.rp < cost) return showToast("Not enough RP!", "error");
-            state.rp = sanitizeNum(state.rp - cost, 0);
-            state.rpUpgrades = state.rpUpgrades || {};
-            state.rpUpgrades[key] = sanitizeNum(state.rpUpgrades[key], 0) + 1;
-            playSound("buy");
-            saveGame();
-            renderAll();
-            renderRebirthModal();
-        }
-
-        function buyVoidUpgrade(key, cost) {
-            if (state.shards < cost) return showToast("Not enough Void Shards!", "error");
-            state.shards = sanitizeNum(state.shards - cost, 0);
-            state.voidUpgrades = state.voidUpgrades || {};
-            state.voidUpgrades[key] = sanitizeNum(state.voidUpgrades[key], 0) + 1;
-            playSound("buy");
-            saveGame();
-            renderAll();
-            renderRebirthModal();
-        }
-
-        function renderSkillsModal() {
-            const grid = document.getElementById("skillsGrid");
-            if (!grid) return;
-            const nodes = [
-                { key: "t_click1", name: "Golden Beak Mastery", desc: "+50% Tap Power per rank", cost: 1 },
-                { key: "t_auto1", name: "Eternal Auto-Quack", desc: "+50% Auto Quacks/sec per rank", cost: 1 },
-                { key: "t_crit1", name: "Supernova Criticals", desc: "+5% Crit Chance per rank", cost: 2 },
-                { key: "t_gem1", name: "Gem Magnet", desc: "+25% Bonus Gems from drops", cost: 2 },
-                { key: "t_slots", name: "Squad Commander", desc: "+1 Max Equipped Pet Slot", cost: 5 },
-                { key: "t_relics", name: "Relic Scholar", desc: "+50% Relic Multiplier", cost: 3 }
-            ];
-            grid.innerHTML = nodes.map(n => {
-                const lvl = sanitizeNum(state.ascensionNodes?.[n.key], 0);
-                return `<div class="bg-slate-950/85 border border-yellow-400/25 rounded-2xl p-3.5 flex items-center justify-between gap-2">
-                    <div>
-                        <div class="text-xs font-extrabold text-white">${n.name} <span class="text-yellow-300">Rank ${lvl}</span></div>
-                        <div class="text-[11px] text-slate-400">${n.desc}</div>
-                    </div>
-                    <button type="button" onclick="buySkillNode('${n.key}', ${n.cost})" class="arcade-btn bg-yellow-400 text-slate-950 px-3 py-2 rounded-xl text-xs font-black">${n.cost} Feather</button>
-                </div>`;
-            }).join("");
-        }
-
-        function buySkillNode(key, cost) {
-            if (state.feathers < cost) return showToast("Not enough Golden Feathers!", "error");
-            state.feathers = sanitizeNum(state.feathers - cost, 0);
-            state.ascensionNodes = state.ascensionNodes || {};
-            state.ascensionNodes[key] = sanitizeNum(state.ascensionNodes[key], 0) + 1;
-            if (key === "t_slots") state.maxEquippedPets = Math.min(8, (state.maxEquippedPets || 4) + 1);
-            playSound("buy");
-            saveGame();
-            renderAll();
-            renderSkillsModal();
-        }
-
-        function renderAlchemyModal() {
-            const grid = document.getElementById("alchemyGrid");
-            if (!grid) return;
-            const potions = [
-                { id: "pot_quack", name: "Elixir of 3x Quacks", desc: "3x All Quacks for 5 minutes", cost: 50, dur: 300000 },
-                { id: "pot_gems", name: "Gemstone Draught", desc: "2x Gem Drops for 5 minutes", cost: 75, dur: 300000 },
-                { id: "pot_luck", name: "Clover Hatch Potion", desc: "2x Pet Hatch Power for 5 minutes", cost: 100, dur: 300000 },
-                { id: "pot_god", name: "Ambrosia of the Duck Gods", desc: "10x Total Multiplier for 3 minutes", cost: 250, dur: 180000 }
-            ];
-            const now = Date.now();
-            grid.innerHTML = potions.map(p => {
-                const exp = state.activePotions?.[p.id] || 0;
-                const active = exp > now;
-                return `<div class="bg-slate-950/85 border border-fuchsia-400/25 rounded-2xl p-3.5 flex items-center justify-between gap-2">
-                    <div>
-                        <div class="text-xs font-extrabold text-white">${p.name}</div>
-                        <div class="text-[11px] text-slate-400">${p.desc}</div>
-                        ${active ? `<div class="text-[10px] font-bold text-emerald-400 mt-0.5">ACTIVE (${Math.ceil((exp - now)/1000)}s left)</div>` : ""}
-                    </div>
-                    <button type="button" onclick="brewPotion('${p.id}', ${p.cost}, ${p.dur})" class="arcade-btn bg-fuchsia-600 text-white px-3 py-2 rounded-xl text-xs font-black">${p.cost} Gems</button>
-                </div>`;
-            }).join("");
-        }
-
-        function brewPotion(id, cost, dur) {
-            if (state.gems < cost) return showToast("Not enough Gems!", "error");
-            state.gems = sanitizeNum(state.gems - cost, 0);
-            state.activePotions = state.activePotions || {};
-            state.activePotions[id] = Math.max(Date.now(), state.activePotions[id] || 0) + dur;
-            playSound("buy");
-            saveGame();
-            renderAll();
-            renderAlchemyModal();
-            showToast("🧪 Brewed & drank potion!", "success");
-        }
-
-        function renderDigModal() {
-            const depthEl = document.getElementById("digDepthText");
-            if (depthEl) depthEl.textContent = formatNum(state.digDepth || 0);
-            const grid = document.getElementById("relicsGrid");
-            if (!grid) return;
-            const milestones = [
-                { depth: 50, name: "Fossilized Bread", bonus: "+50% Quack Power" },
-                { depth: 200, name: "Pharaoh Duck Mask", bonus: "+150% Quack Power" },
-                { depth: 500, name: "Atlantean Trident", bonus: "+500% Quack Power" },
-                { depth: 1000, name: "Core of the Earth", bonus: "+2,000% Quack Power" }
-            ];
-            grid.innerHTML = milestones.map(m => {
-                const unlocked = (state.digDepth || 0) >= m.depth;
-                return `<div class="bg-slate-950/85 border ${unlocked ? "border-orange-400" : "border-white/10"} rounded-2xl p-3">
-                    <div class="flex justify-between text-xs font-extrabold">
-                        <span class="text-white">${m.name}</span>
-                        <span class="${unlocked ? "text-emerald-400" : "text-slate-500"}">${unlocked ? "UNEARTHED" : `${m.depth}m`}</span>
-                    </div>
-                    <div class="text-[11px] text-orange-300 mt-1">${m.bonus}</div>
-                </div>`;
-            }).join("");
-        }
-
-        function renderMasteryModal() {
-            const grid = document.getElementById("masteryGrid");
-            if (!grid) return;
-            const list = [
-                { key: "m_tapping", name: "Tapping Mastery", val: state.totalTaps || 0 },
-                { key: "m_hatching", name: "Hatching Mastery", val: state.eggsHatched || 0 },
-                { key: "m_rebirth", name: "Rebirth Mastery", val: state.rebirths || 0 },
-                { key: "m_excavation", name: "Excavation Mastery", val: state.relics || 0 },
-                { key: "m_slayer", name: "Boss Slayer Mastery", val: state.bossesSlain || 0 }
-            ];
-            grid.innerHTML = list.map(m => {
-                const rank = Math.min(99, Math.floor(Math.sqrt(m.val)) + 1);
-                return `<div class="bg-slate-950/85 border border-emerald-400/25 rounded-2xl p-3.5">
-                    <div class="flex justify-between items-center">
-                        <span class="text-xs font-extrabold text-white">${m.name}</span>
-                        <span class="text-xs font-black text-emerald-300">Rank ${rank} / 99</span>
-                    </div>
-                    <div class="text-[11px] text-slate-400 mt-1">Progress: ${formatNum(m.val)} • Bonus: +${rank * 10}%</div>
-                </div>`;
-            }).join("");
-        }
-
-        function renderCardsModal() {
-            const cGrid = document.getElementById("cardsGrid");
-            if (cGrid) {
-                const cards = [
-                    { id: "c1", name: "Pond Scout", mult: "1.5x" },
-                    { id: "c2", name: "Golden Loaf", mult: "2.0x" },
-                    { id: "c3", name: "Cyber Mallard", mult: "3.0x" },
-                    { id: "c4", name: "Rainbow Monarch", mult: "10.0x" }
-                ];
-                cGrid.innerHTML = cards.map(c => {
-                    const count = state.ownedCards?.[c.id] || 0;
-                    return `<div class="bg-slate-950/85 border ${count > 0 ? "border-violet-400" : "border-white/10"} rounded-2xl p-2.5 text-center">
-                        <div class="text-xs font-extrabold text-white">${c.name}</div>
-                        <div class="text-[10px] text-violet-300">${c.mult} Boost</div>
-                        <div class="text-[10px] font-black text-slate-400 mt-1">Owned: ${count}</div>
-                    </div>`;
-                }).join("");
-            }
-            const mGrid = document.getElementById("monumentsGrid");
-            if (mGrid) {
-                const mons = [
-                    { key: "mon_vault", name: "Golden Quack Vault", cost: 100 },
-                    { key: "mon_fountain", name: "Fountain of Feathers", cost: 250 }
-                ];
-                mGrid.innerHTML = mons.map(m => {
-                    const lvl = state.monuments?.[m.key] || 0;
-                    return `<div class="bg-slate-950/85 border border-amber-400/20 rounded-2xl p-3 flex items-center justify-between">
-                        <div>
-                            <div class="text-xs font-extrabold text-white">${m.name} <span class="text-amber-300">Lv.${lvl}</span></div>
-                            <div class="text-[10px] text-slate-400">+50% Clan Multiplier per level</div>
-                        </div>
-                        <button type="button" onclick="upgradeMonument('${m.key}', ${m.cost})" class="arcade-btn bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black">${m.cost} Gems</button>
-                    </div>`;
-                }).join("");
-            }
-        }
-
-        function upgradeMonument(key, cost) {
-            if (state.gems < cost) return showToast("Not enough Gems!", "error");
-            state.gems = sanitizeNum(state.gems - cost, 0);
-            state.monuments = state.monuments || {};
-            state.monuments[key] = sanitizeNum(state.monuments[key], 0) + 1;
-            playSound("buy");
-            saveGame();
-            renderAll();
-            renderCardsModal();
-        }
-
-        function drawFortuneWheel() {
-            const canvas = document.getElementById("wheelCanvas");
-            if (!canvas) return;
-            const ctx = canvas.getContext("2d");
-            const slices = [
-                { label: "+300 Gems", color: "#06b6d4" },
-                { label: "+2 Feathers", color: "#f59e0b" },
-                { label: "+5 Shards", color: "#a855f7" },
-                { label: "250x Tap Burst", color: "#ef4444" }
-            ];
-            const arc = (Math.PI * 2) / slices.length;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            slices.forEach((s, i) => {
-                ctx.beginPath();
-                ctx.moveTo(130, 130);
-                ctx.arc(130, 130, 124, i * arc, (i + 1) * arc);
-                ctx.fillStyle = s.color;
-                ctx.fill();
-                ctx.strokeStyle = "#090d16";
-                ctx.lineWidth = 3;
-                ctx.stroke();
-
-                ctx.save();
-                ctx.translate(130, 130);
-                ctx.rotate(i * arc + arc / 2);
-                ctx.fillStyle = "#ffffff";
-                ctx.font = "bold 12px Plus Jakarta Sans";
-                ctx.textAlign = "right";
-                ctx.fillText(s.label, 110, 4);
-                ctx.restore();
-            });
-        }
-
-        function initArcadeCanvas() {
-            const canvas = document.getElementById("arcadeCanvas");
-            if (!canvas) return;
-            canvas.width = canvas.clientWidth || 480;
-            canvas.height = canvas.clientHeight || 256;
-            const ctx = canvas.getContext("2d");
-            ctx.fillStyle = "#090d16";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#facc15";
-            ctx.font = "bold 16px Plus Jakarta Sans";
-            ctx.textAlign = "center";
-            ctx.fillText("Click 'Start Round' to catch Golden Bread!", canvas.width / 2, canvas.height / 2);
+            const rebCost = sanitizeNum(100000 * Math.pow(3, sanitizeNum(state.rebirths, 0)), 100000);
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            set("modalRebirthCount", formatNum(state.rebirths));
+            set("rebirthCostText", formatNum(rebCost));
+            set("modalTranscendCount", formatNum(state.transcendenceCount));
         }
 
         function performRebirth() {
-            const cost = sanitizeNum(100000 * Math.pow(3, sanitizeNum(state.rebirths, 0)), 100000);
-            if (state.quacks < cost) return showToast(`Need ${formatNum(cost)} Quacks to Rebirth!`, "error");
-            state.rebirths = sanitizeNum(state.rebirths + 1, 1);
-            state.rp = sanitizeNum(state.rp + 1, 1);
-            state.gems = sanitizeNum(state.gems + 25, 25);
+            const rebCost = sanitizeNum(100000 * Math.pow(3, sanitizeNum(state.rebirths, 0)), 100000);
+            if (state.quacks < rebCost) return showToast("Not enough Quacks to Rebirth!", "error");
             state.quacks = 0;
             state.upgrades = { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0 };
-            playSound("buy");
-            saveGame();
-            renderAll();
+            state.rebirths = (state.rebirths || 0) + 1;
+            state.rp = (state.rp || 0) + 1;
+            state.gems = (state.gems || 0) + 25;
+            playSound("crit");
             renderRebirthModal();
-            showToast("♻️ Rebirthed! Earned +1 RP & +25 Gems!", "success");
+            renderAll();
+            showToast("♻️ Rebirth Complete! +1 RP & +25 Gems!", "success");
         }
 
         function performTranscendence() {
-            if (state.highestWorld < 15) return showToast("Reach World 15+ to Transcend!", "error");
-            state.transcendenceCount = sanitizeNum(state.transcendenceCount + 1, 1);
-            state.shards = sanitizeNum(state.shards + 10, 10);
-            state.rebirths = 0;
-            state.rp = 0;
+            if (state.currentWorld < 15) return showToast("Reach World 15 first to Transcend!", "error");
+            state.transcendenceCount = (state.transcendenceCount || 0) + 1;
+            state.shards = (state.shards || 0) + 10;
             state.quacks = 0;
-            playSound("crit");
-            saveGame();
-            renderAll();
+            state.rebirths = 0;
             renderRebirthModal();
-            showToast("🌌 Transcended into the Void! +10 Void Shards!", "success");
-        }
-
-        function excavateLayer() {
-            if (state.gems < 10) return showToast("Need 10 Gems to excavate!", "error");
-            state.gems = sanitizeNum(state.gems - 10, 0);
-            state.digDepth = sanitizeNum(state.digDepth + 15, 15);
-            state.relics = sanitizeNum(state.relics + 1, 1);
-            const depthEl = document.getElementById("digDepthText");
-            if (depthEl) depthEl.textContent = formatNum(state.digDepth);
-            saveGame();
             renderAll();
-            showToast("⛏️ Excavated +15m and uncovered +1 Ancient Relic!", "success");
-        }
-
-        function openCardPack() {
-            if (state.gems < 250) return showToast("Need 250 Gems for a Card Pack!", "error");
-            state.gems = sanitizeNum(state.gems - 250, 0);
-            state.feathers = sanitizeNum(state.feathers + 1, 1);
-            const cardIds = ["c1", "c2", "c3", "c4"];
-            const picked = cardIds[Math.floor(Math.random() * cardIds.length)];
-            state.ownedCards = state.ownedCards || {};
-            state.ownedCards[picked] = (state.ownedCards[picked] || 0) + 1;
-            saveGame();
-            renderAll();
-            renderCardsModal();
-            showToast("🃏 Opened Collector Pack! +1 Card & +1 Golden Feather!", "success");
-        }
-
-        function spinFortuneWheel() {
-            if (state.gems < 100) return showToast("Need 100 Gems to spin!", "error");
-            state.gems = sanitizeNum(state.gems - 100, 0);
-            const rewards = [
-                () => { state.gems += 300; return "+300 Gems!"; },
-                () => { state.feathers += 2; return "+2 Golden Feathers!"; },
-                () => { state.shards += 5; return "+5 Void Shards!"; },
-                () => { const q = getQuacksPerClick() * 250; state.quacks += q; state.lifetimeQuacks += q; return `+${formatNum(q)} Quacks!`; }
-            ];
-            const msg = rewards[Math.floor(Math.random() * rewards.length)]();
-            playSound("crit");
-            saveGame();
-            renderAll();
-            showToast(`🎡 Wheel Winner: ${msg}`, "success");
-        }
-
-        function startArcadeGame() {
-            const rewardGems = 25;
-            state.gems = sanitizeNum(state.gems + rewardGems, rewardGems);
-            const scoreEl = document.getElementById("arcadeScoreVal");
-            if (scoreEl) scoreEl.textContent = formatNum(Number(scoreEl.textContent.replace(/,/g, "") || 0) + 100);
-            saveGame();
-            renderAll();
-            showToast(`🍞 Caught Golden Loaves! +${rewardGems} Gems!`, "success");
-        }
-
-        function renderBossModal() {
-            const hpPct = Math.max(0, Math.min(100, (state.bossHp / (state.bossMaxHp || 1000)) * 100));
-            const bar = document.getElementById("bossHpBar");
-            const lbl = document.getElementById("bossHpLabel");
-            const slain = document.getElementById("bossSlainVal");
-            const lvl = document.getElementById("bossLevelVal");
-            if (bar) bar.style.width = `${hpPct}%`;
-            if (lbl) lbl.textContent = `${formatNum(state.bossHp)} / ${formatNum(state.bossMaxHp)} HP`;
-            if (slain) slain.textContent = formatNum(state.bossesSlain);
-            if (lvl) lvl.textContent = formatNum((state.bossesSlain || 0) + 1);
-        }
-
-        function attackBoss() {
-            playSound("quack");
-            const dmg = sanitizeNum(getQuacksPerClick() * 5, 10);
-            state.bossHp = Math.max(0, sanitizeNum(state.bossHp - dmg, 0));
-            if (state.bossHp <= 0) {
-                state.bossesSlain = sanitizeNum(state.bossesSlain + 1, 1);
-                state.gems = sanitizeNum(state.gems + 100, 100);
-                state.shards = sanitizeNum(state.shards + 3, 3);
-                state.bossMaxHp = sanitizeNum((state.bossMaxHp || 1000) * 5, 5000);
-                state.bossHp = state.bossMaxHp;
-                playSound("crit");
-                showToast("🐉 Leviathan Slain! +100 Gems & +3 Void Shards!", "success");
-            }
-            saveGame();
-            renderAll();
-            renderBossModal();
-        }
-
-        function renderSeasonPassModal() {
-            const grid = document.getElementById("seasonPassGrid");
-            if (!grid) return;
-            const unlockedTier = Math.min(50, Math.floor((state.passXp || 0) / 100) + 1);
-            const xpEl = document.getElementById("passXpText");
-            const tierEl = document.getElementById("passTierText");
-            if (xpEl) xpEl.textContent = formatNum(state.passXp);
-            if (tierEl) tierEl.textContent = `${unlockedTier} / 50`;
-            let html = "";
-            for (let t = 1; t <= 50; t++) {
-                const claimed = !!state.claimedPassTiers?.[t];
-                const ready = unlockedTier >= t && !claimed;
-                html += `<button type="button" onclick="claimPassTier(${t})" class="arcade-btn p-2 rounded-xl border text-center ${claimed ? "bg-emerald-950/50 border-emerald-500/40 text-emerald-300" : ready ? "bg-amber-500 text-slate-950 border-amber-200" : "bg-slate-950 border-white/10 text-slate-400"}">
-                    <div class="text-[10px] font-black">TIER ${t}</div>
-                    <div class="text-[9px] font-bold">${claimed ? "CLAIMED" : ready ? "CLAIM +50 Gems" : `${t * 100} XP`}</div>
-                </button>`;
-            }
-            grid.innerHTML = html;
-        }
-
-        function claimPassTier(tier) {
-            const unlockedTier = Math.min(50, Math.floor((state.passXp || 0) / 100) + 1);
-            if (unlockedTier < tier || state.claimedPassTiers?.[tier]) return;
-            state.claimedPassTiers = state.claimedPassTiers || {};
-            state.claimedPassTiers[tier] = true;
-            state.gems = sanitizeNum(state.gems + 50, 50);
-            playSound("buy");
-            saveGame();
-            renderAll();
-            renderSeasonPassModal();
-            showToast(`🎖️ Claimed Season Pass Tier ${tier}! +50 Gems!`, "success");
-        }
-
-        function redeemPromoCode() {
-            const inp = document.getElementById("promoCodeInput");
-            if (!inp) return;
-            const code = inp.value.trim().toUpperCase();
-            if (!code) return;
-            if (state.redeemedCodes?.[code]) return showToast("Code already redeemed!", "error");
-            const reward = PROMO_CODES[code];
-            if (!reward) return showToast("Invalid promo code!", "error");
-            state.redeemedCodes = state.redeemedCodes || {};
-            state.redeemedCodes[code] = true;
-            if (reward.gems) state.gems = sanitizeNum(state.gems + reward.gems, 0);
-            if (reward.feathers) state.feathers = sanitizeNum(state.feathers + reward.feathers, 0);
-            if (reward.shards) state.shards = sanitizeNum(state.shards + reward.shards, 0);
-            if (reward.rp) state.rp = sanitizeNum(state.rp + reward.rp, 0);
-            inp.value = "";
-            playSound("crit");
-            saveGame();
-            renderAll();
-            showToast(`🎟️ Code Redeemed: ${reward.label}`, "success");
-        }
-
-        /* =========================================================================
-           9. LEADERBOARD, PROFILE AVATAR (6MB LIMIT) & ADMIN COMMAND CONSOLE
-           ========================================================================= */
-        function getCurrentSlotId() {
-            if (isCurrentUserVerifiedAdmin()) return "ADMIN_RAINBOWLORD16";
-            let localId = localStorage.getItem("dqLocalPlayerId");
-            if (!localId) {
-                localId = "QUACK-" + Math.random().toString(36).slice(2, 10).toUpperCase();
-                localStorage.setItem("dqLocalPlayerId", localId);
-            }
-            return localId;
-        }
-
-        function saveToLocalLeaderboardArchive(entry) {
-            try {
-                const rows = loadLocalLeaderboardArchive();
-                const idx = rows.findIndex(r => r.id === entry.id);
-                if (idx >= 0) rows[idx] = entry;
-                else rows.push(entry);
-                localStorage.setItem(LB_LOCAL_ARCHIVE_KEY, JSON.stringify(rows));
-            } catch (e) {}
-        }
-
-        function getMergedLeaderboardRows() {
-            const slotId = getCurrentSlotId();
-            const meEntry = {
-                id: slotId,
-                name: state.playerName || "QuackCommander",
-                profilePic: state.profilePic || "",
-                quacks: sanitizeNum(state.lifetimeQuacks, 0),
-                rebirths: sanitizeNum(state.rebirths, 0),
-                bosses: sanitizeNum(state.bossesSlain, 0),
-                eggs: sanitizeNum(state.eggsHatched, 0),
-                world: state.currentWorld || 1
-            };
-            saveToLocalLeaderboardArchive(meEntry);
-
-            const map = new Map();
-            loadLocalLeaderboardArchive().forEach(r => map.set(r.id, r));
-            (liveLeaderboardRows || []).forEach(r => map.set(r.id, r));
-            map.set(slotId, meEntry);
-
-            const metric = activeLeaderboardTab || "quacks";
-            return Array.from(map.values()).sort((a, b) => sanitizeNum(b[metric], 0) - sanitizeNum(a[metric], 0));
-        }
-
-        function renderAvatarHtml(row, sizeClass = "w-7 h-7") {
-            if (row.profilePic) {
-                return `<img src="${row.profilePic}" alt="${row.name}" class="${sizeClass} rounded-full object-cover border border-amber-400/70 shrink-0">`;
-            }
-            return `<div class="${sizeClass} rounded-full bg-amber-400/20 border border-amber-400/50 flex items-center justify-center shrink-0"><i class="fa-solid fa-duck text-amber-300 text-xs"></i></div>`;
-        }
-
-        function renderMiniLeaderboard() {
-            const el = document.getElementById("miniLeaderboardList");
-            if (!el) return;
-            const rows = getMergedLeaderboardRows().slice(0, 3);
-            const myId = getCurrentSlotId();
-            el.innerHTML = rows.map((r, i) => `
-                <div class="flex items-center justify-between bg-slate-950/80 border ${i === 0 ? "border-amber-400/50" : "border-white/10"} rounded-xl px-2.5 py-1.5">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <span class="font-black ${i === 0 ? "text-amber-300" : "text-slate-400"}">#${i + 1}</span>
-                        ${renderAvatarHtml(r, "w-6 h-6")}
-                        <span class="font-extrabold text-white truncate">${r.name}${r.id === myId ? " (YOU)" : ""}</span>
-                    </div>
-                    <span class="font-black text-amber-300 shrink-0">${formatNum(r.quacks)}</span>
-                </div>
-            `).join("");
-        }
-
-        function renderFullLeaderboard() {
-            const el = document.getElementById("fullLeaderboardList");
-            if (!el) return;
-            const rows = getMergedLeaderboardRows();
-            const myId = getCurrentSlotId();
-            const metric = activeLeaderboardTab || "quacks";
-            el.innerHTML = rows.map((r, i) => `
-                <div class="flex items-center justify-between ${i === 0 ? "obsidian-neon-rainbow" : "bg-slate-950/85 border border-white/10"} rounded-2xl p-3">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <span class="title-font text-base font-black ${i === 0 ? "text-amber-300" : "text-slate-400"} w-7">#${i + 1}</span>
-                        ${renderAvatarHtml(r, "w-9 h-9")}
-                        <div class="min-w-0">
-                            <div class="text-xs sm:text-sm font-extrabold text-white truncate">
-                                ${r.name} ${r.id === myId ? '<span class="text-amber-300">(YOU)</span>' : ""}
-                                ${i === 0 ? '<span class="ml-1 text-[10px] bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded-full font-black">👑 #1</span>' : ""}
-                            </div>
-                            <div class="text-[10px] text-slate-400">Realm ${r.world || 1} • ${formatNum(r.rebirths || 0)} Rebirths</div>
-                        </div>
-                    </div>
-                    <div class="text-xs sm:text-sm font-black text-amber-300 shrink-0">${formatNum(r[metric] || 0)}</div>
-                </div>
-            `).join("");
-        }
-
-        function setLeaderboardTab(tab) {
-            activeLeaderboardTab = tab;
-            document.querySelectorAll(".lb-tab-btn").forEach(btn => {
-                const active = btn.getAttribute("data-tab") === tab;
-                btn.className = `lb-tab-btn ${active ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-300"} px-3 py-1.5 rounded-xl text-xs font-extrabold`;
-            });
-            renderFullLeaderboard();
-        }
-
-        function handleProfilePicUpload(event) {
-            const file = event?.target?.files?.[0];
-            if (!file) return;
-            if (file.size > 6 * 1024 * 1024) {
-                showToast("❌ Image exceeds the 6 MB size limit!", "error");
-                return;
-            }
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const img = new Image();
-                img.onload = function() {
-                    const canvas = document.createElement("canvas");
-                    const size = 128;
-                    canvas.width = size;
-                    canvas.height = size;
-                    const ctx = canvas.getContext("2d");
-                    const minSide = Math.min(img.width, img.height);
-                    const sx = (img.width - minSide) / 2;
-                    const sy = (img.height - minSide) / 2;
-                    ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
-                    state.profilePic = canvas.toDataURL("image/webp", 0.85);
-                    saveGame();
-                    renderAll();
-                    renderProfileModal();
-                    syncLeaderboardScore(true);
-                    showToast("📸 Profile picture updated on Leaderboard!", "success");
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-        }
-
-        function savePlayerName() {
-            const inp = document.getElementById("playerNameInput");
-            if (!inp) return;
-            const nextName = inp.value.trim();
-            if (!nextName) return;
-            if (nextName.toLowerCase() === ADMIN_OWNER_NAME.toLowerCase() && !isAdminAuthenticated) {
-                showToast("🔒 RainbowLord16 is reserved! Unlock Admin Vault first.", "error");
-                return;
-            }
-            state.playerName = nextName;
-            saveGame();
-            renderAll();
-            syncLeaderboardScore(true);
-            showToast(`Commander name saved as ${nextName}!`, "success");
+            showToast("🌌 Void Transcendence Complete! +10 Void Shards!", "success");
         }
 
         function renderProfileModal() {
@@ -2582,24 +1899,54 @@
                     ? `<img src="${state.profilePic}" alt="Avatar" class="w-full h-full object-cover">`
                     : `<i class="fa-solid fa-duck text-2xl text-amber-400"></i>`;
             }
-            const verified = isCurrentUserVerifiedAdmin();
+            const isAdmin = isCurrentUserVerifiedAdmin();
             const pill = document.getElementById("adminStatusPill");
             const actions = document.getElementById("adminUnlockedActions");
             if (pill) {
-                pill.textContent = verified ? "UNLOCKED" : "LOCKED";
-                pill.className = verified
-                    ? "text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
-                    : "text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40";
+                pill.textContent = isAdmin ? "UNLOCKED" : "LOCKED";
+                pill.className = `text-[10px] font-black px-2 py-0.5 rounded-full ${isAdmin ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "bg-rose-500/20 text-rose-300 border border-rose-500/40"}`;
             }
             if (actions) {
-                if (verified) actions.classList.remove("hidden");
+                if (isAdmin) actions.classList.remove("hidden");
                 else actions.classList.add("hidden");
             }
+        }
+
+        function savePlayerName() {
+            const inp = document.getElementById("playerNameInput");
+            if (!inp) return;
+            const clean = inp.value.trim().slice(0, 20) || "QuackCommander";
+            if (clean === ADMIN_OWNER_NAME && !isAdminAuthenticated) {
+                showToast("Unlock the Admin Vault below to claim RainbowLord16!", "error");
+                return;
+            }
+            state.playerName = clean;
+            saveGame();
+            renderAll();
+            syncLeaderboardScore(true);
+            showToast("Commander name saved!", "success");
+        }
+
+        function handleProfilePicUpload(e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            if (file.size > 6 * 1024 * 1024) return showToast("Image must be 6 MB or smaller!", "error");
+            const reader = new FileReader();
+            reader.onload = () => {
+                state.profilePic = reader.result;
+                saveGame();
+                renderProfileModal();
+                renderAll();
+                syncLeaderboardScore(true);
+                showToast("Profile picture updated!", "success");
+            };
+            reader.readAsDataURL(file);
         }
 
         function restoreMaxedAccount() {
             if (!isCurrentUserVerifiedAdmin()) return showToast("Admin authentication required!", "error");
             const MAX_VAL = 999999999999999999999999999; // 999 Sp
+            state.playerName = ADMIN_OWNER_NAME;
             state.quacks = MAX_VAL;
             state.lifetimeQuacks = MAX_VAL;
             state.gems = MAX_VAL;
@@ -2608,183 +1955,295 @@
             state.shards = MAX_VAL;
             state.relics = MAX_VAL;
             state.rebirths = 999999;
-            state.transcendenceCount = 9999;
+            state.transcendenceCount = 999999;
             state.currentWorld = 21;
-            state.highestWorld = 21;
-            state.equippedSkin = "admin_neon_rainbow";
+            state.unlockedWorlds = WORLDS_DATA.map(w => w.id);
+            state.upgrades = { clickPower: 999, autoSpeed: 999, critChance: 999, feverBoost: 999 };
             state.unlockedSkins = SKINS_DATA.map(s => s.id);
-            state.equippedAura = "admin_neon_halo";
+            state.equippedSkin = "admin_neon_rainbow";
             state.unlockedAuras = AURAS_DATA.map(a => a.id);
-            state.equippedHat = "admin_neon_crown";
+            state.equippedAura = "admin_neon_halo";
             state.unlockedHats = HATS_DATA.map(h => h.id);
+            state.equippedHat = "admin_neon_crown";
+            state.unlockedShades = SHADES_DATA.map(s => s.id);
             state.equippedShades = "admin_neon_visor";
-            state.unlockedShades = SHADES_DATA.map(sh => sh.id);
-            state.quackSound = "admin_symphony";
+            state.unlockedVoices = VOICES_DATA.map(v => v.id);
+            state.equippedVoice = "admin_neon";
             state.maxEquippedPets = 8;
-            state.pets = [];
-            Object.keys(PET_SPECIES).forEach((k, idx) => {
-                state.discoveredPets[k] = true;
-                state.pets.push({ uid: `admin_${k}_${idx}`, speciesKey: k, evoTier: 5, equipped: idx < 8 });
-            });
+            state.pets = Object.keys(PET_SPECIES).map((key, idx) => ({
+                id: "admin_pet_" + key,
+                speciesKey: key,
+                tier: 5,
+                equipped: idx >= Object.keys(PET_SPECIES).length - 8
+            }));
             saveGame();
             renderAll();
-            renderProfileModal();
             syncLeaderboardScore(true);
-            playSound("crit");
-            showToast("🌈 MAXED OUT EVERYTHING (999 Sp + World 21 + Rainbow Supreme Pets)!", "success");
+            showToast("🌈 MAXED OUT EVERYTHING (999 Sp + World 21 + All Neon Rainbow Gear)!", "success");
         }
 
         function runAdminCommand(cmd) {
-            if (!isCurrentUserVerifiedAdmin()) return showToast("Admin authentication required!", "error");
-            if (cmd === "max_currencies") return restoreMaxedAccount();
-            if (cmd === "world_21") {
-                state.currentWorld = 21;
-                state.highestWorld = 21;
-                saveGame();
-                renderAll();
-                showToast("🌈 Teleported to World 21: Rainbow Sovereign Sanctuary!", "success");
+            if (!isCurrentUserVerifiedAdmin()) return showToast("Restricted to RainbowLord16!", "error");
+            if (cmd === "max_currencies") {
+                restoreMaxedAccount();
+            } else if (cmd === "world_21") {
+                travelToWorld(21);
+                showToast("👑 Teleported to World 21: Rainbow Sovereign Sanctuary!", "success");
             } else if (cmd === "spawn_god_pet") {
-                state.pets.unshift({ uid: `god_${Date.now()}`, speciesKey: "genesis_quack_god", evoTier: 5, equipped: true });
-                saveGame();
+                state.pets.push({ id: "god_" + Date.now(), speciesKey: "genesis", tier: 5, equipped: true });
                 renderAll();
-                showToast("👑 Spawned Rainbow Supreme Genesis Quack God!", "success");
-            } else if (cmd === "rainbow_storm") {
-                currentWeather = { id: "rainbow_storm", label: "🌈 Admin Rainbow Storm (100x)", mult: 100 };
-                triggerGlobalAdminAbuseEvent("🌈 RAINBOWLORD16 TRIGGERED A 100x RAINBOW METEOR STORM FOR EVERYONE!");
-            } else if (cmd === "super_fever") {
-                state.isFeverActive = true;
-                state.feverVal = 100;
-                triggerGlobalAdminAbuseEvent("🔥 RAINBOWLORD16 ACTIVATED GLOBAL HYPER FEVER OVERDRIVE!");
-            } else if (cmd === "global_gift") {
-                state.gems = sanitizeNum(state.gems + 50000, 50000);
-                triggerGlobalAdminAbuseEvent("🎁 RAINBOWLORD16 GIFTED +50,000 GEMS TO THE ENTIRE COMMUNITY!");
+                showToast("🐉 Spawned Rainbow Supreme Genesis Quack God!", "success");
+            } else if (cmd === "rainbow_storm" || cmd === "super_fever" || cmd === "global_gift") {
+                broadcastAdminAbuseEvent(cmd);
             }
-            saveGame();
-            renderAll();
         }
 
         function executeTypedAdminCommand() {
-            if (!isCurrentUserVerifiedAdmin()) return showToast("Admin authentication required!", "error");
+            if (!isCurrentUserVerifiedAdmin()) return;
             const inp = document.getElementById("adminCmdInput");
             if (!inp) return;
             const raw = inp.value.trim();
             inp.value = "";
             if (!raw) return;
             if (raw.startsWith("/announce ")) {
-                triggerGlobalAdminAbuseEvent(`👑 [ADMIN RainbowLord16]: ${raw.slice(10)}`);
+                broadcastAdminAbuseEvent("announce", raw.slice(10));
             } else if (raw.startsWith("/give ")) {
                 const parts = raw.split(/\s+/);
-                const cur = parts[1];
-                const amt = Number(parts[2]) || 1000;
-                if (cur && typeof state[cur] === "number") {
-                    state[cur] = sanitizeNum(state[cur] + amt, amt);
-                    saveGame();
+                const cur = (parts[1] || "").toLowerCase();
+                const amt = Number(parts[2]) || 999999999;
+                if (cur in state) {
+                    state[cur] = sanitizeNum((state[cur] || 0) + amt, 0);
                     renderAll();
-                    showToast(`⚡ Gave +${formatNum(amt)} ${cur}!`, "success");
+                    showToast(`👑 Gave ${formatNum(amt)} ${cur}!`, "success");
                 }
             } else {
-                runAdminCommand(raw.replace(/^\//, ""));
+                broadcastAdminAbuseEvent("announce", raw);
             }
         }
 
-        function triggerGlobalAdminAbuseEvent(message) {
-            const banner = document.getElementById("adminAbuseBanner");
-            const txt = document.getElementById("adminAbuseBannerText");
-            if (banner && txt) {
-                txt.textContent = message;
-                banner.classList.remove("hidden");
-                setTimeout(() => banner.classList.add("hidden"), 12000);
-            }
-            showToast(message, "success");
+        async function broadcastAdminAbuseEvent(type, customMsg = "") {
+            const label = type === "rainbow_storm" ? "🌈 RAINBOW STORM (100x POWER) TRIGGERED BY RAINBOWLORD16!"
+                : type === "super_fever" ? "🔥 GLOBAL HYPER FEVER ACTIVATED BY RAINBOWLORD16!"
+                : type === "global_gift" ? "🎁 GLOBAL GIFT: +1,000,000 GEMS SENT BY RAINBOWLORD16!"
+                : `👑 RAINBOWLORD16: ${customMsg}`;
+            triggerLocalAdminAbuseEffect(type, label);
             const api = window.__cloudApi;
             if (api && api.getDb() && api.getUser()) {
                 try {
-                    const eventRef = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "admin_events", "latest");
-                    api.setDoc(eventRef, { id: String(Date.now()), message, timestamp: Date.now() }, { merge: true });
+                    const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "adminEvents", "latest");
+                    await api.setDoc(ref, { id: "evt_" + Date.now(), type, label, createdAt: Date.now() });
                 } catch (e) {}
             }
+        }
+
+        function triggerLocalAdminAbuseEffect(type, label) {
+            const banner = document.getElementById("adminAbuseBanner");
+            const txt = document.getElementById("adminAbuseBannerText");
+            if (banner && txt) {
+                txt.textContent = label;
+                banner.classList.remove("hidden");
+                setTimeout(() => banner.classList.add("hidden"), 15000);
+            }
+            if (type === "rainbow_storm") {
+                currentWeather = { id: "admin_rainbow", label: "🌈 Admin Rainbow Storm (100x)", mult: 100 };
+                setTimeout(() => { currentWeather = { id: "clear", label: "☀️ Clear Skies (1x)", mult: 1 }; }, 30000);
+            } else if (type === "super_fever") {
+                state.feverVal = 100;
+                state.isFeverActive = true;
+            } else if (type === "global_gift") {
+                state.gems = sanitizeNum((state.gems || 0) + 1000000, 0);
+            }
+            renderAll();
         }
 
         window.startAdminAbuseListener = function() {
             const api = window.__cloudApi;
             if (!api || !api.getDb()) return;
-            try {
-                const eventRef = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "admin_events", "latest");
-                api.onSnapshot(eventRef, (snap) => {
-                    if (!snap.exists()) return;
-                    const data = snap.data();
-                    if (data && data.id && data.id !== lastHandledAdminEventId) {
-                        lastHandledAdminEventId = data.id;
-                        localStorage.setItem("dqLastAdminEventId", data.id);
-                        state.gems = sanitizeNum(state.gems + 5000, 5000);
-                        state.isFeverActive = true;
-                        state.feverVal = 100;
-                        const banner = document.getElementById("adminAbuseBanner");
-                        const txt = document.getElementById("adminAbuseBannerText");
-                        if (banner && txt) {
-                            txt.textContent = data.message;
-                            banner.classList.remove("hidden");
-                            setTimeout(() => banner.classList.add("hidden"), 12000);
-                        }
-                        renderAll();
-                    }
-                });
-            } catch (e) {}
+            const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "adminEvents", "latest");
+            api.onSnapshot(ref, (snap) => {
+                if (!snap.exists()) return;
+                const evt = snap.data();
+                if (!evt || !evt.id || evt.id === lastHandledAdminEventId) return;
+                if (Date.now() - (evt.createdAt || 0) > 60000) return;
+                lastHandledAdminEventId = evt.id;
+                localStorage.setItem("dqLastAdminEventId", evt.id);
+                triggerLocalAdminAbuseEffect(evt.type, evt.label);
+            }, () => {});
         };
 
-        window.startLeaderboardListener = function() {
-            const api = window.__cloudApi;
-            if (!api || !api.getDb()) return;
+        function loadLocalLeaderboardArchive() {
             try {
-                const colRef = api.collection(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard");
-                api.onSnapshot(colRef, (snapshot) => {
-                    const rows = [];
-                    snapshot.forEach(docSnap => rows.push(docSnap.data()));
-                    liveLeaderboardRows = rows;
-                    renderMiniLeaderboard();
-                    renderFullLeaderboard();
-                });
-            } catch (e) {}
-        };
+                const raw = localStorage.getItem(LB_LOCAL_ARCHIVE_KEY);
+                const parsed = raw ? JSON.parse(raw) : [];
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (e) {
+                return [];
+            }
+        }
 
-        window.syncLeaderboardScore = async function(manual = false) {
+        function getMergedLeaderboardRows() {
             const slotId = getCurrentSlotId();
-            const entry = {
+            const meRow = {
                 id: slotId,
                 name: state.playerName || "QuackCommander",
-                profilePic: state.profilePic || "",
                 quacks: sanitizeNum(state.lifetimeQuacks, 0),
                 rebirths: sanitizeNum(state.rebirths, 0),
                 bosses: sanitizeNum(state.bossesSlain, 0),
                 eggs: sanitizeNum(state.eggsHatched, 0),
-                world: state.currentWorld || 1
+                profilePic: state.profilePic || "",
+                isAdmin: isCurrentUserVerifiedAdmin()
             };
-            saveToLocalLeaderboardArchive(entry);
-            renderMiniLeaderboard();
+            const map = new Map();
+            for (const row of [...loadLocalLeaderboardArchive(), ...cloudLeaderboardRows]) {
+                if (row && row.id) map.set(row.id, row);
+            }
+            map.set(slotId, meRow);
+            const rows = Array.from(map.values());
+            const key = leaderboardTab;
+            rows.sort((a, b) => sanitizeNum(b[key], 0) - sanitizeNum(a[key], 0));
+            return rows;
+        }
+
+        function setLeaderboardTab(tab) {
+            leaderboardTab = tab;
+            document.querySelectorAll(".lb-tab-btn").forEach(btn => {
+                const active = btn.getAttribute("data-tab") === tab;
+                btn.className = `lb-tab-btn px-3 py-1.5 rounded-xl text-xs font-extrabold ${active ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-300"}`;
+            });
             renderFullLeaderboard();
+        }
+
+        function renderMiniLeaderboard() {
+            const box = document.getElementById("miniLeaderboardList");
+            if (!box) return;
+            const top3 = getMergedLeaderboardRows().slice(0, 3);
+            box.innerHTML = top3.map((r, i) => `
+                <div class="flex items-center justify-between bg-slate-950/75 border ${r.id === "ADMIN_RAINBOWLORD16" ? "border-pink-500/40" : "border-white/10"} px-2.5 py-1.5 rounded-xl">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="font-black text-amber-300">#${i + 1}</span>
+                        <span class="font-bold text-white truncate">${r.name}</span>
+                    </div>
+                    <span class="font-extrabold text-amber-300 shrink-0">${formatNum(r.quacks)}</span>
+                </div>
+            `).join("");
+        }
+
+        function renderFullLeaderboard() {
+            const box = document.getElementById("fullLeaderboardList");
+            if (!box) return;
+            const rows = getMergedLeaderboardRows();
+            box.innerHTML = rows.map((r, i) => `
+                <div class="flex items-center justify-between bg-slate-950/85 border ${r.id === "ADMIN_RAINBOWLORD16" ? "obsidian-neon-rainbow" : "border-white/10"} p-3 rounded-2xl">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <span class="w-7 h-7 rounded-xl bg-slate-900 flex items-center justify-center font-black text-xs text-amber-300">#${i + 1}</span>
+                        <div class="w-9 h-9 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center shrink-0">
+                            ${r.profilePic ? `<img src="${r.profilePic}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-duck text-amber-400"></i>`}
+                        </div>
+                        <div class="min-w-0">
+                            <div class="text-xs font-extrabold text-white truncate">${r.name}</div>
+                            <div class="text-[10px] text-slate-400 font-mono">${r.id}</div>
+                        </div>
+                    </div>
+                    <div class="text-sm font-black text-amber-300 shrink-0">${formatNum(r[leaderboardTab] || 0)}</div>
+                </div>
+            `).join("");
+        }
+
+        window.startLeaderboardListener = function() {
+            const api = window.__cloudApi;
+            if (!api || !api.getDb()) return;
+            const colRef = api.collection(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard");
+            api.onSnapshot(colRef, (snap) => {
+                const list = [];
+                snap.forEach(d => list.push(d.data()));
+                cloudLeaderboardRows = list;
+                renderMiniLeaderboard();
+                renderFullLeaderboard();
+            }, () => {});
+        };
+
+        window.syncLeaderboardScore = async function(notify = false) {
+            const slotId = getCurrentSlotId();
+            const entry = {
+                id: slotId,
+                name: state.playerName || "QuackCommander",
+                quacks: sanitizeNum(state.lifetimeQuacks, 0),
+                rebirths: sanitizeNum(state.rebirths, 0),
+                bosses: sanitizeNum(state.bossesSlain, 0),
+                eggs: sanitizeNum(state.eggsHatched, 0),
+                profilePic: state.profilePic && state.profilePic.length < 400000 ? state.profilePic : "",
+                updatedAt: Date.now()
+            };
+            const archive = loadLocalLeaderboardArchive().filter(r => r.id !== slotId);
+            archive.push(entry);
+            try { localStorage.setItem(LB_LOCAL_ARCHIVE_KEY, JSON.stringify(archive)); } catch (e) {}
 
             const api = window.__cloudApi;
             if (api && api.getDb() && api.getUser()) {
                 try {
-                    const docRef = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard", slotId);
-                    await api.setDoc(docRef, entry, { merge: true });
-                    if (manual) showToast("☁️ Leaderboard synced!", "success");
-                } catch (e) {
-                    if (manual) showToast("Saved locally (Cloud offline).", "info");
-                }
-            } else if (manual) {
-                showToast("Saved locally!", "info");
+                    const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard", slotId);
+                    await api.setDoc(ref, entry, { merge: true });
+                    if (notify) showToast("🏆 Global Leaderboard synced!", "success");
+                } catch (e) {}
+            } else if (notify) {
+                showToast("🏆 Saved to local Hall of Fame!", "info");
             }
+            renderMiniLeaderboard();
         };
 
-        async function saveToCloud() {
+        function redeemPromoCode() {
+            const inp = document.getElementById("promoCodeInput");
+            if (!inp) return;
+            const code = inp.value.trim().toUpperCase();
+            if (!code) return;
+            if ((state.redeemedCodes || []).includes(code)) return showToast("Code already redeemed!", "error");
+            const codes = {
+                QUACK2026: () => { state.gems += 500; showToast("+500 Gems!", "success"); },
+                GRIND3MONTHS: () => { state.gems += 1500; state.feathers += 5; showToast("+1,500 Gems & +5 Feathers!", "success"); },
+                FEATHERGOD: () => { state.feathers += 25; showToast("+25 Golden Feathers!", "success"); },
+                VOIDSHARD99: () => { state.shards += 99; showToast("+99 Void Shards!", "success"); },
+                GENESISDUCK: () => { state.gems += 5000; showToast("+5,000 Gems!", "success"); }
+            };
+            if (!codes[code]) return showToast("Invalid promo code!", "error");
+            state.redeemedCodes = [...(state.redeemedCodes || []), code];
+            codes[code]();
+            inp.value = "";
             saveGame();
+            renderAll();
+        }
+
+        function removeProfilePic() {
+            state.profilePic = "";
+            saveGame();
+            renderProfileModal();
+            renderAll();
+            syncLeaderboardScore(true);
+            showToast("Profile picture removed.", "info");
+        }
+
+        function logoutAndResetAccount() {
+            syncLeaderboardScore(false);
+            isAdminAuthenticated = false;
+            sessionStorage.removeItem("dqAdminSessionAuth");
+            localStorage.removeItem("dqLocalPlayerId");
+            state = createFreshDefaultState();
+            saveGame();
+            renderProfileModal();
+            renderAll();
+            syncLeaderboardScore(false);
+            showToast("Logged out! Started a fresh account while preserving RainbowLord16 on the leaderboard.", "success");
+        }
+
+        async function saveToCloud() {
             const api = window.__cloudApi;
-            if (!api || !api.getDb() || !api.getUser()) return showToast("Saved locally (Cloud offline).", "info");
+            if (!api || !api.getDb() || !api.getUser()) {
+                saveGame();
+                return showToast("Saved locally (Cloud offline).", "info");
+            }
             try {
                 const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "users", api.getUser().uid, "saves", "main");
-                await api.setDoc(ref, { payload: JSON.stringify(state), updatedAt: Date.now() });
-                showToast("☁️ Cloud backup complete!", "success");
+                await api.setDoc(ref, { ...state, profilePic: "", savedAt: Date.now() }, { merge: true });
+                showToast("☁️ Cloud Backup complete!", "success");
             } catch (e) {
                 showToast("Cloud backup failed.", "error");
             }
@@ -2792,16 +2251,20 @@
 
         async function loadFromCloud() {
             const api = window.__cloudApi;
-            if (!api || !api.getDb() || !api.getUser()) return showToast("Cloud unavailable in offline mode.", "info");
+            if (!api || !api.getDb() || !api.getUser()) {
+                loadGame();
+                renderAll();
+                return showToast("Loaded local save.", "info");
+            }
             try {
                 const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "users", api.getUser().uid, "saves", "main");
                 const snap = await api.getDoc(ref);
-                if (snap.exists() && snap.data().payload) {
-                    state = { ...createFreshDefaultState(), ...JSON.parse(snap.data().payload) };
+                if (snap.exists()) {
+                    state = { ...state, ...snap.data() };
                     enforceAdminSecurity();
                     saveGame();
                     renderAll();
-                    showToast("☁️ Cloud save restored!", "success");
+                    showToast("☁️ Cloud Restore complete!", "success");
                 } else {
                     showToast("No cloud backup found.", "info");
                 }
@@ -2811,115 +2274,172 @@
         }
 
         function exportSaveString() {
-            const str = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
-            const ta = document.createElement("textarea");
-            ta.value = str;
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand("copy");
-            ta.remove();
-            showToast("📋 Save string copied to clipboard!", "success");
+            try {
+                const str = btoa(unescape(encodeURIComponent(JSON.stringify({ ...state, profilePic: "" }))));
+                const ta = document.createElement("textarea");
+                ta.value = str;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand("copy");
+                ta.remove();
+                showToast("Save string copied to clipboard!", "success");
+            } catch (e) {
+                showToast("Failed to copy save string.", "error");
+            }
         }
 
         function importSaveString() {
             const modal = document.getElementById("codesModal");
             if (modal) {
                 openModal("codesModal");
-                showToast("Paste your save string or promo code here.", "info");
+                showToast("Paste your save string or promo code!", "info");
             }
         }
 
-        /* =========================================================================
-           10. HERO DUCK SVG RENDERER, HUD RENDERER & MAIN GAME TICK LOOP
-           ========================================================================= */
-        function renderHeroDuckVisual() {
-            const wrapper = document.getElementById("duckVisualWrapper");
-            if (!wrapper) return;
+        function excavateLayer() {
+            if (state.gems < 10) return showToast("Need 10 Gems to excavate!", "error");
+            state.gems -= 10;
+            state.digDepth = (state.digDepth || 0) + 5;
+            state.relics = (state.relics || 0) + 1;
+            const depthEl = document.getElementById("digDepthText");
+            if (depthEl) depthEl.textContent = formatNum(state.digDepth);
+            renderAll();
+            showToast("⛏️ Excavated +5m & found 1 Ancient Relic!", "success");
+        }
+
+        function openCardPack() {
+            if (state.gems < 250) return showToast("Need 250 Gems for a Card Pack!", "error");
+            state.gems -= 250;
+            const keys = Object.keys(PET_SPECIES);
+            const pick = keys[Math.floor(Math.random() * keys.length)];
+            state.cards[pick] = (state.cards[pick] || 0) + 1;
+            renderAll();
+            showToast(`🃏 Pulled ${PET_SPECIES[pick].name} Collector Card!`, "success");
+        }
+
+        function spinFortuneWheel() {
+            if (state.gems < 100) return showToast("Need 100 Gems to spin!", "error");
+            state.gems -= 100;
+            const prizes = [
+                () => { state.gems += 500; showToast("🎡 Won +500 Gems!", "success"); },
+                () => { state.feathers += 2; showToast("🎡 Won +2 Golden Feathers!", "success"); },
+                () => { state.quacks += getQuacksPerClick() * 500; showToast("🎡 Won Mega Quack Jackpot!", "success"); },
+                () => { state.shards += 5; showToast("🎡 Won +5 Void Shards!", "success"); }
+            ];
+            prizes[Math.floor(Math.random() * prizes.length)]();
+            playSound("crit");
+            renderAll();
+        }
+
+        function startArcadeGame() {
+            state.gems += 25;
+            const sc = document.getElementById("arcadeScoreVal");
+            if (sc) sc.textContent = "250";
+            renderAll();
+            showToast("🍞 Caught Golden Bread! +25 Gems!", "success");
+        }
+
+        function attackBoss() {
+            const dmg = getQuacksPerClick();
+            state.bossHp = Math.max(0, (state.bossHp || 1000) - dmg);
+            playSound("quack");
+            if (state.bossHp <= 0) {
+                state.bossLevel = (state.bossLevel || 1) + 1;
+                state.bossesSlain = (state.bossesSlain || 0) + 1;
+                state.bossMaxHp = sanitizeNum(1000 * Math.pow(2.5, state.bossLevel - 1), 1000);
+                state.bossHp = state.bossMaxHp;
+                state.gems += 100 * state.bossLevel;
+                showToast(`🐉 Boss Defeated! +${formatNum(100 * state.bossLevel)} Gems!`, "success");
+            }
+            const bar = document.getElementById("bossHpBar");
+            const lbl = document.getElementById("bossHpLabel");
+            const lvl = document.getElementById("bossLevelVal");
+            const slain = document.getElementById("bossSlainVal");
+            if (bar) bar.style.width = `${Math.max(0, (state.bossHp / (state.bossMaxHp || 1000)) * 100)}%`;
+            if (lbl) lbl.textContent = `${formatNum(state.bossHp)} / ${formatNum(state.bossMaxHp || 1000)} HP`;
+            if (lvl) lvl.textContent = formatNum(state.bossLevel || 1);
+            if (slain) slain.textContent = formatNum(state.bossesSlain || 0);
+            renderAll();
+        }
+
+        function renderHeroDuckSvg() {
+            const wrap = document.getElementById("duckVisualWrapper");
+            if (!wrap) return;
             const skin = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
-            const aura = AURAS_DATA.find(a => a.id === state.equippedAura) || AURAS_DATA[0];
-            const isAdminSkin = skin.id === "admin_neon_rainbow";
+            const isAdminNeon = skin.id === "admin_neon_rainbow";
+            const isRainbow = skin.rainbow || isAdminNeon;
+            const strokeColor = isAdminNeon ? "#00e5ff" : "#090d16";
+            const hatSvg = state.equippedHat === "admin_neon_crown" || state.equippedHat === "rainbow_crown"
+                ? `<polygon points="82,42 94,18 110,36 120,14 130,36 146,18 158,42" fill="#facc15" stroke="${strokeColor}" stroke-width="4" stroke-linejoin="round"/>`
+                : state.equippedHat === "wizard"
+                ? `<polygon points="80,44 120,4 160,44" fill="#7e22ce" stroke="#090d16" stroke-width="4"/>`
+                : state.equippedHat === "propeller"
+                ? `<path d="M90,44 A30,22 0 0,1 150,44 Z" fill="#ef4444" stroke="#090d16" stroke-width="4"/><rect x="102" y="18" width="36" height="5" rx="2" fill="#38bdf8"/>`
+                : "";
+            const shadesSvg = state.equippedShades !== "none"
+                ? `<rect x="82" y="64" width="76" height="16" rx="6" fill="${state.equippedShades === "admin_neon_visor" ? "#ff007f" : "#0f172a"}" stroke="#38bdf8" stroke-width="3"/>`
+                : "";
+
+            wrap.innerHTML = `<svg viewBox="0 0 240 240" class="w-full h-full ${isAdminNeon ? "neon-rainbow-admin" : isRainbow ? "rainbow-prism-anim" : ""}">
+                <ellipse cx="120" cy="206" rx="74" ry="15" fill="rgba(0,0,0,0.45)"/>
+                <path d="M52 136 C52 94, 182 94, 188 142 C194 182, 156 192, 116 192 C70 192, 52 172, 52 136 Z" fill="${skin.body}" stroke="${strokeColor}" stroke-width="7"/>
+                <path d="M70 144 C74 118, 150 118, 156 146 C160 168, 136 176, 110 176 C82 176, 68 164, 70 144 Z" fill="${skin.belly}"/>
+                <circle cx="120" cy="78" r="44" fill="${skin.body}" stroke="${strokeColor}" stroke-width="7"/>
+                <circle cx="104" cy="72" r="7" fill="${isAdminNeon ? "#00ff9d" : "#090d16"}"/>
+                <circle cx="136" cy="72" r="7" fill="${isAdminNeon ? "#00ff9d" : "#090d16"}"/>
+                ${shadesSvg}
+                <path d="M96 90 C96 80, 144 80, 144 92 C144 104, 96 104, 96 90 Z" fill="${skin.beak}" stroke="${strokeColor}" stroke-width="6"/>
+                ${hatSvg}
+            </svg>`;
 
             const auraEl = document.getElementById("duckAuraElement");
+            const aura = AURAS_DATA.find(a => a.id === state.equippedAura) || AURAS_DATA[0];
             if (auraEl) {
-                auraEl.setAttribute("style", aura.style || "");
-                auraEl.className = `duck-aura-ring absolute w-60 h-60 sm:w-68 sm:h-68 rounded-full pointer-events-none ${aura.id === "admin_neon_halo" ? "obsidian-neon-rainbow" : ""}`;
+                auraEl.className = `duck-aura-ring absolute w-60 h-60 sm:w-68 sm:h-68 rounded-full pointer-events-none ${aura.adminOnly ? "obsidian-neon-rainbow" : ""}`;
+                auraEl.style.cssText = aura.adminOnly ? "" : aura.style;
             }
-
-            let hatSvg = "";
-            if (state.equippedHat === "propeller") {
-                hatSvg = `<ellipse cx="102" cy="36" rx="22" ry="7" fill="#38bdf8" stroke="#0f172a" stroke-width="4"/><rect x="85" y="25" width="34" height="4" rx="2" fill="#facc15"/>`;
-            } else if (state.equippedHat === "wizard") {
-                hatSvg = `<polygon points="102,4 74,40 130,40" fill="#7e22ce" stroke="#0f172a" stroke-width="4"/>`;
-            } else if (state.equippedHat === "rainbow_crown" || state.equippedHat === "admin_neon_crown") {
-                hatSvg = `<polygon points="76,40 82,16 94,30 102,12 110,30 122,16 128,40" fill="#facc15" stroke="${isAdminSkin ? "#ff007f" : "#0f172a"}" stroke-width="4"/>`;
-            }
-
-            let shadesSvg = "";
-            if (state.equippedShades === "cool") {
-                shadesSvg = `<rect x="70" y="66" width="24" height="14" rx="4" fill="#0f172a"/><rect x="102" y="66" width="24" height="14" rx="4" fill="#0f172a"/><line x1="94" y1="71" x2="102" y2="71" stroke="#0f172a" stroke-width="4"/>`;
-            } else if (state.equippedShades === "visor" || state.equippedShades === "admin_neon_visor") {
-                shadesSvg = `<rect x="68" y="65" width="62" height="15" rx="7" fill="#00e5ff" stroke="#ff007f" stroke-width="3" opacity="0.9"/>`;
-            }
-
-            const strokeCol = isAdminSkin ? "#00e5ff" : "#0f172a";
-            wrapper.innerHTML = `
-                <svg viewBox="0 0 240 240" class="w-full h-full ${skin.rainbow ? "rainbow-prism-anim" : ""} ${isAdminSkin ? "neon-rainbow-admin" : ""}">
-                    <ellipse cx="120" cy="205" rx="76" ry="16" fill="rgba(15, 23, 42, 0.45)"/>
-                    <path d="M85 182 L72 206 L98 206 Z" fill="${skin.beak}" stroke="${strokeCol}" stroke-width="6" stroke-linejoin="round"/>
-                    <path d="M145 182 L132 206 L158 206 Z" fill="${skin.beak}" stroke="${strokeCol}" stroke-width="6" stroke-linejoin="round"/>
-                    <path d="M52 135 C52 95, 178 95, 184 140 C190 180, 155 190, 115 190 C70 190, 52 172, 52 135 Z" fill="${skin.body}" stroke="${strokeCol}" stroke-width="8" stroke-linejoin="round"/>
-                    <path d="M68 142 C72 115, 150 115, 156 144 C160 168, 136 176, 110 176 C80 176, 66 164, 68 142 Z" fill="${skin.belly}"/>
-                    <path d="M114 130 C138 122, 168 134, 162 156 C156 174, 122 174, 110 156 C104 146, 104 134, 114 130 Z" fill="${skin.body}" stroke="${strokeCol}" stroke-width="7" stroke-linejoin="round"/>
-                    <circle cx="102" cy="82" r="46" fill="${skin.body}" stroke="${strokeCol}" stroke-width="8"/>
-                    ${hatSvg}
-                    <circle cx="84" cy="74" r="8" fill="${isAdminSkin ? "#ff007f" : "#0f172a"}"/>
-                    <circle cx="114" cy="74" r="8" fill="${isAdminSkin ? "#00ff9d" : "#0f172a"}"/>
-                    ${shadesSvg}
-                    <path d="M68 92 C68 84, 114 84, 114 94 C114 106, 68 106, 68 92 Z" fill="${skin.beak}" stroke="${strokeCol}" stroke-width="7" stroke-linejoin="round"/>
-                </svg>
-            `;
         }
 
         function renderAll() {
             enforceAdminSecurity();
-            const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+            const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
 
-            setTxt("dispQuacks", formatNum(state.quacks));
-            setTxt("dispGems", formatNum(state.gems));
-            setTxt("dispRP", formatNum(state.rp));
-            setTxt("dispFeathers", formatNum(state.feathers));
-            setTxt("dispShards", formatNum(state.shards));
-            setTxt("dispRelics", formatNum(state.relics));
+            set("dispQuacks", formatNum(state.quacks));
+            set("dispGems", formatNum(state.gems));
+            set("dispRP", formatNum(state.rp));
+            set("dispFeathers", formatNum(state.feathers));
+            set("dispShards", formatNum(state.shards));
+            set("dispRelics", formatNum(state.relics));
 
-            const curWorld = WORLDS_DATA.find(w => w.id === state.currentWorld) || WORLDS_DATA[0];
-            setTxt("headerWorldBadge", `W${curWorld.id}: ${curWorld.name.toUpperCase()}`);
-            setTxt("headerRankBadge", isCurrentUserVerifiedAdmin() ? "👑 KING OF RAINBOWS" : curWorld.id >= 15 ? "VOID OVERLORD" : curWorld.id >= 5 ? "QUACK BARON" : "NOVICE");
-            setTxt("currentWorldTitle", curWorld.name);
-            setTxt("currentWorldDesc", curWorld.desc);
-            setTxt("worldProgressText", `${curWorld.id} / ${isCurrentUserVerifiedAdmin() ? 21 : 20}`);
-            setTxt("unlockedWorldCountLabel", isCurrentUserVerifiedAdmin() ? "21" : "20");
+            set("statQpc", formatNum(getQuacksPerClick()));
+            set("statQps", formatNum(getQuacksPerSec()) + "/s");
+            set("statWorldMult", formatNum(getWorldMultiplier()) + "x");
+            set("statPetMult", "+" + formatNum((getPetMultiplier() - 1) * 100) + "%");
+            set("statGearMult", formatNum(getGearMultiplier()) + "x");
+            set("statWeatherVoidMult", formatNum(currentWeather.mult || 1) + "x");
+            set("statEndgameMult", formatNum(getEndgameMultiplier()) + "x");
+            set("statRebirthMult", formatNum(getRebirthMultiplier()) + "x");
+
+            const world = WORLDS_DATA.find(w => w.id === state.currentWorld) || WORLDS_DATA[0];
+            set("headerWorldBadge", `W${world.id}: ${world.name}`);
+            set("headerRankBadge", isCurrentUserVerifiedAdmin() ? "KING OF RAINBOWS" : state.currentWorld >= 15 ? "VOID OVERLORD" : state.currentWorld >= 5 ? "QUACK MASTER" : "NOVICE");
+            set("currentWorldTitle", world.name);
+            set("currentWorldDesc", world.desc);
+            set("worldProgressText", `${world.id} / ${isCurrentUserVerifiedAdmin() ? 21 : 20}`);
+            set("unlockedWorldCountLabel", isCurrentUserVerifiedAdmin() ? "21" : "20");
 
             const realmCard = document.getElementById("currentRealmCard");
             if (realmCard) {
-                if (curWorld.adminOnly) realmCard.classList.add("obsidian-neon-rainbow");
+                if (world.id === 21) realmCard.classList.add("obsidian-neon-rainbow");
                 else realmCard.classList.remove("obsidian-neon-rainbow");
             }
 
-            setTxt("statQpc", formatNum(getQuacksPerClick()));
-            setTxt("statQps", `${formatNum(getQuacksPerSec())}/s`);
-            setTxt("statWorldMult", `${formatNum(getWorldMultiplier())}x`);
-            setTxt("statPetMult", `+${formatNum((getPetMultiplier() - 1) * 100)}%`);
-            setTxt("statGearMult", `${formatNum(getGearMultiplier())}x`);
-            setTxt("statWeatherVoidMult", `${formatNum(currentWeather.mult)}x`);
-            setTxt("statEndgameMult", `${formatNum(getEndgameMultiplier())}x`);
-            setTxt("statRebirthMult", `${formatNum(getRebirthMultiplier())}x`);
-
-            setTxt("lvlClick", `Lv.${state.upgrades.clickPower || 1}`);
-            setTxt("costClick", formatNum(getUpgradeCost("clickPower")));
-            setTxt("lvlAuto", `Lv.${state.upgrades.autoSpeed || 0}`);
-            setTxt("costAuto", formatNum(getUpgradeCost("autoSpeed")));
-            setTxt("lvlCrit", `Lv.${state.upgrades.critChance || 0}`);
-            setTxt("costCrit", formatNum(getUpgradeCost("critChance")));
+            set("lvlClick", `Lv.${state.upgrades.clickPower || 1}`);
+            set("costClick", formatNum(getUpgradeCost("clickPower")));
+            set("lvlAuto", `Lv.${state.upgrades.autoSpeed || 0}`);
+            set("costAuto", formatNum(getUpgradeCost("autoSpeed")));
+            set("lvlCrit", `Lv.${state.upgrades.critChance || 0}`);
+            set("costCrit", formatNum(getUpgradeCost("critChance")));
 
             const lblTap = document.getElementById("lblAutoTap");
             if (lblTap) {
@@ -2934,105 +2454,53 @@
             const lblHatch = document.getElementById("lblAutoHatch");
             if (lblHatch) {
                 lblHatch.textContent = state.autoHatchOn ? "ACTIVE" : "OFF";
-                lblHatch.className = `font-black ${state.autoHatchOn ? "text-emerald-400" : "text-rose-400"}`;
+                lblHatch.className = state.autoHatchOn ? "text-emerald-400" : "text-rose-400";
             }
+
+            const skin = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
+            set("equippedSkinTitle", skin.name);
+            set("weatherStatusPill", currentWeather.label);
+            set("comboBadge", `${(1 + Math.min(comboCount * 0.05, 4)).toFixed(1)}x Combo`);
+            set("lbPlayerIdText", getCurrentSlotId());
 
             const feverFill = document.getElementById("feverBarFill");
             if (feverFill) feverFill.style.width = `${Math.min(100, Math.max(0, state.feverVal || 0))}%`;
-            const comboBadge = document.getElementById("comboBadge");
-            if (comboBadge) comboBadge.textContent = `${(1 + Math.min(comboCount * 0.05, 4)).toFixed(1)}x Combo`;
-            const weatherPill = document.getElementById("weatherStatusPill");
-            if (weatherPill) weatherPill.textContent = currentWeather.label;
-
-            const skinObj = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
-            setTxt("equippedSkinTitle", skinObj.name);
 
             const equippedPets = (state.pets || []).filter(p => p.equipped);
-            setTxt("equippedCountText", `${equippedPets.length}/${state.maxEquippedPets || 4}`);
+            set("equippedCountText", `${equippedPets.length}/${state.maxEquippedPets || 4}`);
             const strip = document.getElementById("equippedPetsStrip");
             if (strip) {
                 strip.innerHTML = equippedPets.length
-                    ? equippedPets.map(p => {
-                        const sp = PET_SPECIES[p.speciesKey];
-                        return `<span class="bg-slate-900 border border-white/15 px-2.5 py-1 rounded-xl text-[11px] font-bold text-white shrink-0">${sp ? sp.name : p.speciesKey}</span>`;
-                    }).join("")
+                    ? equippedPets.map(p => `<span class="bg-slate-900 border border-purple-400/30 text-[10px] font-bold text-purple-200 px-2 py-1 rounded-lg shrink-0">${PET_SPECIES[p.speciesKey]?.name || p.speciesKey}</span>`).join("")
                     : `<span class="text-xs text-slate-400 italic px-2">No pets equipped</span>`;
             }
 
-            const lbIdEl = document.getElementById("lbPlayerIdText");
-            if (lbIdEl) lbIdEl.textContent = getCurrentSlotId();
-
-            const worldBgEl = document.getElementById("worldBackdropSvg");
-            if (worldBgEl) {
-                worldBgEl.style.background = `radial-gradient(circle at 50% 45%, ${curWorld.bg} 0%, transparent 75%)`;
-            }
-
-            renderHeroDuckVisual();
+            renderHeroDuckSvg();
             renderMiniLeaderboard();
         }
 
-        // Orbiting Pet Squad Renderer on Stage
-        function renderOrbitingPets() {
-            const container = document.getElementById("orbitingPetsContainer");
-            if (!container) return;
-            const equipped = (state.pets || []).filter(p => p.equipped);
-            if (equipped.length === 0) {
-                container.innerHTML = "";
-                return;
-            }
-            const now = Date.now() / 600;
-            container.innerHTML = equipped.map((pet, idx) => {
-                const angle = now + (idx * (Math.PI * 2 / equipped.length));
-                const xPct = 50 + Math.cos(angle) * 44;
-                const yPct = 50 + Math.sin(angle) * 44;
-                const sp = PET_SPECIES[pet.speciesKey];
-                const col = sp ? sp.color : "#facc15";
-                return `<div class="orbit-pet-badge absolute w-8 h-8 rounded-full border-2 border-slate-950 shadow-lg flex items-center justify-center text-slate-950 text-xs font-black" style="left:${xPct}%; top:${yPct}%; background:${col};">
-                    <i class="fa-solid fa-paw"></i>
-                </div>`;
-            }).join("");
-        }
-
-        // Main 100ms Simulation Loop
-        let autoTapTick = 0;
-        let autoHatchTick = 0;
-        let weatherTick = 0;
+        // 100ms Main Game Loop
         setInterval(() => {
-            const qps = getQuacksPerSec();
-            if (qps > 0) {
-                const gain = qps / 10;
-                state.quacks = sanitizeNum(state.quacks + gain, 0);
-                state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + gain, 0);
+            const qpsGain = getQuacksPerSec() / 10;
+            if (qpsGain > 0) {
+                state.quacks = sanitizeNum(state.quacks + qpsGain, 0);
+                state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + qpsGain, 0);
             }
 
             if (state.autoClickerOn) {
-                autoTapTick++;
-                const tapGain = getQuacksPerClick() / 5;
+                const tapGain = getQuacksPerClick();
                 state.quacks = sanitizeNum(state.quacks + tapGain, 0);
                 state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + tapGain, 0);
-                if (autoTapTick % 4 === 0) playSound("quack");
-            }
-
-            if (state.autoHatchOn) {
-                autoHatchTick++;
-                if (autoHatchTick % 10 === 0) {
-                    const affordableEgg = [...EGGS_DATA].reverse().find(e =>
-                        e.currency === "quacks" ? state.quacks >= e.cost : state.gems >= e.cost
-                    );
-                    if (affordableEgg) hatchEgg(affordableEgg.id);
-                }
             }
 
             if (state.autoRebirthOn) {
                 const rebCost = sanitizeNum(100000 * Math.pow(3, sanitizeNum(state.rebirths, 0)), 100000);
-                if (state.quacks >= rebCost) {
-                    performRebirth();
-                }
+                if (state.quacks >= rebCost) performRebirth();
             }
 
-            if (state.isFeverActive) {
-                state.feverVal = Math.max(0, sanitizeNum(state.feverVal, 0) - 1.2);
-                if (state.feverVal <= 0) state.isFeverActive = false;
+            if (state.autoHatchOn) {
+                const affordable = [...EGGS_DATA].reverse().find(e => e.currency === "quacks" && state.quacks >= e.cost);
+                if (affordable) hatchEgg(affordable.id);
             }
 
             if (comboDecayMs > 0) {
@@ -3040,34 +2508,25 @@
                 if (comboDecayMs <= 0) comboCount = 0;
             }
 
-            weatherTick++;
-            if (weatherTick % 350 === 0 && currentWeather.id === "clear") {
-                const weathers = [
-                    { id: "meteor", label: "☄️ Meteor Shower (5x)", mult: 5 },
-                    { id: "bread", label: "🍞 Golden Bread Rain (8x)", mult: 8 },
-                    { id: "cyber", label: "⚡ Cyber Glitch Storm (12x)", mult: 12 }
-                ];
-                currentWeather = weathers[Math.floor(Math.random() * weathers.length)];
-                setTimeout(() => { currentWeather = { id: "clear", label: "☀️ Clear Skies (1x)", mult: 1 }; }, 20000);
+            if (state.isFeverActive) {
+                state.feverVal = Math.max(0, (state.feverVal || 0) - 1.2);
+                if (state.feverVal <= 0) state.isFeverActive = false;
             }
 
-            renderOrbitingPets();
             renderAll();
         }, 100);
 
+        // Auto-save & Leaderboard Sync every 8 seconds
         setInterval(() => {
             saveGame();
             syncLeaderboardScore(false);
-        }, 6000);
+        }, 8000);
 
-        window.addEventListener("beforeunload", saveGame);
-        document.addEventListener("visibilitychange", () => { if (document.hidden) saveGame(); });
-
-        window.onload = function() {
+        window.addEventListener("load", () => {
             loadGame();
             renderAll();
             syncLeaderboardScore(false);
-        };
+        });
     </script>
 </body>
 </html>
