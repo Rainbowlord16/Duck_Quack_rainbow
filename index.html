@@ -6,7 +6,6 @@
     <title>Duck Quack Simulator — Ultimate Grind Edition</title>
     <link id="duckFavicon" rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230f172a' stroke='%23facc15' stroke-width='4'/%3E%3Cpath d='M16 40 C16 28, 48 28, 50 41 C52 52, 42 54, 32 54 C20 54, 16 49, 16 40 Z' fill='%23facc15' stroke='%23090d16' stroke-width='3'/%3E%3Ccircle cx='28' cy='24' r='13' fill='%23facc15' stroke='%23090d16' stroke-width='3'/%3E%3Ccircle cx='23' cy='22' r='2.6' fill='%23090d16'/%3E%3Ccircle cx='32' cy='22' r='2.6' fill='%23090d16'/%3E%3Cpath d='M18 27 C18 24, 33 24, 33 28 C33 32, 18 32, 18 27 Z' fill='%23f97316' stroke='%23090d16' stroke-width='2.5'/%3E%3C/svg%3E">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <style>
@@ -99,20 +98,16 @@
         .falling-anomaly-orb {
             animation: skyFall 5.2s linear forwards;
         }
-        /* Expandable 3D Stage Box Theater Mode */
+        /* Expandable Stage Box Theater Mode */
         #stageCard.stage-expanded {
             grid-column: 1 / -1 !important;
-            min-height: 640px !important;
+            min-height: 620px !important;
             z-index: 30;
             box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 35px rgba(56, 189, 248, 0.25);
         }
-        #duck3dBox {
-            perspective: 1000px;
-            transition: height 0.35s cubic-bezier(0.22, 1, 0.36, 1), max-width 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-        #stageCard.stage-expanded #duck3dBox {
-            height: 440px !important;
-            max-width: 100% !important;
+        #stageCard.stage-expanded #duckVisualWrapper {
+            width: 17rem !important;
+            height: 17rem !important;
         }
         .fever-glow {
             box-shadow: 0 0 40px rgba(245, 158, 11, 0.55), inset 0 0 30px rgba(239, 68, 68, 0.35);
@@ -187,6 +182,11 @@
 
     <!-- CUSTOM TOAST NOTIFICATION CONTAINER -->
     <div id="toastContainer" class="fixed top-4 right-4 z-[10000] flex flex-col gap-2.5 max-w-xs sm:max-w-sm pointer-events-none"></div>
+
+    <!-- LIVE GLOBAL ADMIN ABUSE TICKER BANNER -->
+    <div id="adminAbuseBanner" class="hidden relative z-50 obsidian-neon-rainbow text-center py-1.5 px-4 text-xs font-black tracking-wide text-white shadow-lg">
+        <span id="adminAbuseBannerText">🌈 ADMIN ABUSE EVENT LIVE!</span>
+    </div>
 
     <!-- TOP CURRENCY & NAVIGATION HEADER -->
     <header class="sticky top-0 z-40 glass-panel border-b border-white/10 px-2.5 sm:px-6 py-2 sm:py-2.5">
@@ -393,9 +393,9 @@
                     <div class="flex items-center gap-1.5">
                         <span id="weatherStatusPill" class="bg-sky-500/20 border border-sky-400/30 text-sky-300 px-2 py-0.5 rounded-full text-[10px] font-extrabold">☀️ Clear Skies (1x)</span>
                         <span id="comboBadge" class="bg-slate-950/80 border border-amber-400/30 text-amber-300 px-2.5 py-0.5 rounded-full text-[11px]">1.0x Combo</span>
-                        <button type="button" id="btnExpand3dStage" onclick="toggleExpand3dStage()" class="arcade-btn bg-sky-600/90 hover:bg-sky-500 text-white border border-sky-300/40 px-2.5 py-0.5 rounded-full text-[10px] font-black flex items-center gap-1" title="Expand or Collapse 3D Stage Box">
-                            <i id="expand3dIcon" class="fa-solid fa-expand"></i>
-                            <span id="expand3dLabel">Expand 3D</span>
+                        <button type="button" id="btnExpandStage" onclick="toggleExpandStage()" class="arcade-btn bg-sky-600/90 hover:bg-sky-500 text-white border border-sky-300/40 px-2.5 py-0.5 rounded-full text-[10px] font-black flex items-center gap-1" title="Expand or Collapse Stage">
+                            <i id="expandStageIcon" class="fa-solid fa-expand"></i>
+                            <span id="expandStageLabel">Expand Stage</span>
                         </button>
                     </div>
                 </div>
@@ -404,28 +404,26 @@
                 </div>
             </div>
 
-            <!-- Expandable 3D Duck Box + Orbiting Pet Squad + Laser Canvas -->
-            <div id="duck3dBox" class="relative my-3 flex flex-col items-center justify-center z-10 w-full h-72 sm:h-80 rounded-3xl bg-slate-950/65 border-2 border-white/15 shadow-inner overflow-hidden">
-                <!-- Three.js WebGL 3D Duck Canvas -->
-                <canvas id="duck3dCanvas" class="w-full h-full block cursor-pointer touch-none"></canvas>
-
+            <!-- Interactive Hero Duck Stage + Orbiting Pet Squad + Laser Canvas -->
+            <div id="heroStageBox" class="relative my-3 flex flex-col items-center justify-center z-10 w-full py-4">
                 <!-- Laser Beam Overlay Canvas -->
                 <canvas id="petLaserCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
 
                 <!-- Ambient Aura Ring -->
-                <div id="duckAuraElement" class="duck-aura-ring absolute w-56 h-56 sm:w-64 sm:h-64 rounded-full pointer-events-none"></div>
+                <div id="duckAuraElement" class="duck-aura-ring absolute w-60 h-60 sm:w-68 sm:h-68 rounded-full pointer-events-none"></div>
 
                 <!-- Orbiting Pets Container -->
                 <div id="orbitingPetsContainer" class="absolute w-64 h-64 sm:w-72 sm:h-72 pointer-events-none z-20"></div>
 
-                <!-- Top-Left 3D Hint Pill -->
-                <div class="absolute top-2.5 left-3 z-20 pointer-events-none bg-slate-950/75 border border-white/10 px-2.5 py-1 rounded-full text-[10px] font-bold text-slate-300">
-                    <i class="fa-solid fa-cube text-sky-400 me-1"></i>3D Duck • Tap to Quack / Drag to Spin
-                </div>
+                <!-- Clickable Hero Duck SVG -->
+                <button type="button" id="heroDuckBtn" onpointerdown="onDuckClick(event)" class="relative z-20 focus:outline-none cursor-pointer group active:scale-95 transition-transform">
+                    <div id="duckVisualWrapper" class="w-48 h-48 sm:w-56 sm:h-56 transition-transform duration-150 drop-shadow-[0_18px_28px_rgba(0,0,0,0.65)]"></div>
+                </button>
 
-                <!-- Bottom Skin Caption Overlay -->
-                <div class="absolute bottom-2.5 inset-x-0 text-center pointer-events-none z-20">
-                    <span id="equippedSkinTitle" class="inline-block bg-slate-950/85 border border-amber-400/30 px-3 py-0.5 rounded-full title-font text-xs sm:text-sm font-bold text-amber-200 shadow">Classic Rubber Duck</span>
+                <!-- Bottom Skin Caption -->
+                <div class="mt-2 text-center z-20">
+                    <span id="equippedSkinTitle" class="inline-block bg-slate-950/85 border border-amber-400/30 px-3.5 py-1 rounded-full title-font text-xs sm:text-sm font-bold text-amber-200 shadow">Classic Rubber Duck</span>
+                    <div class="text-[11px] font-bold text-slate-300 mt-1">Tap Duck to Quack!</div>
                 </div>
             </div>
 
@@ -956,6 +954,11 @@
                     <button type="button" onclick="importSaveString()" class="arcade-btn bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded-xl text-xs font-bold">Import Save String</button>
                 </div>
 
+                <!-- Log Out / Start New Account Button -->
+                <button type="button" onclick="logoutAndResetAccount()" class="arcade-btn w-full bg-rose-600/90 hover:bg-rose-500 text-white py-2.5 rounded-xl text-xs font-extrabold border border-rose-400/40">
+                    <i class="fa-solid fa-right-from-bracket me-1.5"></i>Log Out & Reset to New Account
+                </button>
+
                 <!-- Encrypted SHA-256 Admin Authentication Gate -->
                 <div class="obsidian-neon-rainbow rounded-2xl p-3.5 space-y-2.5">
                     <div class="flex items-center justify-between">
@@ -964,27 +967,27 @@
                         </span>
                         <span id="adminStatusPill" class="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">LOCKED</span>
                     </div>
-                    <p class="text-[11px] text-slate-400">Enter your secret Admin Passcode to unlock World 21 & Obsidian Neon Rainbow Gear.</p>
+                    <p class="text-[11px] text-slate-400">Enter your secret Admin Passcode to unlock World 21, Obsidian Neon Gear & Community Admin Abuse Commands.</p>
                     <div class="flex gap-2">
                         <input type="password" id="adminSecretInput" placeholder="Enter Admin Passcode..." class="flex-1 bg-black border border-white/20 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-cyan-400">
                         <button type="button" onclick="verifyAdminPasscode()" class="arcade-btn bg-gradient-to-r from-pink-500 via-amber-400 to-cyan-400 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black">Unlock</button>
                     </div>
                     <div id="adminUnlockedActions" class="hidden pt-2 border-t border-white/10 space-y-2">
                         <button type="button" onclick="restoreMaxedAccount()" class="arcade-btn w-full py-2.5 rounded-xl obsidian-neon-rainbow text-white font-black text-xs">
-                            🌈 Restore RainbowLord16 Maxed Admin Account (999 Sp)
+                            🌈 Max Out Everything (999 Sp + World 21 + All Gear)
                         </button>
                         <div class="bg-black/80 border border-pink-500/40 rounded-2xl p-2.5 space-y-2">
-                            <div class="text-[10px] font-black uppercase tracking-wider text-cyan-300">⚡ Admin Command Console (RainbowLord16 Only)</div>
+                            <div class="text-[10px] font-black uppercase tracking-wider text-cyan-300">⚡ Community Admin Abuse Console (RainbowLord16 Only)</div>
                             <div class="grid grid-cols-2 gap-1.5">
                                 <button type="button" onclick="runAdminCommand('max_currencies')" class="arcade-btn bg-slate-900 hover:bg-slate-800 border border-amber-400/40 text-amber-300 py-1.5 px-2 rounded-xl text-[10px] font-extrabold">/max_all (999 Sp)</button>
-                                <button type="button" onclick="runAdminCommand('rainbow_storm')" class="arcade-btn bg-slate-900 hover:bg-slate-800 border border-pink-400/40 text-pink-300 py-1.5 px-2 rounded-xl text-[10px] font-extrabold">/rainbow_storm</button>
-                                <button type="button" onclick="runAdminCommand('super_fever')" class="arcade-btn bg-slate-900 hover:bg-slate-800 border border-orange-400/40 text-orange-300 py-1.5 px-2 rounded-xl text-[10px] font-extrabold">/hyper_fever</button>
+                                <button type="button" onclick="runAdminCommand('rainbow_storm')" class="arcade-btn bg-slate-900 hover:bg-slate-800 border border-pink-400/40 text-pink-300 py-1.5 px-2 rounded-xl text-[10px] font-extrabold">/rainbow_storm (Global)</button>
+                                <button type="button" onclick="runAdminCommand('super_fever')" class="arcade-btn bg-slate-900 hover:bg-slate-800 border border-orange-400/40 text-orange-300 py-1.5 px-2 rounded-xl text-[10px] font-extrabold">/hyper_fever (Global)</button>
+                                <button type="button" onclick="runAdminCommand('global_gift')" class="arcade-btn bg-slate-900 hover:bg-slate-800 border border-emerald-400/40 text-emerald-300 py-1.5 px-2 rounded-xl text-[10px] font-extrabold">/global_gift (All Players)</button>
                                 <button type="button" onclick="runAdminCommand('world_21')" class="arcade-btn bg-slate-900 hover:bg-slate-800 border border-cyan-400/40 text-cyan-300 py-1.5 px-2 rounded-xl text-[10px] font-extrabold">/tp_world_21</button>
                                 <button type="button" onclick="runAdminCommand('spawn_god_pet')" class="arcade-btn bg-slate-900 hover:bg-slate-800 border border-purple-400/40 text-purple-300 py-1.5 px-2 rounded-xl text-[10px] font-extrabold">/spawn_god_pet</button>
-                                <button type="button" onclick="runAdminCommand('slay_boss')" class="arcade-btn bg-slate-900 hover:bg-slate-800 border border-rose-400/40 text-rose-300 py-1.5 px-2 rounded-xl text-[10px] font-extrabold">/smite_boss</button>
                             </div>
                             <div class="flex gap-1.5">
-                                <input type="text" id="adminCmdInput" placeholder="Type command e.g. /give gems 999999" onkeydown="if(event.key==='Enter') executeTypedAdminCommand()" class="flex-1 bg-slate-950 border border-white/15 rounded-xl px-2.5 py-1.5 text-[11px] font-mono text-emerald-300 focus:outline-none focus:border-cyan-400">
+                                <input type="text" id="adminCmdInput" placeholder="e.g. /announce Rainbow Admin Abuse! or /give gems 999999" onkeydown="if(event.key==='Enter') executeTypedAdminCommand()" class="flex-1 bg-slate-950 border border-white/15 rounded-xl px-2.5 py-1.5 text-[11px] font-mono text-emerald-300 focus:outline-none focus:border-cyan-400">
                                 <button type="button" onclick="executeTypedAdminCommand()" class="arcade-btn bg-cyan-500 text-slate-950 px-3 py-1.5 rounded-xl text-[10px] font-black">Run</button>
                             </div>
                         </div>
@@ -1031,6 +1034,9 @@
                     if (user && typeof window.startLeaderboardListener === 'function') {
                         window.startLeaderboardListener();
                     }
+                    if (user && typeof window.startAdminAbuseListener === 'function') {
+                        window.startAdminAbuseListener();
+                    }
                     if (user && typeof window.syncLeaderboardScore === 'function') {
                         window.syncLeaderboardScore(false);
                     }
@@ -1051,12 +1057,13 @@
     <!-- MAIN GAME ENGINE -->
     <script>
         /* =========================================================================
-           1. ENCRYPTED SHA-256 ADMIN SECURITY & COMMAND ENGINE (RAINBOWLORD16 ONLY)
+           1. ENCRYPTED SHA-256 ADMIN SECURITY & COMMUNITY ADMIN ABUSE ENGINE
            ========================================================================= */
         const ADMIN_OWNER_NAME = "RainbowLord16";
         const ADMIN_SALT = "DQ_ULTIMATE_SALT_2026_";
         const ADMIN_SHA256_DIGEST = "e54705e12789626be72c6c79215be27329d387b6902a174c310485e6a40b7d14";
         let isAdminAuthenticated = false;
+        let lastHandledAdminEventId = localStorage.getItem("dqLastAdminEventId") || "";
 
         async function sha256Hex(str) {
             const buf = new TextEncoder().encode(str);
@@ -1094,30 +1101,100 @@
             }
         }
 
-        function runAdminCommand(cmd, argVal = null) {
-            if (!isCurrentUserVerifiedAdmin()) {
-                showToast("🔒 Admin Commands are locked to RainbowLord16!", "error");
-                return;
+        async function broadcastAdminAbuseEvent(eventType, message, payload = {}) {
+            if (!isCurrentUserVerifiedAdmin()) return;
+            const eventId = `evt_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+            const eventData = {
+                eventId,
+                eventType,
+                message,
+                payload,
+                triggeredBy: ADMIN_OWNER_NAME,
+                timestamp: Date.now()
+            };
+            // Apply locally immediately
+            applyAdminAbuseEvent(eventData);
+
+            // Broadcast to all players in Firestore cloud
+            const api = window.__cloudApi;
+            if (api && api.getDb() && api.getUser()) {
+                try {
+                    const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "admin_events", "latest");
+                    await api.setDoc(ref, eventData);
+                } catch (e) {}
             }
-            const MAX_VAL = 999999999999999999999999999; // 999 Sp
-            if (cmd === "max_currencies") {
-                state.quacks = MAX_VAL;
-                state.lifetimeQuacks = MAX_VAL;
-                state.gems = MAX_VAL;
-                state.rp = MAX_VAL;
-                state.feathers = MAX_VAL;
-                state.shards = MAX_VAL;
-                state.relics = MAX_VAL;
-                showToast("⚡ /max_all: All Currencies set to 999 Sp!", "success");
-            } else if (cmd === "rainbow_storm") {
-                currentWeather = { name: "Neon Rainbow Storm", icon: "🌈", mult: 100, orb: "🌈" };
+        }
+
+        function applyAdminAbuseEvent(evt) {
+            if (!evt || !evt.eventId || evt.eventId === lastHandledAdminEventId) return;
+            lastHandledAdminEventId = evt.eventId;
+            localStorage.setItem("dqLastAdminEventId", evt.eventId);
+
+            const banner = document.getElementById("adminAbuseBanner");
+            const bannerText = document.getElementById("adminAbuseBannerText");
+            if (banner && bannerText) {
+                bannerText.textContent = `👑 [ADMIN ABUSE by ${evt.triggeredBy}]: ${evt.message}`;
+                banner.classList.remove("hidden");
+                setTimeout(() => banner.classList.add("hidden"), 15000);
+            }
+
+            if (evt.eventType === "rainbow_storm") {
+                currentWeather = { name: "ADMIN Neon Rainbow Storm", icon: "🌈", mult: 100, orb: "🌈" };
                 const pill = document.getElementById("weatherStatusPill");
-                if (pill) pill.textContent = "🌈 Neon Rainbow Storm (100x)";
-                showToast("🌈 /rainbow_storm: 100x Admin Storm Summoned!", "success");
-            } else if (cmd === "super_fever") {
+                if (pill) pill.textContent = "🌈 ADMIN Neon Rainbow Storm (100x)";
+                showToast(`🌈 ADMIN ABUSE: ${evt.message}`, "success");
+            } else if (evt.eventType === "hyper_fever") {
                 state.feverVal = 100;
                 state.isFeverActive = true;
-                showToast("🔥 /hyper_fever: Quack Fever Overdrive Activated!", "success");
+                showToast(`🔥 ADMIN ABUSE: ${evt.message}`, "success");
+            } else if (evt.eventType === "global_gift") {
+                state.gems = sanitizeNum(state.gems + 50000, 0);
+                state.feathers = sanitizeNum(state.feathers + 25, 0);
+                state.shards = sanitizeNum(state.shards + 100, 0);
+                saveGame();
+                renderAll();
+                showToast(`🎁 ADMIN ABUSE GIFT: +50K Gems, +25 Feathers & +100 Shards!`, "success");
+            } else if (evt.eventType === "announce") {
+                showToast(`📢 ${evt.triggeredBy}: ${evt.message}`, "success");
+            }
+            playSound("buy");
+        }
+
+        window.startAdminAbuseListener = function () {
+            const api = window.__cloudApi;
+            if (!api || !api.getDb() || !api.getUser()) return;
+            const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "admin_events", "latest");
+            api.onSnapshot(
+                ref,
+                (snap) => {
+                    if (snap.exists()) {
+                        const data = snap.data();
+                        if (Date.now() - (data.timestamp || 0) < 60000) {
+                            applyAdminAbuseEvent(data);
+                        }
+                    }
+                },
+                (err) => console.warn("Admin event listener:", err)
+            );
+        };
+
+        function runAdminCommand(cmd, argVal = null) {
+            if (!isCurrentUserVerifiedAdmin()) {
+                showToast("🔒 Admin Commands are restricted to RainbowLord16!", "error");
+                return;
+            }
+            if (cmd === "max_currencies") {
+                restoreMaxedAccount();
+                return;
+            } else if (cmd === "rainbow_storm") {
+                broadcastAdminAbuseEvent("rainbow_storm", "100x Neon Rainbow Storm Summoned for All Players!");
+                return;
+            } else if (cmd === "super_fever") {
+                broadcastAdminAbuseEvent("hyper_fever", "Global Quack Fever Overdrive Activated for Everyone!");
+                return;
+            } else if (cmd === "global_gift") {
+                broadcastAdminAbuseEvent("global_gift", "RainbowLord16 gifted +50K Gems, +25 Feathers & +100 Shards to the Server!");
+                return;
             } else if (cmd === "world_21") {
                 state.highestWorld = 21;
                 state.currentWorld = 21;
@@ -1137,14 +1214,15 @@
             } else if (cmd === "give" && argVal) {
                 const { currency, amount } = argVal;
                 if (typeof state[currency] === "number") {
-                    state[currency] = sanitizeNum(state[currency] + amount, MAX_VAL);
-                    if (currency === "quacks") state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + amount, MAX_VAL);
+                    state[currency] = sanitizeNum(state[currency] + amount, 0);
+                    if (currency === "quacks") state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + amount, 0);
                     showToast(`⚡ Gave +${fmt(amount)} ${currency.toUpperCase()}!`, "success");
                 }
             }
             playSound("buy");
             saveGame();
             renderAll();
+            syncLeaderboardScore(false);
         }
 
         function executeTypedAdminCommand() {
@@ -1154,408 +1232,52 @@
             }
             const inp = document.getElementById("adminCmdInput");
             if (!inp) return;
-            const raw = inp.value.trim().toLowerCase();
+            const rawText = inp.value.trim();
+            const raw = rawText.toLowerCase();
             inp.value = "";
             if (!raw) return;
 
             if (raw === "/max_all" || raw === "/max") return runAdminCommand("max_currencies");
             if (raw === "/rainbow_storm" || raw === "/storm") return runAdminCommand("rainbow_storm");
             if (raw === "/hyper_fever" || raw === "/fever") return runAdminCommand("super_fever");
+            if (raw === "/global_gift" || raw === "/gift") return runAdminCommand("global_gift");
             if (raw === "/tp_world_21" || raw === "/w21") return runAdminCommand("world_21");
             if (raw === "/spawn_god_pet" || raw === "/pet") return runAdminCommand("spawn_god_pet");
             if (raw === "/smite_boss" || raw === "/smite") return runAdminCommand("slay_boss");
+
+            if (raw.startsWith("/announce ")) {
+                const msg = rawText.slice(10).trim();
+                if (msg) broadcastAdminAbuseEvent("announce", msg);
+                return;
+            }
 
             const giveMatch = raw.match(/^\/give\s+(quacks|gems|rp|feathers|shards|relics)\s+(\d+(?:\.\d+)?(?:e\+?\d+)?)$/);
             if (giveMatch) {
                 return runAdminCommand("give", { currency: giveMatch[1], amount: Number(giveMatch[2]) });
             }
-            showToast("Commands: /max_all, /rainbow_storm, /hyper_fever, /tp_world_21, /spawn_god_pet, /smite_boss, /give <currency> <amt>", "info");
+            showToast("Commands: /max_all, /rainbow_storm, /hyper_fever, /global_gift, /announce <msg>, /tp_world_21, /spawn_god_pet, /smite_boss, /give <currency> <amt>", "info");
         }
 
         /* =========================================================================
-           2. 3D THREE.JS HERO DUCK ENGINE & EXPANDABLE 3D BOX
+           2. EXPANDABLE STAGE TOGGLE & ADMIN SECURITY ENFORCEMENT
            ========================================================================= */
-        let duck3dScene = null;
-        let duck3dCamera = null;
-        let duck3dRenderer = null;
-        let duck3dGroup = null;
-        let duck3dHatGroup = null;
-        let duck3dShadesGroup = null;
-        let duck3dOrbitalGroup = null;
-        let duck3dMaterials = {};
-        let duck3dSquash = 0;
-        let duck3dYaw = -0.35;
-        let duck3dPitch = 0.12;
-        let isDragging3d = false;
-        let dragMoved3d = false;
-        let prevPointer3d = { x: 0, y: 0 };
-        let isStage3dExpanded = false;
+        let isStageExpanded = false;
 
-        function toggleExpand3dStage() {
-            isStage3dExpanded = !isStage3dExpanded;
+        function toggleExpandStage() {
+            isStageExpanded = !isStageExpanded;
             const stageCard = document.getElementById("stageCard");
-            const lbl = document.getElementById("expand3dLabel");
-            const icon = document.getElementById("expand3dIcon");
-            if (stageCard) stageCard.classList.toggle("stage-expanded", isStage3dExpanded);
-            if (lbl) lbl.textContent = isStage3dExpanded ? "Compact 3D" : "Expand 3D";
-            if (icon) icon.className = isStage3dExpanded ? "fa-solid fa-compress" : "fa-solid fa-expand";
-            setTimeout(resizeDuck3dRenderer, 50);
-            setTimeout(resizeDuck3dRenderer, 360);
-        }
-
-        function resizeDuck3dRenderer() {
-            const box = document.getElementById("duck3dBox");
-            if (!box || !duck3dRenderer || !duck3dCamera) return;
-            const w = box.clientWidth || 400;
-            const h = box.clientHeight || 300;
-            duck3dCamera.aspect = w / h;
-            duck3dCamera.updateProjectionMatrix();
-            duck3dRenderer.setSize(w, h, false);
-        }
-
-        function initDuck3d() {
-            const canvas = document.getElementById("duck3dCanvas");
-            const box = document.getElementById("duck3dBox");
-            if (!canvas || !box || typeof THREE === "undefined") return;
-
-            duck3dScene = new THREE.Scene();
-
-            const w = box.clientWidth || 400;
-            const h = box.clientHeight || 300;
-            duck3dCamera = new THREE.PerspectiveCamera(42, w / h, 0.1, 100);
-            duck3dCamera.position.set(0, 0.85, 5.2);
-            duck3dCamera.lookAt(0, 0.15, 0);
-
-            duck3dRenderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-            duck3dRenderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-            duck3dRenderer.setSize(w, h, false);
-
-            // Studio 3-Point Lighting
-            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x1e293b, 1.15);
-            duck3dScene.add(hemiLight);
-
-            const dirLight = new THREE.DirectionalLight(0xffffff, 1.25);
-            dirLight.position.set(4, 7, 5);
-            duck3dScene.add(dirLight);
-
-            const rimLight = new THREE.PointLight(0x38bdf8, 1.4, 15);
-            rimLight.position.set(-4, 3, -4);
-            duck3dScene.add(rimLight);
-
-            // Glowing Pedestal Disc inside the 3D Box
-            const pedGeo = new THREE.CylinderGeometry(1.65, 1.85, 0.18, 36);
-            const pedMat = new THREE.MeshStandardMaterial({
-                color: 0x0f172a,
-                metalness: 0.65,
-                roughness: 0.25,
-                emissive: 0x1d4ed8,
-                emissiveIntensity: 0.25
-            });
-            const pedestal = new THREE.Mesh(pedGeo, pedMat);
-            pedestal.position.y = -1.25;
-            duck3dScene.add(pedestal);
-
-            const ringGeo = new THREE.TorusGeometry(1.78, 0.04, 16, 48);
-            const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8 });
-            const pedRing = new THREE.Mesh(ringGeo, ringMat);
-            pedRing.rotation.x = Math.PI / 2;
-            pedRing.position.y = -1.16;
-            duck3dScene.add(pedRing);
-            duck3dMaterials.pedRing = ringMat;
-
-            // Main Hero Duck 3D Group
-            duck3dGroup = new THREE.Group();
-            duck3dScene.add(duck3dGroup);
-
-            duck3dMaterials.body = new THREE.MeshStandardMaterial({ color: 0xfacc15, roughness: 0.28, metalness: 0.12 });
-            duck3dMaterials.belly = new THREE.MeshStandardMaterial({ color: 0xfef08a, roughness: 0.35, metalness: 0.05 });
-            duck3dMaterials.beak = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.3, metalness: 0.15 });
-            duck3dMaterials.eye = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.1 });
-            duck3dMaterials.eyeShine = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            duck3dMaterials.neonEdge = new THREE.MeshBasicMaterial({ color: 0x00e5ff, wireframe: true, transparent: true, opacity: 0 });
-
-            // Sculpted Body
-            const bodyGeo = new THREE.SphereGeometry(1.05, 32, 24);
-            bodyGeo.scale(1.18, 0.86, 0.96);
-            const bodyMesh = new THREE.Mesh(bodyGeo, duck3dMaterials.body);
-            bodyMesh.position.set(0, -0.35, 0);
-            duck3dGroup.add(bodyMesh);
-
-            const wireBody = new THREE.Mesh(bodyGeo, duck3dMaterials.neonEdge);
-            wireBody.scale.set(1.02, 1.02, 1.02);
-            bodyMesh.add(wireBody);
-
-            // Belly Patch
-            const bellyGeo = new THREE.SphereGeometry(0.84, 24, 18);
-            bellyGeo.scale(1.05, 0.78, 0.92);
-            const bellyMesh = new THREE.Mesh(bellyGeo, duck3dMaterials.belly);
-            bellyMesh.position.set(0.14, -0.42, 0);
-            duck3dGroup.add(bellyMesh);
-
-            // Tail Cone
-            const tailGeo = new THREE.ConeGeometry(0.36, 0.75, 16);
-            const tailMesh = new THREE.Mesh(tailGeo, duck3dMaterials.body);
-            tailMesh.position.set(-1.12, -0.1, 0);
-            tailMesh.rotation.z = Math.PI / 3;
-            duck3dGroup.add(tailMesh);
-
-            // Left & Right Wings
-            const wingGeo = new THREE.SphereGeometry(0.55, 20, 16);
-            wingGeo.scale(1.25, 0.65, 0.32);
-            const leftWing = new THREE.Mesh(wingGeo, duck3dMaterials.body);
-            leftWing.position.set(-0.08, -0.28, 0.95);
-            leftWing.rotation.y = -0.18;
-            duck3dGroup.add(leftWing);
-
-            const rightWing = new THREE.Mesh(wingGeo, duck3dMaterials.body);
-            rightWing.position.set(-0.08, -0.28, -0.95);
-            rightWing.rotation.y = 0.18;
-            duck3dGroup.add(rightWing);
-
-            // Head Sphere
-            const headGeo = new THREE.SphereGeometry(0.76, 32, 24);
-            const headMesh = new THREE.Mesh(headGeo, duck3dMaterials.body);
-            headMesh.position.set(0.42, 0.68, 0);
-            duck3dGroup.add(headMesh);
-
-            const wireHead = new THREE.Mesh(headGeo, duck3dMaterials.neonEdge);
-            wireHead.scale.set(1.025, 1.025, 1.025);
-            headMesh.add(wireHead);
-
-            // Eyes + Specular Highlights
-            const eyeGeo = new THREE.SphereGeometry(0.11, 16, 16);
-            const shineGeo = new THREE.SphereGeometry(0.04, 10, 10);
-
-            const eyeL = new THREE.Mesh(eyeGeo, duck3dMaterials.eye);
-            eyeL.position.set(0.96, 0.84, 0.34);
-            const shineL = new THREE.Mesh(shineGeo, duck3dMaterials.eyeShine);
-            shineL.position.set(0.07, 0.04, 0.05);
-            eyeL.add(shineL);
-            duck3dGroup.add(eyeL);
-
-            const eyeR = new THREE.Mesh(eyeGeo, duck3dMaterials.eye);
-            eyeR.position.set(0.96, 0.84, -0.34);
-            const shineR = new THREE.Mesh(shineGeo, duck3dMaterials.eyeShine);
-            shineR.position.set(0.07, 0.04, -0.05);
-            eyeR.add(shineR);
-            duck3dGroup.add(eyeR);
-
-            // 3D Sculpted Beak (Upper & Lower)
-            const upperBeakGeo = new THREE.SphereGeometry(0.42, 24, 16);
-            upperBeakGeo.scale(1.35, 0.38, 0.95);
-            const upperBeak = new THREE.Mesh(upperBeakGeo, duck3dMaterials.beak);
-            upperBeak.position.set(1.18, 0.62, 0);
-            duck3dGroup.add(upperBeak);
-
-            const lowerBeakGeo = new THREE.SphereGeometry(0.36, 20, 14);
-            lowerBeakGeo.scale(1.2, 0.28, 0.85);
-            const lowerBeak = new THREE.Mesh(lowerBeakGeo, duck3dMaterials.beak);
-            lowerBeak.position.set(1.12, 0.49, 0);
-            duck3dGroup.add(lowerBeak);
-            duck3dMaterials.lowerBeak = lowerBeak;
-
-            // 3D Webbed Feet
-            const footGeo = new THREE.BoxGeometry(0.55, 0.12, 0.42);
-            const footL = new THREE.Mesh(footGeo, duck3dMaterials.beak);
-            footL.position.set(0.18, -1.1, 0.45);
-            duck3dGroup.add(footL);
-
-            const footR = new THREE.Mesh(footGeo, duck3dMaterials.beak);
-            footR.position.set(0.18, -1.1, -0.45);
-            duck3dGroup.add(footR);
-
-            // Hat & Shades Attachment Groups
-            duck3dHatGroup = new THREE.Group();
-            duck3dHatGroup.position.set(0.42, 1.42, 0);
-            duck3dGroup.add(duck3dHatGroup);
-
-            duck3dShadesGroup = new THREE.Group();
-            duck3dShadesGroup.position.set(1.06, 0.84, 0);
-            duck3dGroup.add(duck3dShadesGroup);
-
-            // 3D Orbiting Pet Squad Group
-            duck3dOrbitalGroup = new THREE.Group();
-            duck3dScene.add(duck3dOrbitalGroup);
-
-            // Pointer Drag-to-Rotate + Tap-to-Quack Events
-            canvas.addEventListener("pointerdown", (e) => {
-                isDragging3d = true;
-                dragMoved3d = false;
-                prevPointer3d = { x: e.clientX, y: e.clientY };
-                duck3dSquash = 1.0;
-                onDuckClick(e);
-            });
-
-            window.addEventListener("pointermove", (e) => {
-                if (!isDragging3d) return;
-                const dx = e.clientX - prevPointer3d.x;
-                const dy = e.clientY - prevPointer3d.y;
-                if (Math.abs(dx) > 3 || Math.abs(dy) > 3) dragMoved3d = true;
-                duck3dYaw += dx * 0.012;
-                duck3dPitch = Math.max(-0.45, Math.min(0.65, duck3dPitch + dy * 0.008));
-                prevPointer3d = { x: e.clientX, y: e.clientY };
-            });
-
-            window.addEventListener("pointerup", () => {
-                isDragging3d = false;
-            });
-
-            window.addEventListener("resize", resizeDuck3dRenderer);
-            renderDuckSkin();
-            animateDuck3dLoop();
-        }
-
-        function animateDuck3dLoop() {
-            requestAnimationFrame(animateDuck3dLoop);
-            if (!duck3dRenderer || !duck3dScene || !duck3dCamera || !duck3dGroup) return;
-
-            const t = performance.now() * 0.002;
-            const skin = SKINS.find(s => s.id === state.equippedSkin) || SKINS[0];
-
-            // Gentle idle float & auto-turntable when not dragging
-            if (!isDragging3d) {
-                duck3dYaw += 0.006;
-            }
-            duck3dGroup.rotation.y = duck3dYaw;
-            duck3dGroup.rotation.x = duck3dPitch;
-            duck3dGroup.position.y = Math.sin(t * 1.6) * 0.07;
-
-            // Squash & stretch bounce + beak quack open on click
-            if (duck3dSquash > 0.001) {
-                const s = Math.sin(duck3dSquash * Math.PI);
-                duck3dGroup.scale.set(1 + s * 0.18, 1 - s * 0.16, 1 + s * 0.18);
-                if (duck3dMaterials.lowerBeak) {
-                    duck3dMaterials.lowerBeak.rotation.z = -s * 0.38;
-                    duck3dMaterials.lowerBeak.position.y = 0.49 - s * 0.08;
-                }
-                duck3dSquash = Math.max(0, duck3dSquash - 0.085);
-            } else {
-                duck3dGroup.scale.set(1, 1, 1);
-                if (duck3dMaterials.lowerBeak) {
-                    duck3dMaterials.lowerBeak.rotation.z = 0;
-                    duck3dMaterials.lowerBeak.position.y = 0.49;
-                }
-            }
-
-            // Live Rainbow / Obsidian Neon Shader Cycle
-            if (skin.obsidianNeon) {
-                const hue = (t * 0.25) % 1;
-                duck3dMaterials.neonEdge.color.setHSL(hue, 1, 0.55);
-                duck3dMaterials.beak.color.setHSL((hue + 0.5) % 1, 1, 0.55);
-                if (duck3dMaterials.pedRing) duck3dMaterials.pedRing.color.setHSL(hue, 1, 0.55);
-            } else if (skin.rainbow) {
-                const hue = (t * 0.3) % 1;
-                duck3dMaterials.body.color.setHSL(hue, 0.9, 0.55);
-                duck3dMaterials.belly.color.setHSL((hue + 0.15) % 1, 0.9, 0.72);
-                if (duck3dMaterials.pedRing) duck3dMaterials.pedRing.color.setHSL(hue, 1, 0.55);
-            }
-
-            // Orbiting 3D Pet Spheres
-            if (duck3dOrbitalGroup) {
-                duck3dOrbitalGroup.rotation.y = t * 1.1;
-            }
-
-            duck3dRenderer.render(duck3dScene, duck3dCamera);
-        }
-
-        function renderDuckSkin() {
-            const auraEl = document.getElementById("duckAuraElement");
-            const titleEl = document.getElementById("equippedSkinTitle");
-
-            const skin = SKINS.find(s => s.id === state.equippedSkin) || SKINS[0];
-            const aura = AURAS.find(a => a.id === state.equippedAura) || AURAS[0];
-            const hat = HATS.find(h => h.id === state.equippedHat) || HATS[0];
-            const shades = SHADES.find(sh => sh.id === state.equippedShades) || SHADES[0];
-
-            if (titleEl) titleEl.textContent = skin.name;
-            if (auraEl) {
-                auraEl.className = `duck-aura-ring absolute w-56 h-56 sm:w-64 sm:h-64 rounded-full pointer-events-none ${aura.ring}`;
-            }
-
-            if (!duck3dMaterials.body) return;
-
-            duck3dMaterials.body.color.set(skin.body);
-            duck3dMaterials.belly.color.set(skin.belly);
-            duck3dMaterials.beak.color.set(skin.beak);
-            duck3dMaterials.neonEdge.opacity = skin.obsidianNeon ? 0.85 : 0;
-            if (duck3dMaterials.pedRing) {
-                duck3dMaterials.pedRing.color.set(skin.obsidianNeon ? 0xff007f : 0x38bdf8);
-            }
-
-            // Rebuild 3D Hat
-            if (duck3dHatGroup) {
-                while (duck3dHatGroup.children.length) duck3dHatGroup.remove(duck3dHatGroup.children[0]);
-                if (hat.id === "propeller") {
-                    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.45, 20, 14, 0, Math.PI * 2, 0, Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0xef4444 }));
-                    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.05, 0.14), new THREE.MeshStandardMaterial({ color: 0x38bdf8 }));
-                    blade.position.y = 0.48;
-                    duck3dHatGroup.add(cap, blade);
-                } else if (hat.id === "wizard") {
-                    const cone = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.05, 20), new THREE.MeshStandardMaterial({ color: 0x7e22ce }));
-                    cone.position.y = 0.42;
-                    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.82, 0.82, 0.06, 24), new THREE.MeshStandardMaterial({ color: 0x6b21a8 }));
-                    duck3dHatGroup.add(cone, brim);
-                } else if (hat.id === "crown" || hat.id === "obsidian_neon_crown") {
-                    const isAdmin = hat.id === "obsidian_neon_crown";
-                    const crownMat = new THREE.MeshStandardMaterial({
-                        color: isAdmin ? 0x05050a : 0xfacc15,
-                        emissive: isAdmin ? 0xff007f : 0xca8a04,
-                        emissiveIntensity: isAdmin ? 0.85 : 0.35,
-                        metalness: 0.7,
-                        roughness: 0.2
-                    });
-                    const baseRing = new THREE.Mesh(new THREE.CylinderGeometry(0.46, 0.4, 0.26, 16), crownMat);
-                    baseRing.position.y = 0.08;
-                    duck3dHatGroup.add(baseRing);
-                    for (let i = 0; i < 6; i++) {
-                        const a = (i / 6) * Math.PI * 2;
-                        const spike = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.28, 8), crownMat);
-                        spike.position.set(Math.cos(a) * 0.4, 0.28, Math.sin(a) * 0.4);
-                        duck3dHatGroup.add(spike);
-                    }
-                }
-            }
-
-            // Rebuild 3D Shades / Visor
-            if (duck3dShadesGroup) {
-                while (duck3dShadesGroup.children.length) duck3dShadesGroup.remove(duck3dShadesGroup.children[0]);
-                if (shades.id === "cool") {
-                    const mat = new THREE.MeshStandardMaterial({ color: 0x090d16, roughness: 0.1 });
-                    const bar = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.22, 0.88), mat);
-                    duck3dShadesGroup.add(bar);
-                } else if (shades.id === "visor" || shades.id === "obsidian_neon_visor") {
-                    const isAdmin = shades.id === "obsidian_neon_visor";
-                    const mat = new THREE.MeshStandardMaterial({
-                        color: isAdmin ? 0x05050a : 0x22d3ee,
-                        emissive: isAdmin ? 0x00ff9d : 0x0891b2,
-                        emissiveIntensity: 0.85
-                    });
-                    const visor = new THREE.Mesh(new THREE.CylinderGeometry(0.68, 0.68, 0.24, 24, 1, true, -0.75, 1.5), mat);
-                    visor.rotation.y = Math.PI / 2;
-                    duck3dShadesGroup.add(visor);
-                }
-            }
-
-            // Rebuild 3D Orbiting Pet Spheres
-            if (duck3dOrbitalGroup) {
-                while (duck3dOrbitalGroup.children.length) duck3dOrbitalGroup.remove(duck3dOrbitalGroup.children[0]);
-                const equipped = state.pets.filter(p => p.equipped);
-                equipped.forEach((pet, idx) => {
-                    const sp = PET_SPECIES[pet.speciesKey] || { color: "#facc15" };
-                    const orb = new THREE.Mesh(
-                        new THREE.SphereGeometry(0.18, 16, 16),
-                        new THREE.MeshStandardMaterial({ color: sp.color, emissive: sp.color, emissiveIntensity: 0.35 })
-                    );
-                    const angle = (idx / Math.max(1, equipped.length)) * Math.PI * 2;
-                    orb.position.set(Math.cos(angle) * 1.95, 0.1, Math.sin(angle) * 1.95);
-                    duck3dOrbitalGroup.add(orb);
-                });
-            }
+            const lbl = document.getElementById("expandStageLabel");
+            const icon = document.getElementById("expandStageIcon");
+            if (stageCard) stageCard.classList.toggle("stage-expanded", isStageExpanded);
+            if (lbl) lbl.textContent = isStageExpanded ? "Compact Stage" : "Expand Stage";
+            if (icon) icon.className = isStageExpanded ? "fa-solid fa-compress" : "fa-solid fa-expand";
         }
 
         function enforceAdminSecurity() {
             if (isCurrentUserVerifiedAdmin()) return;
-            // Revoke admin-only world, skins, auras, hats, shades, and voices for non-admin/guest accounts
+            if (state.playerName === ADMIN_OWNER_NAME && !isAdminAuthenticated) {
+                state.playerName = "QuackCommander";
+            }
             if (state.currentWorld > 20) state.currentWorld = 20;
             if (state.highestWorld > 20) state.highestWorld = 20;
             state.unlockedSkins = state.unlockedSkins.filter(id => !SKINS.find(s => s.id === id && s.adminOnly));
@@ -1585,19 +1307,96 @@
         }
 
         /* =========================================================================
-           2. BIG NUMBER FORMATTER & SAFE SANITIZER
+           4. DEFAULT GAME STATE & MULTI-ACCOUNT STORAGE ENGINE
            ========================================================================= */
+        const SAVE_KEYS = ["duckQuackUltimateSaveV4", "duckQuackUltimateSaveV3", "duckQuackUltimateSaveV2", "duckQuackUltimateSaveV1"];
+        const AVATAR_KEY = "duckQuackAvatarV4";
         const NUMBER_SUFFIXES = [
             "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc",
             "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg",
             "UVg", "DVg", "TVg", "QaVg", "QiVg", "SxVg", "SpVg", "OcVg", "NoVg",
-            "Tg", "UTg", "DTg", "TtG", "QaTg", "QiTg", "SxTg", "SpTg", "OcTg", "NoTg"
+            "Tg", "UTg", "DTg", "TtG", "QaTg", "QiTg", "SxTg", "SpTg", "OcTg", "NoTg",
+            "Qdg", "Sxg", "Spg", "Ocg", "Nog", "Centillion"
         ];
 
         function sanitizeNum(val, fallback = 0) {
             const n = Number(val);
             if (!Number.isFinite(n) || Number.isNaN(n)) return fallback;
-            return Math.min(n, 1e300);
+            return Math.min(1e300, Math.max(0, n));
+        }
+
+        function createFreshDefaultState() {
+            return {
+                playerName: "QuackCommander",
+                profilePic: "",
+                quacks: 0,
+                lifetimeQuacks: 0,
+                gems: 100,
+                rp: 0,
+                feathers: 0,
+                shards: 0,
+                relics: 0,
+                rebirths: 0,
+                transcendenceCount: 0,
+                bossesSlain: 0,
+                bossHp: 1000,
+                bossMaxHp: 1000,
+                totalTaps: 0,
+                eggsHatched: 0,
+                digDepth: 0,
+                passXp: 0,
+                currentWorld: 1,
+                highestWorld: 1,
+                equippedSkin: "classic",
+                unlockedSkins: ["classic"],
+                equippedAura: "none",
+                unlockedAuras: ["none"],
+                equippedHat: "none",
+                unlockedHats: ["none"],
+                equippedShades: "none",
+                unlockedShades: ["none"],
+                quackSound: "classic",
+                feverVal: 0,
+                isFeverActive: false,
+                autoClickerOn: false,
+                autoRebirthOn: false,
+                autoHatchOn: false,
+                pets: [],
+                upgrades: { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0 },
+                rpUpgrades: {},
+                voidUpgrades: {},
+                ascensionNodes: {},
+                activePotions: {},
+                ownedCards: {},
+                monuments: {},
+                redeemedCodes: {},
+                claimedPassTiers: {},
+                masteries: { tapping: 1, hatching: 1, rebirth: 1, alchemy: 1, slayer: 1 }
+            };
+        }
+
+        let state = createFreshDefaultState();
+
+        function logoutAndResetAccount() {
+            // 1. Sync current account (including RainbowLord16) to the leaderboard BEFORE logging out so it stays on the board!
+            syncLeaderboardScore(false);
+
+            // 2. Clear Admin session & local storage keys
+            isAdminAuthenticated = false;
+            sessionStorage.removeItem("dqAdminSessionAuth");
+            SAVE_KEYS.forEach(k => localStorage.removeItem(k));
+            localStorage.removeItem(AVATAR_KEY);
+
+            // 3. Generate a brand-new Player Slot ID for the new account
+            const newId = "QUACK-" + Math.random().toString(36).slice(2, 10).toUpperCase();
+            localStorage.setItem("dqLocalPlayerId", newId);
+
+            // 4. Reset state to a fresh starter account
+            state = createFreshDefaultState();
+            saveGame();
+            renderAll();
+            syncLeaderboardScore(false);
+            showToast("🚪 Logged out! Started a fresh new account while preserving previous leaderboard entries.", "info");
         }
 
         function fmt(num) {
@@ -1778,59 +1577,8 @@
         };
 
         /* =========================================================================
-           4. DEFAULT GAME STATE & STORAGE ENGINE
+           4B. SAVE & LOAD PERSISTENCE HELPERS
            ========================================================================= */
-        const SAVE_KEYS = ["duckQuackUltimateSaveV4", "duckQuackUltimateSaveV3", "duckQuackUltimateSaveV2", "duckQuackUltimateSaveV1"];
-        const AVATAR_KEY = "duckQuackAvatarV4";
-
-        let state = {
-            playerName: "QuackCommander",
-            profilePic: "",
-            quacks: 0,
-            lifetimeQuacks: 0,
-            gems: 100,
-            rp: 0,
-            feathers: 0,
-            shards: 0,
-            relics: 0,
-            rebirths: 0,
-            transcendenceCount: 0,
-            bossesSlain: 0,
-            bossHp: 1000,
-            bossMaxHp: 1000,
-            totalTaps: 0,
-            eggsHatched: 0,
-            digDepth: 0,
-            passXp: 0,
-            currentWorld: 1,
-            highestWorld: 1,
-            equippedSkin: "classic",
-            unlockedSkins: ["classic"],
-            equippedAura: "none",
-            unlockedAuras: ["none"],
-            equippedHat: "none",
-            unlockedHats: ["none"],
-            equippedShades: "none",
-            unlockedShades: ["none"],
-            quackSound: "classic",
-            feverVal: 0,
-            isFeverActive: false,
-            autoClickerOn: false,
-            autoRebirthOn: false,
-            autoHatchOn: false,
-            pets: [],
-            upgrades: { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0 },
-            rpUpgrades: {},
-            voidUpgrades: {},
-            ascensionNodes: {},
-            activePotions: {},
-            ownedCards: {},
-            monuments: {},
-            redeemedCodes: {},
-            claimedPassTiers: {},
-            masteries: { tapping: 1, hatching: 1, rebirth: 1, alchemy: 1, slayer: 1 }
-        };
-
         function saveGame() {
             try {
                 const cleanCopy = JSON.parse(JSON.stringify(state, (key, value) => {
@@ -2760,6 +2508,8 @@
             state.passXp = 9999999;
             state.currentWorld = 21;
             state.highestWorld = 21;
+            state.autoClickerOn = true;
+            state.autoHatchOn = true;
 
             // Unlock & equip Obsidian Neon Rainbow Admin Gear
             state.unlockedSkins = SKINS.map(s => s.id);
@@ -2772,16 +2522,19 @@
             state.equippedShades = "obsidian_neon_visor";
             state.quackSound = "neon_symphony";
 
-            // Max all upgrades, RP upgrades, Void Forge & Skill Tree
+            // Max all upgrades, RP upgrades, Void Forge, Skill Tree, Masteries & Season Pass
             UPGRADES.forEach(u => (state.upgrades[u.id] = u.max));
             RP_UPGRADES.forEach(u => (state.rpUpgrades[u.id] = u.max));
             VOID_UPGRADES.forEach(u => (state.voidUpgrades[u.id] = u.max));
             SKILL_NODES.forEach(s => (state.ascensionNodes[s.id] = s.max));
-            CARDS.forEach(c => (state.ownedCards[c.id] = 99));
-            MONUMENTS.forEach(m => (state.monuments[m.id] = 99));
+            CARDS.forEach(c => (state.ownedCards[c.id] = 999));
+            MONUMENTS.forEach(m => (state.monuments[m.id] = 999));
+            Object.keys(PROMO_CODES).forEach(code => (state.redeemedCodes[code] = true));
+            for (let t = 1; t <= 50; t++) state.claimedPassTiers[t] = true;
+            state.masteries = { tapping: 99, hatching: 99, rebirth: 99, alchemy: 99, slayer: 99 };
             POTIONS.forEach(p => (state.activePotions[p.id] = Date.now() + 365 * 24 * 3600 * 1000));
 
-            // 8 Rainbow Supreme Genesis Quack Gods
+            // 8 Rainbow Supreme Genesis Quack Gods + All Species at Tier 5
             state.pets = [];
             Object.keys(PET_SPECIES).forEach((spKey, idx) => {
                 state.pets.push({
@@ -2804,7 +2557,7 @@
             saveGame();
             renderAll();
             syncLeaderboardScore(true);
-            showToast("👑 RainbowLord16 Maxed Admin Account Restored (World 21 & Obsidian Neon Gear)!", "success");
+            showToast("👑 RainbowLord16 Maxed Admin Account Restored (Everything Maxed at 999 Sp & World 21)!", "success");
         }
 
         /* =========================================================================
@@ -2913,34 +2666,75 @@
         }
 
         function exportSaveString() {
-            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
-            const ta = document.createElement("textarea");
-            ta.value = encoded;
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand("copy");
-            ta.remove();
-            showToast("📋 Save String copied to clipboard!", "success");
-        }
-
-        function importSaveString() {
-            const modalInput = window.prompt ? prompt("Paste your Save String:") : null;
-            if (!modalInput) return;
             try {
-                const parsed = JSON.parse(decodeURIComponent(escape(atob(modalInput.trim()))));
-                state = { ...state, ...parsed };
-                enforceAdminSecurity();
-                saveGame();
-                renderAll();
-                showToast("✅ Save String Imported!", "success");
+                const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+                const ta = document.createElement("textarea");
+                ta.value = encoded;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand("copy");
+                ta.remove();
+                showToast("📋 Save String copied to clipboard!", "success");
             } catch (e) {
-                showToast("Invalid Save String!", "error");
+                showToast("Could not copy save string.", "error");
             }
         }
 
-        // Real-Only Global Leaderboard
+        function importSaveString() {
+            const existing = document.getElementById("importStringBox");
+            if (existing) { existing.focus(); return; }
+            const container = document.querySelector("#profileModal .space-y-4");
+            if (!container) return;
+            const box = document.createElement("div");
+            box.id = "importStringBox";
+            box.className = "bg-slate-950 border border-indigo-400/40 rounded-2xl p-3 space-y-2";
+            box.innerHTML = `
+                <div class="text-xs font-extrabold text-indigo-300">Paste Save String Below:</div>
+                <textarea id="importStringTextarea" rows="2" class="w-full bg-slate-900 border border-white/15 rounded-xl p-2 text-xs font-mono text-white"></textarea>
+                <div class="flex gap-2">
+                    <button type="button" onclick="confirmImportSaveString()" class="arcade-btn bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold">Load Save</button>
+                    <button type="button" onclick="document.getElementById('importStringBox')?.remove()" class="arcade-btn bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-bold">Cancel</button>
+                </div>
+            `;
+            container.appendChild(box);
+        }
+
+        function confirmImportSaveString() {
+            const ta = document.getElementById("importStringTextarea");
+            if (!ta || !ta.value.trim()) return;
+            try {
+                const parsed = JSON.parse(decodeURIComponent(escape(atob(ta.value.trim()))));
+                state = { ...createFreshDefaultState(), ...parsed };
+                enforceAdminSecurity();
+                saveGame();
+                renderAll();
+                syncLeaderboardScore(true);
+                document.getElementById("importStringBox")?.remove();
+                showToast("✅ Save String Imported!", "success");
+            } catch (e) {
+                showToast("❌ Invalid Save String!", "error");
+            }
+        }
+
+        // Multi-Account Persistent Global Leaderboard
+        const LB_LOCAL_ARCHIVE_KEY = "dqGlobalLeaderboardArchiveV1";
         let liveLeaderboardRows = [];
         let activeLbTab = "quacks";
+
+        function loadLocalLeaderboardArchive() {
+            try {
+                const raw = localStorage.getItem(LB_LOCAL_ARCHIVE_KEY);
+                return raw ? JSON.parse(raw) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function saveLocalLeaderboardArchive(rows) {
+            try {
+                localStorage.setItem(LB_LOCAL_ARCHIVE_KEY, JSON.stringify(rows.slice(0, 50)));
+            } catch (e) {}
+        }
 
         function setLeaderboardTab(tab) {
             activeLbTab = tab;
@@ -2960,10 +2754,15 @@
             api.onSnapshot(
                 colRef,
                 (snapshot) => {
-                    liveLeaderboardRows = [];
+                    const cloudRows = [];
                     snapshot.forEach(docSnap => {
-                        liveLeaderboardRows.push({ id: docSnap.id, ...docSnap.data() });
+                        cloudRows.push({ id: docSnap.id, ...docSnap.data() });
                     });
+                    const mergedMap = new Map();
+                    loadLocalLeaderboardArchive().forEach(r => mergedMap.set(r.id, r));
+                    cloudRows.forEach(r => mergedMap.set(r.id, r));
+                    liveLeaderboardRows = Array.from(mergedMap.values());
+                    saveLocalLeaderboardArchive(liveLeaderboardRows);
                     renderLeaderboards();
                 },
                 (err) => console.warn("Leaderboard listener:", err)
@@ -2974,13 +2773,14 @@
             const api = window.__cloudApi;
             const localId = localStorage.getItem("dqLocalPlayerId") || ("QUACK-" + Math.random().toString(36).slice(2, 10).toUpperCase());
             localStorage.setItem("dqLocalPlayerId", localId);
-            const uid = (api && api.getUser()) ? api.getUser().uid : localId;
+            // Use distinct slot ID for verified Admin so logging out never overwrites RainbowLord16's #1 spot!
+            const slotId = isCurrentUserVerifiedAdmin() ? "ADMIN_RAINBOWLORD16" : localId;
 
             const idEl = document.getElementById("lbPlayerIdText");
-            if (idEl) idEl.textContent = uid;
+            if (idEl) idEl.textContent = slotId;
 
             const myEntry = {
-                id: uid,
+                id: slotId,
                 name: state.playerName || "QuackCommander",
                 profilePic: state.profilePic || "",
                 lifetimeQuacks: sanitizeNum(state.lifetimeQuacks, 0),
@@ -2992,20 +2792,23 @@
                 updatedAt: Date.now()
             };
 
-            // Update local snapshot immediately
-            const existingIdx = liveLeaderboardRows.findIndex(r => r.id === uid);
-            if (existingIdx >= 0) liveLeaderboardRows[existingIdx] = myEntry;
-            else liveLeaderboardRows.push(myEntry);
+            const archive = loadLocalLeaderboardArchive();
+            const mergedMap = new Map();
+            archive.forEach(r => mergedMap.set(r.id, r));
+            liveLeaderboardRows.forEach(r => mergedMap.set(r.id, r));
+            mergedMap.set(slotId, myEntry);
+            liveLeaderboardRows = Array.from(mergedMap.values());
+            saveLocalLeaderboardArchive(liveLeaderboardRows);
             renderLeaderboards();
 
             if (api && api.getDb() && api.getUser()) {
                 try {
-                    const docRef = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard", uid);
+                    const docRef = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard", slotId);
                     await api.setDoc(docRef, myEntry, { merge: true });
                     if (notify) showToast("🏆 Live Global Rank Synced!", "success");
                 } catch (e) {}
             } else if (notify) {
-                showToast("Leaderboard updated locally!", "info");
+                showToast("Leaderboard updated!", "info");
             }
         };
 
@@ -3318,7 +3121,7 @@
                 const visibleWorlds = WORLDS.filter(item => !item.adminOnly || isCurrentUserVerifiedAdmin());
                 worldsGrid.innerHTML = visibleWorlds.map(item => {
                     const isCurrent = state.currentWorld === item.id;
-                    const unlocked = item.id <= state.highestWorld || item.adminOnly;
+                    const unlocked = item.id <= state.highestWorld || (item.adminOnly && isCurrentUserVerifiedAdmin());
                     const cardCls = item.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-950/80 border border-white/10";
                     return `
                         <div class="${cardCls} rounded-2xl p-3.5 flex flex-col justify-between">
@@ -3647,7 +3450,7 @@
 
         window.onload = function () {
             loadGame();
-            initDuck3d();
+            liveLeaderboardRows = loadLocalLeaderboardArchive();
             renderAll();
             syncLeaderboardScore(false);
             animateOrbitAndLasers();
