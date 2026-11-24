@@ -1057,23 +1057,26 @@
     <!-- MAIN GAME ENGINE -->
     <script>
         /* =========================================================================
-           1. ENCRYPTED SHA-256 ADMIN SECURITY & COMMUNITY ADMIN ABUSE ENGINE
+           1. ENCRYPTED ADMIN SECURITY & COMMUNITY ADMIN ABUSE ENGINE
            ========================================================================= */
         const ADMIN_OWNER_NAME = "RainbowLord16";
         const ADMIN_SALT = "DQ_ULTIMATE_SALT_2026_";
-        const ADMIN_SHA256_DIGEST = "4d2690a01c33302f1774636899d04628d002f3b982e129f6196e529d7924f56c";
+        const ADMIN_SHA256_HEX = "e2c52c0142ab526c71b1b598a472a765be9c09d622aa80222846644462520e35";
         let isAdminAuthenticated = false;
         let lastHandledAdminEventId = localStorage.getItem("dqLastAdminEventId") || "";
 
-        function sha256Fallback(ascii) {
-            function rightRotate(value, amount) {
-                return (value >>> amount) | (value << (32 - amount));
+        async function sha256HexString(str) {
+            if (window.crypto && window.crypto.subtle) {
+                const buf = await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+                return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
             }
+            // Pure-JS SHA-256 fallback for restricted non-HTTPS contexts
+            const rightRotate = (value, amount) => (value >>> amount) | (value << (32 - amount));
             const mathPow = Math.pow;
             const maxWord = mathPow(2, 32);
-            let result = '';
+            let result = "";
             const words = [];
-            const asciiBitLength = ascii.length * 8;
+            const asciiBitLength = str.length * 8;
             const hash = [];
             const k = [];
             let primeCounter = 0;
@@ -1081,18 +1084,18 @@
             for (let candidate = 2; primeCounter < 64; candidate++) {
                 if (!isComposite[candidate]) {
                     for (let i = 0; i < 313; i += candidate) isComposite[i] = candidate;
-                    hash[primeCounter] = (mathPow(candidate, 0.5) * maxWord) | 0;
-                    k[primeCounter++] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
+                    hash[primeCounter] = (mathPow(candidate, 0.5) % 1) * maxWord | 0;
+                    k[primeCounter++] = (mathPow(candidate, 1 / 3) % 1) * maxWord | 0;
                 }
             }
-            ascii += '\x80';
-            while (ascii.length % 64 - 56) ascii += '\x00';
-            for (let i = 0; i < ascii.length; i++) {
-                const j = ascii.charCodeAt(i);
+            str += "\x80";
+            while (str.length % 64 - 56) str += "\x00";
+            for (let i = 0; i < str.length; i++) {
+                const j = str.charCodeAt(i);
                 words[i >> 2] |= j << ((3 - i) % 4) * 8;
             }
-            words[words.length] = ((asciiBitLength / maxWord) | 0);
-            words[words.length] = (asciiBitLength);
+            words[words.length] = (asciiBitLength / maxWord) | 0;
+            words[words.length] = asciiBitLength;
             for (let j = 0; j < words.length;) {
                 const w = words.slice(j, j += 16);
                 const oldHash = hash.slice(0);
@@ -1120,170 +1123,242 @@
             for (let i = 0; i < 8; i++) {
                 for (let j = 3; j + 1; j--) {
                     const b = (hash[i] >> (j * 8)) & 255;
-                    result += ((b < 16) ? 0 : '') + b.toString(16);
+                    result += ((b < 16) ? 0 : "") + b.toString(16);
                 }
             }
             return result;
         }
 
-        async function sha256Hex(str) {
-            try {
-                if (window.crypto && window.crypto.subtle) {
-                    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-                    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-                }
-            } catch (e) {}
-            return sha256Fallback(str);
-        }
-
         function isCurrentUserVerifiedAdmin() {
-            return isAdminAuthenticated === true && typeof state !== "undefined" && state && state.playerName === ADMIN_OWNER_NAME;
-        }
-
-        function enforceAdminSecurity() {
-            if (!state) return;
-            if (!isCurrentUserVerifiedAdmin()) {
-                if (state.currentWorld === 21) state.currentWorld = 1;
-                if (state.equippedSkin === "admin_neon_rainbow") state.equippedSkin = "classic";
-                if (state.equippedAura === "admin_neon_halo") state.equippedAura = "none";
-                if (state.equippedHat === "admin_neon_crown") state.equippedHat = "none";
-                if (state.equippedShades === "admin_neon_visor") state.equippedShades = "none";
-                if (state.equippedVoice === "admin_neon") state.equippedVoice = "classic";
-            }
+            return Boolean(isAdminAuthenticated && state && state.playerName === ADMIN_OWNER_NAME);
         }
 
         async function verifyAdminPasscode() {
-            const inp = document.getElementById("adminSecretInput");
-            if (!inp) return;
-            const candidate = inp.value.trim();
-            if (!candidate) {
-                showToast("Enter your secret Admin Passcode!", "error");
-                return;
-            }
-            const digest = await sha256Hex(ADMIN_SALT + candidate);
-            if (digest === ADMIN_SHA256_DIGEST) {
+            const inputEl = document.getElementById("adminSecretInput");
+            const raw = inputEl ? inputEl.value.trim() : "";
+            if (!raw) return showToast("Enter your Admin Passcode first.", "error");
+            const digest = await sha256HexString(ADMIN_SALT + raw);
+            if (digest === ADMIN_SHA256_HEX) {
                 isAdminAuthenticated = true;
+                sessionStorage.setItem("dqAdminSessionAuth", "1");
                 state.playerName = ADMIN_OWNER_NAME;
-                sessionStorage.setItem("dqAdminSessionAuth", digest);
-                const adminPic = localStorage.getItem("duckQuackAvatar_ADMIN_RAINBOWLORD16");
-                if (adminPic) state.profilePic = adminPic;
-                inp.value = "";
+                const nameInput = document.getElementById("playerNameInput");
+                if (nameInput) nameInput.value = ADMIN_OWNER_NAME;
+                if (inputEl) inputEl.value = "";
+                updateAdminUiState();
                 saveGame();
+                await window.syncLeaderboardScore(false);
                 renderAll();
-                renderProfileModal();
-                syncLeaderboardScore(true);
-                playSound("buy");
-                showToast("👑 Admin Vault Unlocked for RainbowLord16!", "success");
+                showToast("👑 RainbowLord16 Admin Vault Unlocked!", "success");
             } else {
                 isAdminAuthenticated = false;
                 sessionStorage.removeItem("dqAdminSessionAuth");
+                updateAdminUiState();
                 showToast("❌ Invalid Admin Passcode!", "error");
             }
         }
 
+        function updateAdminUiState() {
+            const verified = isCurrentUserVerifiedAdmin();
+            const pill = document.getElementById("adminStatusPill");
+            const actions = document.getElementById("adminUnlockedActions");
+            if (pill) {
+                pill.textContent = verified ? "UNLOCKED" : "LOCKED";
+                pill.className = verified
+                    ? "text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40"
+                    : "text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40";
+            }
+            if (actions) actions.classList.toggle("hidden", !verified);
+        }
+
+        function enforceAdminSecurity() {
+            if (isCurrentUserVerifiedAdmin()) return;
+            if (state.currentWorld === 21) state.currentWorld = 20;
+            if (state.equippedSkin === "admin_neon_rainbow") state.equippedSkin = "classic";
+            if (state.equippedAura === "admin_neon_halo") state.equippedAura = "none";
+            if (state.equippedHat === "admin_neon_crown") state.equippedHat = "none";
+            if (state.equippedShades === "admin_neon_visor") state.equippedShades = "none";
+            if (state.equippedVoice === "admin_neon_symphony") state.equippedVoice = "classic";
+        }
+
         /* =========================================================================
-           2. GAME DATABASES (21 WORLDS, 21 PET SPECIES, SKINS, AURAS, EGGS)
+           2. GAME DATA DEFINITIONS
            ========================================================================= */
         const WORLDS_DATA = [
-            { id: 1, name: "Starter Pond", cost: 0, mult: 1, bg: "#0284c7", desc: "A peaceful lilypad pond where every duck legend begins." },
-            { id: 2, name: "Golden Bakery", cost: 1e4, mult: 5, bg: "#d97706", desc: "Freshly baked golden baguettes boost every quack." },
-            { id: 3, name: "Emerald Forest", cost: 2.5e5, mult: 25, bg: "#059669", desc: "Ancient mossy woods filled with singing ducklings." },
-            { id: 4, name: "Crystal Cavern", cost: 1e7, mult: 120, bg: "#0891b2", desc: "Echoing geodes amplify your honk resonance." },
-            { id: 5, name: "Volcano Caldera", cost: 5e8, mult: 600, bg: "#dc2626", desc: "Magma vents superheat your beak power." },
-            { id: 6, name: "Cloud Kingdom", cost: 2.5e10, mult: 3e3, bg: "#38bdf8", desc: "Float above the stratosphere among angelic ducks." },
-            { id: 7, name: "Cyber Metropolis", cost: 1e12, mult: 1.5e4, bg: "#9333ea", desc: "Neon skyscrapers powered by digital quack energy." },
-            { id: 8, name: "Atlantis Abyss", cost: 5e13, mult: 8e4, bg: "#1d4ed8", desc: "Sunken temples guarding oceanic relics." },
-            { id: 9, name: "Candy Dimension", cost: 2.5e15, mult: 4e5, bg: "#ec4899", desc: "Sugar-rush rivers double your combo momentum." },
-            { id: 10, name: "Pharaoh Dunes", cost: 1e17, mult: 2e6, bg: "#eab308", desc: "Golden pyramids built by ancient duck dynasties." },
-            { id: 11, name: "Samurai Cherry", cost: 5e18, mult: 1e7, bg: "#f43f5e", desc: "Disciplined dojo mastery sharpens critical strikes." },
-            { id: 12, name: "Frost Citadel", cost: 2.5e20, mult: 5e7, bg: "#06b6d4", desc: "Glacial spires preserve pure quack crystals." },
-            { id: 13, name: "Steampunk Foundry", cost: 1e22, mult: 2.5e8, bg: "#b45309", desc: "Brass gears churn out automated quack steam." },
-            { id: 14, name: "Lunar Base", cost: 5e23, mult: 1.5e9, bg: "#64748b", desc: "Low-gravity moon bounces launch quacks sky-high." },
-            { id: 15, name: "Nebula Core", cost: 2.5e25, mult: 1e10, bg: "#7e22ce", desc: "Stellar nurseries birth cosmic duck constellations." },
-            { id: 16, name: "Void Rift", cost: 1e27, mult: 7.5e10, bg: "#312e81", desc: "Dark matter fissures bend reality around your beak." },
-            { id: 17, name: "Chronos Clockwork", cost: 5e28, mult: 5e11, bg: "#0d9488", desc: "Time loops echo every tap across timelines." },
-            { id: 18, name: "Celestial Throne", cost: 2.5e30, mult: 4e12, bg: "#ca8a04", desc: "Ascended hall of immortal duck deities." },
-            { id: 19, name: "Omniverse Nexus", cost: 1e32, mult: 3e13, bg: "#be185d", desc: "Convergence of infinite parallel quack realities." },
-            { id: 20, name: "Genesis Singularity", cost: 5e33, mult: 2.5e14, bg: "#4f46e5", desc: "The ultimate origin of all Quacks." },
-            { id: 21, name: "Rainbow Sovereign Sanctuary", cost: 0, mult: 1e25, bg: "#05050a", adminOnly: true, desc: "Obsidian & Neon Rainbow Sanctuary exclusive to RainbowLord16!" }
+            { id: 1, name: "Starter Pond", mult: 1, cost: 0, desc: "A peaceful lilypad pond where every duck legend begins.", bg: "#0c4a6e" },
+            { id: 2, name: "Golden Bakery", mult: 5, cost: 2500, desc: "Warm sourdough loaves rain down from pastry clouds.", bg: "#78350f" },
+            { id: 3, name: "Emerald Forest", mult: 25, cost: 50000, desc: "Ancient mossy oaks echoing with mystic quacks.", bg: "#064e3b" },
+            { id: 4, name: "Crystal Cavern", mult: 150, cost: 1.5e6, desc: "Prismatic quartz crystals amplify every honk.", bg: "#1e1b4b" },
+            { id: 5, name: "Magma Caldera", mult: 1000, cost: 5e7, desc: "Forged in molten lava by volcanic fire ducks.", bg: "#7f1d1d" },
+            { id: 6, name: "Cloud Kingdom", mult: 8000, cost: 2e9, desc: "Floating marble temples high above the stratosphere.", bg: "#0369a1" },
+            { id: 7, name: "Cyber Metropolis", mult: 75000, cost: 1e11, desc: "Neon skyscrapers pulsing with digital quack waves.", bg: "#311042" },
+            { id: 8, name: "Atlantis Abyss", mult: 800000, cost: 6e12, desc: "Sunken trident ruins guarded by Leviathan mallards.", bg: "#164e63" },
+            { id: 9, name: "Candy Carnival", mult: 1e7, cost: 4e14, desc: "Cotton candy Ferris wheels and sugar-rush boosts.", bg: "#831843" },
+            { id: 10, name: "Lunar Crater", mult: 1.5e8, cost: 3e16, desc: "Low-gravity cheese craters on the Silver Moon.", bg: "#1e293b" },
+            { id: 11, name: "Solar Citadel", mult: 2.5e9, cost: 2.5e18, desc: "Blazing plasma flares power your golden plumage.", bg: "#9a3412" },
+            { id: 12, name: "Nebula Nursery", mult: 5e10, cost: 2e20, desc: "Where newborn stars hatch into cosmic ducklings.", bg: "#4c1d95" },
+            { id: 13, name: "Quantum Matrix", mult: 1e12, cost: 2e22, desc: "Probability waves multiply every tap across timelines.", bg: "#065f46" },
+            { id: 14, name: "Chronos Clockwork", mult: 2.5e13, cost: 2e24, desc: "Infinite golden gears bend time itself.", bg: "#713f12" },
+            { id: 15, name: "Void Horizon", mult: 7.5e14, cost: 2.5e26, desc: "The edge of reality where Void Shards condense.", bg: "#18181b" },
+            { id: 16, name: "Astral Pantheon", mult: 2.5e16, cost: 3e28, desc: "Throne room of ancient celestial waterfowl deities.", bg: "#3730a3" },
+            { id: 17, name: "Supernova Core", mult: 1e18, cost: 5e30, desc: "Infinite stellar collapse fueling hyper-quacks.", bg: "#9f1239" },
+            { id: 18, name: "Multiverse Nexus", mult: 5e19, cost: 1e33, desc: "Convergence of infinite parallel duck dimensions.", bg: "#581c87" },
+            { id: 19, name: "Eternity Spire", mult: 3e21, cost: 2.5e35, desc: "Timeless crystalline tower beyond mortal reach.", bg: "#0f766e" },
+            { id: 20, name: "Genesis Singularity", mult: 1e23, cost: 1e38, desc: "The ultimate origin of all Quacks.", bg: "#172554" },
+            { id: 21, name: "Rainbow Sovereign Sanctuary", mult: 1e25, cost: 0, desc: "Exclusive Obsidian & Neon Rainbow Realm of RainbowLord16.", bg: "#05050a", adminOnly: true }
         ];
 
-        const PET_SPECIES = {
-            chick: { name: "Golden Chick", rarity: "Common", mult: 2, color: "#facc15" },
-            mallard: { name: "Pond Mallard", rarity: "Common", mult: 3.5, color: "#22c55e" },
-            froggy: { name: "Lilypad Frog", rarity: "Uncommon", mult: 6, color: "#4ade80" },
-            baker: { name: "Baguette Duck", rarity: "Uncommon", mult: 10, color: "#f59e0b" },
-            fox: { name: "Ember Fox", rarity: "Rare", mult: 20, color: "#f97316" },
-            crystal: { name: "Prism Owl", rarity: "Rare", mult: 35, color: "#38bdf8" },
-            cyber: { name: "Neon Cyber-Duck", rarity: "Epic", mult: 80, color: "#c084fc" },
-            magma: { name: "Magma Drake", rarity: "Epic", mult: 150, color: "#ef4444" },
-            phoenix: { name: "Solar Phoenix", rarity: "Legendary", mult: 400, color: "#fbbf24" },
-            kraken: { name: "Abyssal Kraken", rarity: "Legendary", mult: 900, color: "#06b6d4" },
-            voidwalker: { name: "Void Stalker", rarity: "Mythical", mult: 2500, color: "#a855f7" },
-            chronos: { name: "Chronos Wyrm", rarity: "Mythical", mult: 6000, color: "#14b8a6" },
-            seraph: { name: "Celestial Seraph", rarity: "Godly", mult: 18000, color: "#fde047" },
-            leviathan: { name: "Infinity Leviathan", rarity: "Godly", mult: 50000, color: "#22d3ee" },
-            genesis: { name: "Genesis Quack God", rarity: "Godly", mult: 150000, color: "#f43f5e" }
-        };
+        const PET_SPECIES = [
+            { id: "chick", name: "Sunny Chick", rarity: "Common", baseMult: 1.5, color: "#facc15" },
+            { id: "mallard", name: "Pond Mallard", rarity: "Common", baseMult: 2.2, color: "#4ade80" },
+            { id: "baker", name: "Baguette Duck", rarity: "Uncommon", baseMult: 4, color: "#fb923c" },
+            { id: "froggy", name: "Lilypad Frog", rarity: "Uncommon", baseMult: 6, color: "#22c55e" },
+            { id: "crystal", name: "Quartz Drake", rarity: "Rare", baseMult: 15, color: "#38bdf8" },
+            { id: "magma", name: "Magma Goose", rarity: "Rare", baseMult: 35, color: "#ef4444" },
+            { id: "cyber", name: "Cyber Mallard", rarity: "Epic", baseMult: 120, color: "#c084fc" },
+            { id: "atlantis", name: "Trident Swan", rarity: "Epic", baseMult: 350, color: "#06b6d4" },
+            { id: "astro", name: "Astro Duck", rarity: "Legendary", baseMult: 1500, color: "#facc15" },
+            { id: "solar", name: "Solar Phoenix", rarity: "Legendary", baseMult: 6000, color: "#f97316" },
+            { id: "void", name: "Void Leviathan", rarity: "Mythical", baseMult: 50000, color: "#a855f7" },
+            { id: "genesis", name: "Genesis Quack God", rarity: "Godly", baseMult: 1000000, color: "#22d3ee" }
+        ];
+
+        const PET_TIERS = [
+            { tier: 1, name: "Normal", mult: 1, badge: "bg-slate-700 text-slate-200" },
+            { tier: 2, name: "Golden", mult: 3, badge: "bg-amber-500 text-slate-950" },
+            { tier: 3, name: "Diamond", mult: 10, badge: "bg-cyan-400 text-slate-950" },
+            { tier: 4, name: "Void", mult: 50, badge: "bg-purple-600 text-white" },
+            { tier: 5, name: "Rainbow Supreme", mult: 500, badge: "bg-gradient-to-r from-pink-500 via-amber-400 to-cyan-400 text-slate-950" }
+        ];
 
         const EGGS_DATA = [
-            { id: "pond_egg", name: "Pond Egg", cost: 100, currency: "quacks", pool: ["chick", "mallard", "froggy"] },
-            { id: "bakery_egg", name: "Bakery Egg", cost: 25000, currency: "quacks", pool: ["baker", "fox", "crystal"] },
-            { id: "cyber_egg", name: "Cyber Egg", cost: 1e8, currency: "quacks", pool: ["cyber", "magma", "phoenix"] },
-            { id: "void_egg", name: "Void Egg", cost: 1e14, currency: "quacks", pool: ["kraken", "voidwalker", "chronos"] },
-            { id: "genesis_egg", name: "Genesis God Egg", cost: 500, currency: "gems", pool: ["seraph", "leviathan", "genesis"] }
+            { id: "pond_egg", name: "Pond Egg", cost: 100, currency: "quacks", pool: ["chick", "mallard", "baker"] },
+            { id: "crystal_egg", name: "Crystal Egg", cost: 25000, currency: "quacks", pool: ["baker", "froggy", "crystal", "magma"] },
+            { id: "cyber_egg", name: "Cyber Egg", cost: 5e8, currency: "quacks", pool: ["crystal", "magma", "cyber", "atlantis"] },
+            { id: "cosmic_egg", name: "Cosmic Egg", cost: 1e15, currency: "quacks", pool: ["cyber", "atlantis", "astro", "solar"] },
+            { id: "genesis_egg", name: "Genesis Egg", cost: 250, currency: "gems", pool: ["astro", "solar", "void", "genesis"] }
         ];
 
         const SKINS_DATA = [
-            { id: "classic", name: "Classic Rubber Duck", cost: 0, mult: 1, body: "#facc15", belly: "#fef08a", beak: "#f97316" },
-            { id: "emerald", name: "Emerald Mallard", cost: 250, mult: 2.5, body: "#10b981", belly: "#6ee7b7", beak: "#f59e0b" },
-            { id: "cyber", name: "Cyber Neon Duck", cost: 1500, mult: 6, body: "#8b5cf6", belly: "#c4b5fd", beak: "#06b6d4" },
-            { id: "diamond", name: "24K Diamond Idol", cost: 10000, mult: 15, body: "#38bdf8", belly: "#bae6fd", beak: "#facc15" },
-            { id: "rainbow_sovereign", name: "Rainbow Sovereign", cost: 50000, mult: 50, body: "#ec4899", belly: "#fef08a", beak: "#22d3ee", rainbow: true },
-            { id: "admin_neon_rainbow", name: "👑 Obsidian Neon Rainbow God", cost: 0, mult: 250, body: "#05050a", belly: "#111827", beak: "#ff007f", adminOnly: true }
+            { id: "classic", name: "Classic Rubber Duck", mult: 1, cost: 0, body: "#facc15", belly: "#fef08a", beak: "#f97316" },
+            { id: "emerald", name: "Emerald Mallard", mult: 2, cost: 50, body: "#10b981", belly: "#6ee7b7", beak: "#f59e0b" },
+            { id: "cyber", name: "Cyber Neon Duck", mult: 5, cost: 250, body: "#6366f1", belly: "#38bdf8", beak: "#ec4899" },
+            { id: "magma", name: "Inferno Magma Duck", mult: 12, cost: 1000, body: "#dc2626", belly: "#fb923c", beak: "#fef08a" },
+            { id: "diamond", name: "24K Diamond Idol", mult: 25, cost: 5000, body: "#22d3ee", belly: "#cffafe", beak: "#facc15" },
+            { id: "rainbow_sovereign", name: "Rainbow Sovereign", mult: 50, cost: 25000, body: "#f43f5e", belly: "#facc15", beak: "#38bdf8", rainbow: true },
+            { id: "admin_neon_rainbow", name: "Obsidian Neon Rainbow God", mult: 250, cost: 0, body: "#05050a", belly: "#111827", beak: "#ff007f", adminOnly: true }
         ];
 
         const AURAS_DATA = [
-            { id: "none", name: "No Aura", cost: 0, mult: 1, style: "" },
-            { id: "golden", name: "Golden Halo", cost: 500, mult: 1.5, style: "box-shadow: 0 0 35px rgba(250,204,21,0.55); border: 2px solid rgba(250,204,21,0.6);" },
-            { id: "astral", name: "Astral Vortex", cost: 5000, mult: 4, style: "box-shadow: 0 0 45px rgba(56,189,248,0.65); border: 3px dashed rgba(56,189,248,0.8);" },
-            { id: "prismatic", name: "Prismatic Rainbow Aura", cost: 25000, mult: 10, style: "box-shadow: 0 0 55px rgba(236,72,153,0.75); border: 3px solid #facc15;" },
-            { id: "admin_neon_halo", name: "👑 Obsidian Neon Rainbow Halo", cost: 0, mult: 50, style: "", adminOnly: true }
+            { id: "none", name: "No Aura", mult: 1, cost: 0, css: "" },
+            { id: "golden_glow", name: "Golden Halo", mult: 1.5, cost: 100, css: "border: 3px solid rgba(250,204,21,0.55); box-shadow: 0 0 30px rgba(250,204,21,0.4);" },
+            { id: "cyber_pulse", name: "Cyber Ring", mult: 3, cost: 600, css: "border: 3px dashed rgba(56,189,248,0.75); box-shadow: 0 0 35px rgba(56,189,248,0.5);" },
+            { id: "rainbow_prism", name: "Prismatic Rainbow Aura", mult: 10, cost: 10000, css: "border: 4px solid #ec4899; box-shadow: 0 0 45px rgba(236,72,153,0.65);" },
+            { id: "admin_neon_halo", name: "Obsidian Neon Rainbow Halo", mult: 50, cost: 0, css: "border: 4px solid #ff007f; box-shadow: 0 0 45px #00e5ff, inset 0 0 25px #ff007f;", adminOnly: true }
         ];
 
         const HATS_DATA = [
-            { id: "none", name: "No Hat", cost: 0, mult: 1 },
-            { id: "propeller", name: "Propeller Cap", cost: 300, mult: 1.4 },
-            { id: "wizard", name: "Arcane Wizard Hat", cost: 2500, mult: 2.5 },
-            { id: "rainbow_crown", name: "King of Rainbows Crown", cost: 15000, mult: 5 },
-            { id: "admin_neon_crown", name: "👑 Neon Rainbow Admin Crown", cost: 0, mult: 25, adminOnly: true }
+            { id: "none", name: "No Hat", mult: 1, cost: 0 },
+            { id: "propeller", name: "Propeller Cap", mult: 1.5, cost: 80 },
+            { id: "wizard", name: "Wizard Hat", mult: 3, cost: 500 },
+            { id: "rainbow_crown", name: "King of Rainbows Crown", mult: 5, cost: 8000 },
+            { id: "admin_neon_crown", name: "Neon Rainbow Admin Crown", mult: 25, cost: 0, adminOnly: true }
         ];
 
         const SHADES_DATA = [
-            { id: "none", name: "No Shades", cost: 0, mult: 1 },
-            { id: "cool", name: "Cool Shades", cost: 400, mult: 1.3 },
-            { id: "visor", name: "Cyber Visor", cost: 3500, mult: 2.2 },
-            { id: "admin_neon_visor", name: "👑 Neon Rainbow Laser Visor", cost: 0, mult: 20, adminOnly: true }
+            { id: "none", name: "No Shades", mult: 1, cost: 0 },
+            { id: "cool", name: "Cool Shades", mult: 1.5, cost: 75 },
+            { id: "cyber_visor", name: "Cyber Visor", mult: 4, cost: 1200 },
+            { id: "admin_neon_visor", name: "Neon Rainbow Laser Visor", mult: 20, cost: 0, adminOnly: true }
         ];
 
         const VOICES_DATA = [
-            { id: "classic", name: "Classic Quack", freq: 340 },
-            { id: "squeak", name: "Tiny Squeaker", freq: 620 },
-            { id: "mega", name: "Mega Bass Honk", freq: 165 },
-            { id: "cyber", name: "Synth Cyber-Quack", freq: 480 },
-            { id: "admin_neon", name: "👑 Neon Rainbow Symphony", freq: 528, adminOnly: true }
+            { id: "classic", name: "Classic Quack", cost: 0, freq: 340, type: "sawtooth" },
+            { id: "squeaky", name: "Rubber Squeak", cost: 100, freq: 620, type: "sine" },
+            { id: "bass", name: "Mega Honk", cost: 400, freq: 165, type: "square" },
+            { id: "laser", name: "Cyber Laser", cost: 1500, freq: 880, type: "triangle" },
+            { id: "admin_neon_symphony", name: "Neon Rainbow Symphony", cost: 0, freq: 520, type: "sawtooth", adminOnly: true }
         ];
 
+        const UPGRADES_DATA = [
+            { id: "clickPower", name: "Beak Strength", desc: "+Base Quack Power per tap", baseCost: 15, mult: 1.45, max: 999 },
+            { id: "autoSpeed", name: "Auto-Quackers", desc: "Generates Quacks automatically/sec", baseCost: 50, mult: 1.5, max: 999 },
+            { id: "critChance", name: "Mega-Honk Crit", desc: "Increases Critical Quack chance & multiplier", baseCost: 120, mult: 1.65, max: 500 },
+            { id: "feverBoost", name: "Fever Overdrive", desc: "Boosts Quack Fever duration & multiplier", baseCost: 500, mult: 1.75, max: 500 }
+        ];
+
+        const RP_UPGRADES_DATA = [
+            { id: "rpMult", name: "Rebirth Power", desc: "+50% Rebirth multiplier per level", baseCost: 1, max: 500 },
+            { id: "rpPetSlots", name: "Squad Expansion", desc: "+1 Max Equipped Pet Slot", baseCost: 5, max: 4 },
+            { id: "rpLuck", name: "Hatch Luck", desc: "Higher rare/godly egg odds", baseCost: 3, max: 100 }
+        ];
+
+        const VOID_UPGRADES_DATA = [
+            { id: "voidPower", name: "Singularity Core", desc: "2x All Quacks per level", baseCost: 5, max: 250 },
+            { id: "voidGems", name: "Gem Alchemy", desc: "+25% Bonus Gems from all sources", baseCost: 10, max: 250 }
+        ];
+
+        const SKILLS_DATA = [
+            { id: "skillTap", name: "Thunder Beak", desc: "2x Tap Power per rank", cost: 1, max: 100 },
+            { id: "skillAuto", name: "Swarm Chorus", desc: "2x Auto-Quack Speed per rank", cost: 1, max: 100 },
+            { id: "skillPets", name: "Beast Tamer", desc: "+50% Pet Multiplier per rank", cost: 2, max: 100 },
+            { id: "skillCrit", name: "Omega Honk", desc: "+5x Critical Hit Multiplier per rank", cost: 2, max: 100 }
+        ];
+
+        const POTIONS_DATA = [
+            { id: "quack_elixir", name: "3x Quack Elixir", desc: "Triples all Quacks for 5 mins", cost: 50, mult: 3, duration: 300 },
+            { id: "luck_brew", name: "Super Luck Brew", desc: "Boosts Egg & Dig luck for 5 mins", cost: 75, mult: 2, duration: 300 },
+            { id: "cosmic_nectar", name: "10x Cosmic Nectar", desc: "10x Quacks for 3 mins", cost: 200, mult: 10, duration: 180 }
+        ];
+
+        const RELICS_DATA = [
+            { id: "relic_crown", name: "Pharaoh Duck Mask", mult: 2 },
+            { id: "relic_egg", name: "Fossilized Dino Egg", mult: 3 },
+            { id: "relic_trident", name: "Atlantean Beak", mult: 5 },
+            { id: "relic_core", name: "Meteorite Core", mult: 10 }
+        ];
+
+        const MASTERIES_DATA = [
+            { id: "tapping", name: "Tapping Mastery", desc: "Level up by tapping the Duck" },
+            { id: "hatching", name: "Hatching Mastery", desc: "Level up by hatching Eggs" },
+            { id: "boss", name: "Slayer Mastery", desc: "Level up by defeating Bosses" },
+            { id: "alchemy", name: "Alchemy Mastery", desc: "Level up by brewing Potions" }
+        ];
+
+        const CARDS_DATA = [
+            { id: "card_pond", name: "Pond Guardian", rarity: "Common", mult: 1.2 },
+            { id: "card_king", name: "Golden Monarch", rarity: "Rare", mult: 1.5 },
+            { id: "card_void", name: "Void Sovereign", rarity: "Epic", mult: 2.0 },
+            { id: "card_rainbow", name: "Rainbow Overlord", rarity: "Godly", mult: 5.0 }
+        ];
+
+        const MONUMENTS_DATA = [
+            { id: "mon_bread", name: "Golden Loaf Shrine", cost: 500, mult: 2 },
+            { id: "mon_feather", name: "Celestial Obelisk", cost: 2500, mult: 5 }
+        ];
+
+        const PROMO_CODES = {
+            "QUACK2026": { gems: 500, quacks: 10000, msg: "+500 Gems & +10K Quacks!" },
+            "GRIND3MONTHS": { gems: 1500, feathers: 5, msg: "+1,500 Gems & +5 Golden Feathers!" },
+            "FEATHERGOD": { feathers: 15, msg: "+15 Golden Feathers!" },
+            "VOIDSHARD99": { shards: 99, msg: "+99 Void Shards!" },
+            "GENESISDUCK": { gems: 5000, shards: 50, msg: "+5,000 Gems & +50 Void Shards!" }
+        };
+
         /* =========================================================================
-           3. STATE INITIALIZATION & MULTIPLIER CALCULATORS
+           3. STATE INITIALIZATION & ACCOUNT ISOLATION
            ========================================================================= */
+        const SAVE_KEY = "duckQuackUltimateSaveV4";
+        const LB_LOCAL_ARCHIVE_KEY = "duckQuackLeaderboardArchiveV4";
+        const LOCAL_SLOT_ID_KEY = "duckQuackLocalSlotIdV4";
+
         function createFreshDefaultState() {
             return {
                 playerName: "QuackCommander",
                 profilePic: "",
                 quacks: 0,
                 lifetimeQuacks: 0,
-                gems: 100,
+                gems: 50,
                 rp: 0,
                 feathers: 0,
                 shards: 0,
@@ -1293,26 +1368,28 @@
                 currentWorld: 1,
                 unlockedWorlds: [1],
                 upgrades: { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0 },
-                rpUpgrades: { rpMult: 0, rpGems: 0, rpAuto: 0, rpSlots: 0 },
-                voidUpgrades: { voidPower: 0, voidCrit: 0, voidPets: 0, voidAll: 0 },
-                skills: { featherPower: 0, featherAuto: 0, featherLuck: 0, featherCombo: 0 },
-                mastery: { tapping: 1, hatching: 1, boss: 1, alchemy: 1 },
-                cards: {},
-                monuments: {},
+                rpUpgrades: { rpMult: 0, rpPetSlots: 0, rpLuck: 0 },
+                voidUpgrades: { voidPower: 0, voidGems: 0 },
+                skills: { skillTap: 0, skillAuto: 0, skillPets: 0, skillCrit: 0 },
                 pets: [],
-                maxEquippedPets: 4,
-                equippedSkin: "classic",
+                equippedPetIds: [],
                 unlockedSkins: ["classic"],
-                equippedAura: "none",
+                equippedSkin: "classic",
                 unlockedAuras: ["none"],
-                equippedHat: "none",
+                equippedAura: "none",
                 unlockedHats: ["none"],
-                equippedShades: "none",
+                equippedHat: "none",
                 unlockedShades: ["none"],
-                equippedVoice: "classic",
+                equippedShades: "none",
                 unlockedVoices: ["classic"],
+                equippedVoice: "classic",
                 activePotions: {},
                 digDepth: 0,
+                unlockedRelics: [],
+                masteryLevels: { tapping: 1, hatching: 1, boss: 1, alchemy: 1 },
+                masteryXp: { tapping: 0, hatching: 0, boss: 0, alchemy: 0 },
+                collectedCards: [],
+                builtMonuments: [],
                 bossLevel: 1,
                 bossHp: 1000,
                 bossMaxHp: 1000,
@@ -1325,294 +1402,248 @@
                 autoClickerOn: false,
                 autoRebirthOn: false,
                 autoHatchOn: false,
-                feverVal: 0,
-                isFeverActive: false
+                soundOn: true
             };
         }
 
         let state = createFreshDefaultState();
-        let comboCount = 0;
-        let comboDecayMs = 0;
-        let currentWeather = { id: "clear", label: "☀️ Clear Skies (1x)", mult: 1 };
-        let soundEnabled = true;
-        let leaderboardTab = "quacks";
+        let comboCount = 1.0;
+        let comboDecayTimer = 0;
+        let feverCharge = 0;
+        let feverActiveTimer = 0;
+        let stageExpanded = false;
+        let activeWeather = { name: "Clear Skies", icon: "☀️", mult: 1, timer: 0 };
         let cloudLeaderboardRows = [];
+        let leaderboardTab = "quacks";
+        let activeLaserBeams = [];
+        let petOrbitAngle = 0;
+        let lastQuackSoundTime = 0;
 
-        function getWorldMultiplier() {
-            const w = WORLDS_DATA.find(x => x.id === state.currentWorld) || WORLDS_DATA[0];
-            return sanitizeNum(w.mult, 1);
+        function sanitizeNum(val, fallback = 0) {
+            const n = Number(val);
+            return Number.isFinite(n) ? n : fallback;
         }
-
-        function getPetMultiplier() {
-            const equipped = (state.pets || []).filter(p => p.equipped);
-            if (!equipped.length) return 1;
-            let total = 1;
-            for (const p of equipped) {
-                const sp = PET_SPECIES[p.speciesKey];
-                const base = sp ? sp.mult : 1;
-                const tierMult = p.tier === 5 ? 500 : p.tier === 4 ? 100 : p.tier === 3 ? 25 : p.tier === 2 ? 5 : 1;
-                total += base * tierMult;
-            }
-            return sanitizeNum(total, 1);
-        }
-
-        function getGearMultiplier() {
-            const skin = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
-            const aura = AURAS_DATA.find(a => a.id === state.equippedAura) || AURAS_DATA[0];
-            const hat = HATS_DATA.find(h => h.id === state.equippedHat) || HATS_DATA[0];
-            const shades = SHADES_DATA.find(s => s.id === state.equippedShades) || SHADES_DATA[0];
-            return sanitizeNum((skin.mult || 1) * (aura.mult || 1) * (hat.mult || 1) * (shades.mult || 1), 1);
-        }
-
-        function getRebirthMultiplier() {
-            const reb = sanitizeNum(state.rebirths, 0);
-            const rpBonus = 1 + (sanitizeNum(state.rpUpgrades?.rpMult, 0) * 0.5);
-            return sanitizeNum((1 + reb * 1.25) * rpBonus, 1);
-        }
-
-        function getEndgameMultiplier() {
-            const voidBonus = 1 + (sanitizeNum(state.transcendenceCount, 0) * 10) + (sanitizeNum(state.voidUpgrades?.voidAll, 0) * 25);
-            const featherBonus = 1 + (sanitizeNum(state.skills?.featherPower, 0) * 2);
-            const feverBonus = state.isFeverActive ? 5 : 1;
-            const comboBonus = 1 + Math.min(comboCount * 0.05, 4);
-            return sanitizeNum(voidBonus * featherBonus * feverBonus * comboBonus, 1);
-        }
-
-        function getQuacksPerClick() {
-            const base = sanitizeNum(state.upgrades?.clickPower, 1);
-            const mult = getWorldMultiplier() * getPetMultiplier() * getGearMultiplier() * getRebirthMultiplier() * getEndgameMultiplier() * sanitizeNum(currentWeather.mult, 1);
-            return sanitizeNum(base * mult, 1);
-        }
-
-        function getQuacksPerSec() {
-            const autoLvl = sanitizeNum(state.upgrades?.autoSpeed, 0);
-            if (autoLvl <= 0) return 0;
-            const base = autoLvl * 5;
-            const mult = getWorldMultiplier() * getPetMultiplier() * getGearMultiplier() * getRebirthMultiplier() * getEndgameMultiplier() * sanitizeNum(currentWeather.mult, 1);
-            return sanitizeNum(base * mult, 0);
-        }
-
-        function getUpgradeCost(key) {
-            const lvl = sanitizeNum(state.upgrades?.[key], key === "clickPower" ? 1 : 0);
-            const bases = { clickPower: 15, autoSpeed: 50, critChance: 120, feverBoost: 250 };
-            return sanitizeNum(Math.floor((bases[key] || 50) * Math.pow(1.45, lvl)), 15);
-        }
-
-        function buyUpgrade(key) {
-            const cost = getUpgradeCost(key);
-            if (state.quacks < cost) {
-                showToast("Not enough Quacks!", "error");
-                return;
-            }
-            state.quacks -= cost;
-            state.upgrades[key] = (state.upgrades[key] || 0) + 1;
-            playSound("buy");
-            renderAll();
-        }
-// ... existing code ... -->
-        /* =========================================================================
-           4B. SAVE & LOAD PERSISTENCE HELPERS
-           ========================================================================= */
-        const SAVE_KEYS = ["duckQuackUltimateSaveV3", "duckQuackUltimateSaveV2", "duckQuackUltimateSaveV1"];
-        const AVATAR_KEY = "duckQuackAvatarV3";
-        const LB_LOCAL_ARCHIVE_KEY = "duckQuackLeaderboardArchiveV3";
 
         function getCurrentSlotId() {
             if (isCurrentUserVerifiedAdmin()) return "ADMIN_RAINBOWLORD16";
-            let id = localStorage.getItem("dqLocalPlayerId");
-            if (!id) {
-                id = "QUACK-" + Math.random().toString(36).slice(2, 10).toUpperCase();
-                localStorage.setItem("dqLocalPlayerId", id);
+            let id = localStorage.getItem(LOCAL_SLOT_ID_KEY);
+            if (!id || id === "ADMIN_RAINBOWLORD16") {
+                id = "QUACK-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+                localStorage.setItem(LOCAL_SLOT_ID_KEY, id);
             }
             return id;
         }
 
-        function getCurrentAvatarStorageKey() {
-            if (isCurrentUserVerifiedAdmin()) return "duckQuackAvatar_ADMIN_RAINBOWLORD16";
-            const localId = localStorage.getItem("dqLocalPlayerId") || "default";
-            return `duckQuackAvatar_${localId}`;
-        }
-
-        function saveGame() {
-            try {
-                const cleanCopy = JSON.parse(JSON.stringify(state, (key, value) => {
-                    if (key === "profilePic") return ""; // stored separately per account slot
-                    if (typeof value === "number") return sanitizeNum(value, 0);
-                    return value;
-                }));
-                localStorage.setItem(SAVE_KEYS[0], JSON.stringify(cleanCopy));
-                const avatarSlotKey = getCurrentAvatarStorageKey();
-                if (state.profilePic) {
-                    try { localStorage.setItem(avatarSlotKey, state.profilePic); } catch (e) {}
-                } else {
-                    localStorage.removeItem(avatarSlotKey);
-                }
-            } catch (err) {
-                console.warn("Save warning:", err);
-            }
-        }
-
-        function loadGame() {
-            let bestParsed = null;
-            let bestScore = -1;
-
-            for (const key of SAVE_KEYS) {
-                try {
-                    const raw = localStorage.getItem(key);
-                    if (!raw) continue;
-                    const parsed = JSON.parse(raw);
-                    const score = sanitizeNum(parsed.lifetimeQuacks, 0) + (sanitizeNum(parsed.rebirths, 0) * 1e12);
-                    if (score > bestScore) {
-                        bestScore = score;
-                        bestParsed = parsed;
-                    }
-                } catch (e) {}
-            }
-
-            if (bestParsed) {
-                state = {
-                    ...state,
-                    ...bestParsed,
-                    profilePic: "",
-                    quacks: sanitizeNum(bestParsed.quacks, 0),
-                    lifetimeQuacks: sanitizeNum(bestParsed.lifetimeQuacks, 0),
-                    gems: sanitizeNum(bestParsed.gems, 100),
-                    rp: sanitizeNum(bestParsed.rp, 0),
-                    feathers: sanitizeNum(bestParsed.feathers, 0),
-                    shards: sanitizeNum(bestParsed.shards, 0),
-                    relics: sanitizeNum(bestParsed.relics, 0),
-                    rebirths: sanitizeNum(bestParsed.rebirths, 0),
-                    transcendenceCount: sanitizeNum(bestParsed.transcendenceCount, 0),
-                    upgrades: { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0, ...(bestParsed.upgrades || {}) }
-                };
-            }
-
-            // Check session admin authentication
-            const savedSessionDigest = sessionStorage.getItem("dqAdminSessionAuth");
-            if (savedSessionDigest === ADMIN_SHA256_DIGEST && state.playerName === ADMIN_OWNER_NAME) {
-                isAdminAuthenticated = true;
-            }
-            enforceAdminSecurity();
-
-            // Load only the avatar belonging to the current account slot
-            const savedAvatar = localStorage.getItem(getCurrentAvatarStorageKey()) || "";
-            state.profilePic = savedAvatar;
-        }
-// ... existing code ... -->
-        /* =========================================================================
-           5. INTERACTION HANDLERS, AUDIO, TOASTS, MODALS & LEADERBOARD
-           ========================================================================= */
-        const NUMBER_SUFFIXES = [
-            "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc",
-            "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg",
-            "UVg", "DVg", "TVg", "QaVg", "QiVg", "SxVg", "SpVg", "OcVg", "NoVg",
-            "Tg", "UTg", "DTg", "TtG", "QaTg", "QiTg", "SxTg", "SpTg", "OcTg", "NoTg",
-            "Qdg", "Sxg", "Spg", "Ocg", "Nog", "Centillion"
-        ];
-
-        function sanitizeNum(val, fallback = 0) {
-            if (typeof val !== "number" || isNaN(val) || !isFinite(val)) {
-                return val === Infinity ? 1e300 : fallback;
-            }
-            return Math.min(val, 1e300);
-        }
-
-        function formatNum(num) {
-            num = sanitizeNum(num, 0);
-            if (num < 0) return "-" + formatNum(-num);
-            if (num < 1000) return num < 10 ? (num % 1 === 0 ? num.toString() : num.toFixed(1)) : Math.floor(num).toLocaleString();
-            const exp = Math.floor(Math.log10(num));
+        const NUM_SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg"];
+        function formatNumber(n) {
+            n = sanitizeNum(n, 0);
+            if (n < 1000) return Math.floor(n).toString();
+            const exp = Math.floor(Math.log10(n));
             const tier = Math.floor(exp / 3);
-            if (tier < NUMBER_SUFFIXES.length) {
-                const scaled = num / Math.pow(10, tier * 3);
-                return scaled.toFixed(2).replace(/\.00$/, "") + " " + NUMBER_SUFFIXES[tier];
+            if (tier < NUM_SUFFIXES.length) {
+                return (n / Math.pow(10, tier * 3)).toFixed(2).replace(/\.00$/, "") + " " + NUM_SUFFIXES[tier];
             }
-            return num.toExponential(2).replace("+", "");
+            return n.toExponential(2).replace("+", "");
         }
 
-        let sharedAudioCtx = null;
-        function playSound(type) {
-            if (!soundEnabled) return;
+        /* =========================================================================
+           4. MULTIPLIERS & CORE SIMULATION MATH
+           ========================================================================= */
+        function getMaxPetSlots() {
+            return 4 + sanitizeNum(state.rpUpgrades.rpPetSlots, 0);
+        }
+
+        function getWorldMultiplier() {
+            const w = WORLDS_DATA.find(x => x.id === state.currentWorld) || WORLDS_DATA[0];
+            return w.mult;
+        }
+
+        function getPetMultiplier() {
+            let total = 1;
+            const tamerBonus = 1 + (sanitizeNum(state.skills.skillPets, 0) * 0.5);
+            for (const pid of state.equippedPetIds) {
+                const pet = state.pets.find(p => p.uid === pid);
+                if (!pet) continue;
+                const sp = PET_SPECIES.find(s => s.id === pet.speciesId);
+                const tr = PET_TIERS.find(t => t.tier === pet.tier) || PET_TIERS[0];
+                if (sp) total += sp.baseMult * tr.mult * tamerBonus;
+            }
+            return total;
+        }
+
+        function getGearMultiplier() {
+            const sk = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
+            const au = AURAS_DATA.find(a => a.id === state.equippedAura) || AURAS_DATA[0];
+            const ht = HATS_DATA.find(h => h.id === state.equippedHat) || HATS_DATA[0];
+            const sh = SHADES_DATA.find(s => s.id === state.equippedShades) || SHADES_DATA[0];
+            return sk.mult * au.mult * ht.mult * sh.mult;
+        }
+
+        function getWeatherAndVoidMultiplier() {
+            const voidLvl = sanitizeNum(state.voidUpgrades.voidPower, 0);
+            const voidMult = Math.pow(2, Math.min(voidLvl, 60)) * (voidLvl > 60 ? (1 + (voidLvl - 60)) : 1);
+            let potionMult = 1;
+            const now = Date.now();
+            for (const p of POTIONS_DATA) {
+                if (state.activePotions[p.id] && state.activePotions[p.id] > now) {
+                    potionMult *= p.mult;
+                }
+            }
+            return activeWeather.mult * voidMult * potionMult;
+        }
+
+        function getEndgameMultiplier() {
+            let m = 1;
+            for (const rid of state.unlockedRelics) {
+                const r = RELICS_DATA.find(x => x.id === rid);
+                if (r) m *= r.mult;
+            }
+            for (const cid of state.collectedCards) {
+                const c = CARDS_DATA.find(x => x.id === cid);
+                if (c) m *= c.mult;
+            }
+            for (const mid of state.builtMonuments) {
+                const mon = MONUMENTS_DATA.find(x => x.id === mid);
+                if (mon) m *= mon.mult;
+            }
+            const masteryAvg = (state.masteryLevels.tapping + state.masteryLevels.hatching + state.masteryLevels.boss + state.masteryLevels.alchemy) / 4;
+            return m * (1 + (masteryAvg - 1) * 0.25);
+        }
+
+        function getRebirthMultiplier() {
+            const rpBonus = 1 + (sanitizeNum(state.rpUpgrades.rpMult, 0) * 0.5);
+            return 1 + (sanitizeNum(state.rebirths, 0) * 0.5 * rpBonus);
+        }
+
+        function getGlobalMultiplier() {
+            const feverMult = feverActiveTimer > 0 ? (3 + sanitizeNum(state.upgrades.feverBoost, 0) * 0.2) : 1;
+            return getWorldMultiplier() * getPetMultiplier() * getGearMultiplier() * getWeatherAndVoidMultiplier() * getEndgameMultiplier() * getRebirthMultiplier() * comboCount * feverMult;
+        }
+
+        function getQuacksPerClick() {
+            const base = sanitizeNum(state.upgrades.clickPower, 1);
+            const skillMult = Math.pow(2, Math.min(sanitizeNum(state.skills.skillTap, 0), 40));
+            return base * skillMult * getGlobalMultiplier();
+        }
+
+        function getQuacksPerSec() {
+            const lvl = sanitizeNum(state.upgrades.autoSpeed, 0);
+            if (lvl <= 0) return 0;
+            const skillMult = Math.pow(2, Math.min(sanitizeNum(state.skills.skillAuto, 0), 40));
+            return (lvl * 4) * skillMult * getGlobalMultiplier();
+        }
+
+        /* =========================================================================
+           5. AUDIO SYNTHESIZER & TOAST NOTIFICATIONS
+           ========================================================================= */
+        let audioCtx = null;
+        function playSound(kind = "quack") {
+            if (!state.soundOn) return;
             try {
-                if (!sharedAudioCtx) sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (sharedAudioCtx.state === "suspended") sharedAudioCtx.resume();
-                const osc = sharedAudioCtx.createOscillator();
-                const gain = sharedAudioCtx.createGain();
-                const now = sharedAudioCtx.currentTime;
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === "suspended") audioCtx.resume();
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
                 const voice = VOICES_DATA.find(v => v.id === state.equippedVoice) || VOICES_DATA[0];
 
-                if (type === "quack") {
-                    osc.type = voice.id === "admin_neon" ? "triangle" : "sawtooth";
-                    osc.frequency.setValueAtTime(voice.freq + Math.random() * 35, now);
-                    osc.frequency.exponentialRampToValueAtTime(voice.freq * 0.45, now + 0.11);
-                    gain.gain.setValueAtTime(0.16, now);
-                    gain.gain.exponentialRampToValueAtTime(0.005, now + 0.11);
-                    osc.connect(gain);
-                    gain.connect(sharedAudioCtx.destination);
-                    osc.start(now);
-                    osc.stop(now + 0.11);
+                if (kind === "quack") {
+                    osc.type = voice.type;
+                    osc.frequency.setValueAtTime(voice.freq + Math.random() * 45, now);
+                    osc.frequency.exponentialRampToValueAtTime(Math.max(90, voice.freq * 0.45), now + 0.11);
+                    gain.gain.setValueAtTime(0.14, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+                } else if (kind === "crit") {
+                    osc.type = "triangle";
+                    osc.frequency.setValueAtTime(580, now);
+                    osc.frequency.exponentialRampToValueAtTime(980, now + 0.16);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
                 } else {
                     osc.type = "sine";
-                    osc.frequency.setValueAtTime(type === "crit" ? 720 : 540, now);
-                    osc.frequency.exponentialRampToValueAtTime(type === "crit" ? 1080 : 780, now + 0.15);
-                    gain.gain.setValueAtTime(0.18, now);
-                    gain.gain.exponentialRampToValueAtTime(0.005, now + 0.15);
-                    osc.connect(gain);
-                    gain.connect(sharedAudioCtx.destination);
-                    osc.start(now);
-                    osc.stop(now + 0.15);
+                    osc.frequency.setValueAtTime(520, now);
+                    osc.frequency.setValueAtTime(680, now + 0.06);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
                 }
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now);
+                osc.stop(now + 0.17);
             } catch (e) {}
         }
 
         function toggleAudio() {
-            soundEnabled = !soundEnabled;
-            const cls = soundEnabled ? "fa-solid fa-volume-high text-amber-400" : "fa-solid fa-volume-xmark text-rose-400";
-            const m = document.getElementById("audioIconMobile");
+            state.soundOn = !state.soundOn;
+            const cls = state.soundOn ? "fa-solid fa-volume-high text-amber-400" : "fa-solid fa-volume-xmark text-rose-400";
             const d = document.getElementById("audioIconDesktop");
-            if (m) m.className = cls;
+            const m = document.getElementById("audioIconMobile");
             if (d) d.className = cls;
+            if (m) m.className = cls;
+            saveGame();
         }
 
         function showToast(msg, type = "info") {
-            const box = document.getElementById("toastContainer");
-            if (!box) return;
+            const container = document.getElementById("toastContainer");
+            if (!container) return;
             const el = document.createElement("div");
-            const border = type === "success" ? "border-emerald-400/60 text-emerald-200" : type === "error" ? "border-rose-400/60 text-rose-200" : "border-sky-400/60 text-sky-200";
-            el.className = `glass-panel border ${border} px-3.5 py-2.5 rounded-2xl text-xs font-extrabold shadow-xl transition-opacity duration-300`;
+            const colors = {
+                success: "border-emerald-400/60 bg-slate-900/95 text-emerald-200",
+                error: "border-rose-400/60 bg-slate-900/95 text-rose-200",
+                info: "border-sky-400/60 bg-slate-900/95 text-sky-100"
+            };
+            el.className = `pointer-events-auto border ${colors[type] || colors.info} px-3.5 py-2.5 rounded-2xl text-xs font-extrabold shadow-2xl backdrop-blur-md transition-all`;
             el.textContent = msg;
-            box.appendChild(el);
-            setTimeout(() => { el.style.opacity = "0"; setTimeout(() => el.remove(), 300); }, 2800);
+            container.appendChild(el);
+            setTimeout(() => {
+                el.style.opacity = "0";
+                setTimeout(() => el.remove(), 250);
+            }, 3000);
         }
 
-        let lastTapMs = 0;
-        function onDuckClick(e) {
-            const now = performance.now();
-            if (now - lastTapMs < 25) return;
-            lastTapMs = now;
-
-            state.totalClicks = (state.totalClicks || 0) + 1;
-            comboCount = Math.min(comboCount + 1, 80);
-            comboDecayMs = 1800;
-
-            const critChance = 0.05 + (sanitizeNum(state.upgrades?.critChance, 0) * 0.02);
+        /* =========================================================================
+           6. HERO DUCK CLICK, LASERS, FLOATING NUMBERS & STAGE CONTROLS
+           ========================================================================= */
+        window.onDuckClick = function(e, isAuto = false) {
+            if (e && typeof e.preventDefault === "function" && !isAuto) {
+                e.preventDefault();
+            }
+            const critLvl = sanitizeNum(state.upgrades.critChance, 0);
+            const critChance = Math.min(0.75, 0.05 + critLvl * 0.01);
             const isCrit = Math.random() < critChance;
-            const gain = getQuacksPerClick() * (isCrit ? 10 : 1);
+            const critMult = isCrit ? (5 + critLvl * 0.5 + sanitizeNum(state.skills.skillCrit, 0) * 5) : 1;
+            const gain = getQuacksPerClick() * critMult;
 
-            state.quacks = sanitizeNum(state.quacks + gain, 0);
-            state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + gain, 0);
-            state.passXp = sanitizeNum(state.passXp + 5, 0);
+            state.quacks += gain;
+            state.lifetimeQuacks += gain;
+            state.totalClicks += 1;
+            state.passXp += 2;
+            state.masteryXp.tapping += 1;
+            if (state.masteryXp.tapping >= state.masteryLevels.tapping * 100) {
+                state.masteryXp.tapping = 0;
+                state.masteryLevels.tapping++;
+            }
 
-            if (!state.isFeverActive) {
-                state.feverVal = Math.min(100, (state.feverVal || 0) + 4);
-                if (state.feverVal >= 100) {
-                    state.isFeverActive = true;
-                    showToast("🔥 QUACK FEVER ACTIVATED! (5x Power)", "success");
+            if (!isAuto) {
+                comboCount = Math.min(5.0, +(comboCount + 0.05).toFixed(2));
+                comboDecayTimer = 2500;
+                if (feverActiveTimer <= 0) {
+                    feverCharge = Math.min(100, feverCharge + 2.5);
+                    if (feverCharge >= 100) {
+                        feverActiveTimer = 12000;
+                        showToast("🔥 QUACK FEVER OVERDRIVE ACTIVATED!", "success");
+                    }
+                }
+                playSound(isCrit ? "crit" : "quack");
+            } else {
+                const now = Date.now();
+                if (now - lastQuackSoundTime > 260) {
+                    lastQuackSoundTime = now;
+                    playSound("quack");
                 }
             }
 
-            playSound(isCrit ? "crit" : "quack");
-
+            // Squash animation
             const wrap = document.getElementById("duckVisualWrapper");
             if (wrap) {
                 wrap.classList.remove("animate-squash");
@@ -1620,329 +1651,541 @@
                 wrap.classList.add("animate-squash");
             }
 
-            const floatEl = document.createElement("div");
-            floatEl.className = "floating-number text-base sm:text-xl " + (isCrit ? "text-rose-400" : "text-amber-300");
-            floatEl.textContent = `${isCrit ? "CRIT! " : ""}+${formatNum(gain)}`;
-            const clientX = e && e.clientX ? e.clientX : window.innerWidth / 2;
-            const clientY = e && e.clientY ? e.clientY : window.innerHeight / 2;
-            floatEl.style.left = `${clientX}px`;
-            floatEl.style.top = `${clientY - 20}px`;
-            document.body.appendChild(floatEl);
-            setTimeout(() => floatEl.remove(), 800);
+            // Pet laser beams
+            if (state.equippedPetIds.length > 0) {
+                activeLaserBeams.push({ alpha: 1.0, color: isCrit ? "#f43f5e" : "#38bdf8" });
+            }
 
-            renderAll();
+            // Floating number
+            if (!isAuto) {
+                const cx = e && e.clientX ? e.clientX : window.innerWidth / 2;
+                const cy = e && e.clientY ? e.clientY : window.innerHeight / 2;
+                spawnFloatingText(cx, cy, `${isCrit ? "CRIT! " : ""}+${formatNumber(gain)}`, isCrit);
+            }
+
+            updateHudFast();
+        };
+
+        function spawnFloatingText(x, y, text, isCrit) {
+            const el = document.createElement("div");
+            el.className = `floating-number ${isCrit ? "text-rose-400 text-xl" : "text-amber-300 text-base"}`;
+            el.style.left = `${x + (Math.random() * 24 - 12)}px`;
+            el.style.top = `${y - 16}px`;
+            el.textContent = text;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 800);
+        }
+
+        function toggleExpandStage() {
+            stageExpanded = !stageExpanded;
+            const card = document.getElementById("stageCard");
+            const icon = document.getElementById("expandStageIcon");
+            const lbl = document.getElementById("expandStageLabel");
+            if (card) card.classList.toggle("stage-expanded", stageExpanded);
+            if (icon) icon.className = stageExpanded ? "fa-solid fa-compress" : "fa-solid fa-expand";
+            if (lbl) lbl.textContent = stageExpanded ? "Compact" : "Expand Stage";
         }
 
         function toggleAutomation(key) {
             state[key] = !state[key];
+            updateAutomationButtons();
             saveGame();
-            renderAll();
+            showToast(`${key === "autoClickerOn" ? "Auto-Tapper" : key === "autoRebirthOn" ? "Auto-Rebirth" : "Auto-Hatch"}: ${state[key] ? "ACTIVE" : "OFF"}`, state[key] ? "success" : "info");
         }
 
-        function toggleExpandStage() {
-            const card = document.getElementById("stageCard");
-            const lbl = document.getElementById("expandStageLabel");
-            const icon = document.getElementById("expandStageIcon");
-            if (!card) return;
-            const expanded = card.classList.toggle("stage-expanded");
-            if (lbl) lbl.textContent = expanded ? "Compact Stage" : "Expand Stage";
-            if (icon) icon.className = expanded ? "fa-solid fa-compress" : "fa-solid fa-expand";
-        }
-
-        function openModal(id) {
-            const modal = document.getElementById(id);
-            if (!modal) return;
-            modal.classList.remove("hidden");
-            modal.classList.add("flex");
-            if (id === "worldsModal") renderWorldsModal();
-            if (id === "upgradesModal") renderUpgradesModal();
-            if (id === "eggsModal") renderEggsModal();
-            if (id === "petsModal") renderPetsModal();
-            if (id === "wardrobeModal") renderWardrobeModal();
-            if (id === "rebirthModal") renderRebirthModal();
-            if (id === "leaderboardModal") renderFullLeaderboard();
-            if (id === "profileModal") renderProfileModal();
-        }
-
-        function closeModal(id) {
-            const modal = document.getElementById(id);
-            if (!modal) return;
-            modal.classList.add("hidden");
-            modal.classList.remove("flex");
-        }
-
-        function renderWorldsModal() {
-            const grid = document.getElementById("worldsGrid");
-            if (!grid) return;
-            const visibleWorlds = WORLDS_DATA.filter(w => !w.adminOnly || isCurrentUserVerifiedAdmin());
-            grid.innerHTML = visibleWorlds.map(w => {
-                const isCurrent = state.currentWorld === w.id;
-                const unlocked = (state.unlockedWorlds || [1]).includes(w.id) || state.quacks >= w.cost || w.adminOnly;
-                return `<div class="${w.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-950/80 border border-white/10"} rounded-2xl p-3.5 flex flex-col justify-between">
-                    <div>
-                        <div class="flex justify-between text-[10px] font-extrabold text-sky-400">
-                            <span>REALM ${w.id}</span>
-                            <span>${formatNum(w.mult)}x</span>
-                        </div>
-                        <div class="title-font text-base font-bold text-white mt-0.5">${w.name}</div>
-                        <p class="text-[11px] text-slate-400 mt-1">${w.desc}</p>
-                    </div>
-                    <button type="button" onclick="travelToWorld(${w.id})" class="arcade-btn mt-3 w-full py-2 rounded-xl text-xs font-extrabold ${isCurrent ? "bg-slate-700 text-slate-300" : unlocked ? "bg-sky-500 text-white" : "bg-slate-800 text-slate-400"}">
-                        ${isCurrent ? "CURRENT REALM" : unlocked ? "TRAVEL" : `UNLOCK (${formatNum(w.cost)})`}
-                    </button>
-                </div>`;
-            }).join("");
-        }
-
-        function travelToWorld(id) {
-            const w = WORLDS_DATA.find(x => x.id === id);
-            if (!w) return;
-            if (w.adminOnly && !isCurrentUserVerifiedAdmin()) return;
-            if (!(state.unlockedWorlds || [1]).includes(id)) {
-                if (state.quacks < w.cost) return showToast("Not enough Quacks!", "error");
-                state.quacks -= w.cost;
-                state.unlockedWorlds = [...new Set([...(state.unlockedWorlds || [1]), id])];
+        function updateAutomationButtons() {
+            const tapLbl = document.getElementById("lblAutoTap");
+            const rebLbl = document.getElementById("lblAutoRebirth");
+            const hatchLbl = document.getElementById("lblAutoHatch");
+            if (tapLbl) {
+                tapLbl.textContent = state.autoClickerOn ? "ACTIVE" : "OFF";
+                tapLbl.className = `text-xs font-black mt-0.5 ${state.autoClickerOn ? "text-emerald-400" : "text-rose-400"}`;
             }
-            state.currentWorld = id;
+            if (rebLbl) {
+                rebLbl.textContent = state.autoRebirthOn ? "ACTIVE" : "OFF";
+                rebLbl.className = `text-xs font-black mt-0.5 ${state.autoRebirthOn ? "text-emerald-400" : "text-rose-400"}`;
+            }
+            if (hatchLbl) {
+                hatchLbl.textContent = state.autoHatchOn ? "ACTIVE" : "OFF";
+                hatchLbl.className = state.autoHatchOn ? "text-emerald-400" : "text-rose-400";
+            }
+        }
+
+        /* =========================================================================
+           7. UPGRADES, WORLDS, EGGS, PETS & WARDROBE
+           ========================================================================= */
+        function getUpgradeCost(id) {
+            const def = UPGRADES_DATA.find(u => u.id === id);
+            const lvl = sanitizeNum(state.upgrades[id], 0);
+            return Math.floor(def.baseCost * Math.pow(def.mult, lvl));
+        }
+
+        function buyUpgrade(id) {
+            const def = UPGRADES_DATA.find(u => u.id === id);
+            if (!def) return;
+            const lvl = sanitizeNum(state.upgrades[id], 0);
+            if (lvl >= def.max) return showToast("Upgrade already maxed!", "info");
+            const cost = getUpgradeCost(id);
+            if (state.quacks < cost) return showToast("Not enough Quacks!", "error");
+            state.quacks -= cost;
+            state.upgrades[id] = lvl + 1;
             playSound("buy");
             renderAll();
-            renderWorldsModal();
         }
 
-        function renderUpgradesModal() {
-            const grid = document.getElementById("allUpgradesGrid");
-            if (!grid) return;
-            const list = [
-                { key: "clickPower", name: "Beak Strength", desc: "+Base Quack Power per tap" },
-                { key: "autoSpeed", name: "Auto-Quackers", desc: "+Passive Quacks per second" },
-                { key: "critChance", name: "Mega-Honk Crit", desc: "+2% Critical Quack chance (10x)" },
-                { key: "feverBoost", name: "Fever Overdrive", desc: "Boosts Fever generation speed" }
-            ];
-            grid.innerHTML = list.map(u => `
-                <div class="bg-slate-950/80 border border-white/10 rounded-2xl p-3.5 flex items-center justify-between gap-2">
-                    <div>
-                        <div class="text-xs font-extrabold text-white">${u.name} <span class="text-amber-300">Lv.${state.upgrades[u.key] || 0}</span></div>
-                        <div class="text-[11px] text-slate-400">${u.desc}</div>
-                    </div>
-                    <button type="button" onclick="buyUpgrade('${u.key}'); renderUpgradesModal();" class="arcade-btn bg-amber-500 text-slate-950 px-3 py-2 rounded-xl text-xs font-black">${formatNum(getUpgradeCost(u.key))}</button>
-                </div>
-            `).join("");
+        function selectOrUnlockWorld(worldId) {
+            const w = WORLDS_DATA.find(x => x.id === worldId);
+            if (!w) return;
+            if (w.adminOnly && !isCurrentUserVerifiedAdmin()) {
+                return showToast("🔒 Exclusive to RainbowLord16 Admin Account!", "error");
+            }
+            if (state.unlockedWorlds.includes(worldId)) {
+                state.currentWorld = worldId;
+                playSound("buy");
+                renderAll();
+                closeModal("worldsModal");
+                return;
+            }
+            if (state.quacks < w.cost) return showToast("Not enough Quacks to unlock this realm!", "error");
+            state.quacks -= w.cost;
+            state.unlockedWorlds.push(worldId);
+            state.currentWorld = worldId;
+            playSound("crit");
+            showToast(`🌍 Unlocked ${w.name}!`, "success");
+            renderAll();
+            closeModal("worldsModal");
         }
 
-        function renderEggsModal() {
-            const grid = document.getElementById("eggsGrid");
-            if (!grid) return;
-            grid.innerHTML = EGGS_DATA.map(e => `
-                <div class="bg-slate-950/80 border border-amber-400/20 rounded-2xl p-4 text-center flex flex-col justify-between">
-                    <div>
-                        <i class="fa-solid fa-egg text-4xl text-amber-400 mb-2"></i>
-                        <div class="title-font text-base font-bold text-white">${e.name}</div>
-                        <div class="text-[11px] text-slate-400 mt-1">Cost: ${formatNum(e.cost)} ${e.currency.toUpperCase()}</div>
-                    </div>
-                    <button type="button" onclick="hatchEgg('${e.id}')" class="arcade-btn mt-3 w-full py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-black">Hatch 1x</button>
-                </div>
-            `).join("");
-        }
-
-        function hatchEgg(eggId) {
+        function hatchEgg(eggId, silent = false) {
             const egg = EGGS_DATA.find(e => e.id === eggId);
             if (!egg) return;
             if (egg.currency === "quacks") {
-                if (state.quacks < egg.cost) return showToast("Not enough Quacks!", "error");
+                if (state.quacks < egg.cost) {
+                    if (!silent) showToast("Not enough Quacks!", "error");
+                    return;
+                }
                 state.quacks -= egg.cost;
             } else {
-                if (state.gems < egg.cost) return showToast("Not enough Gems!", "error");
+                if (state.gems < egg.cost) {
+                    if (!silent) showToast("Not enough Gems!", "error");
+                    return;
+                }
                 state.gems -= egg.cost;
             }
-            const speciesKey = egg.pool[Math.floor(Math.random() * egg.pool.length)];
-            state.pets.push({ id: "pet_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6), speciesKey, tier: 1, equipped: state.pets.filter(p => p.equipped).length < (state.maxEquippedPets || 4) });
-            state.eggsHatched = (state.eggsHatched || 0) + 1;
-            playSound("buy");
-            renderAll();
-            showToast(`🐣 Hatched ${PET_SPECIES[speciesKey].name}!`, "success");
-        }
-
-        function renderPetsModal() {
-            const grid = document.getElementById("petsGrid");
-            if (!grid) return;
-            grid.innerHTML = (state.pets || []).map(p => {
-                const sp = PET_SPECIES[p.speciesKey] || { name: p.speciesKey, rarity: "Common", mult: 1, color: "#facc15" };
-                const tierNames = ["Normal", "Golden", "Shiny", "Void", "Rainbow Supreme"];
-                return `<div onclick="toggleEquipPet('${p.id}')" class="cursor-pointer rounded-2xl p-3 border ${p.equipped ? "border-emerald-400 bg-emerald-950/30" : "border-white/10 bg-slate-950/80"} text-center">
-                    <div class="w-9 h-9 mx-auto rounded-full flex items-center justify-center text-slate-950 font-black mb-1" style="background:${sp.color}"><i class="fa-solid fa-paw"></i></div>
-                    <div class="text-xs font-extrabold text-white truncate">${sp.name}</div>
-                    <div class="text-[10px] text-amber-300 font-bold">${tierNames[(p.tier || 1) - 1]} (${formatNum(sp.mult)}x)</div>
-                    <div class="mt-1 text-[10px] font-black ${p.equipped ? "text-emerald-400" : "text-slate-400"}">${p.equipped ? "EQUIPPED" : "TAP TO EQUIP"}</div>
-                </div>`;
-            }).join("") || `<div class="col-span-full text-center text-xs text-slate-400 py-6">No pets hatched yet!</div>`;
-        }
-
-        function toggleEquipPet(petId) {
-            const pet = (state.pets || []).find(p => p.id === petId);
-            if (!pet) return;
-            if (pet.equipped) {
-                pet.equipped = false;
-            } else {
-                const count = state.pets.filter(p => p.equipped).length;
-                if (count >= (state.maxEquippedPets || 4)) return showToast("Max pets equipped!", "error");
-                pet.equipped = true;
+            const speciesId = egg.pool[Math.floor(Math.random() * egg.pool.length)];
+            const sp = PET_SPECIES.find(s => s.id === speciesId);
+            const newPet = {
+                uid: "pet_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+                speciesId,
+                tier: 1
+            };
+            state.pets.push(newPet);
+            state.eggsHatched += 1;
+            state.passXp += 10;
+            state.masteryXp.hatching += 5;
+            if (state.masteryXp.hatching >= state.masteryLevels.hatching * 50) {
+                state.masteryXp.hatching = 0;
+                state.masteryLevels.hatching++;
             }
-            renderPetsModal();
+            if (state.equippedPetIds.length < getMaxPetSlots()) {
+                state.equippedPetIds.push(newPet.uid);
+            }
+            if (!silent) {
+                playSound("crit");
+                showToast(`🥚 Hatched ${sp.name} (${sp.rarity})!`, "success");
+                renderAll();
+            }
+        }
+
+        function toggleEquipPet(uid) {
+            const idx = state.equippedPetIds.indexOf(uid);
+            if (idx >= 0) {
+                state.equippedPetIds.splice(idx, 1);
+            } else {
+                if (state.equippedPetIds.length >= getMaxPetSlots()) {
+                    return showToast(`Max ${getMaxPetSlots()} pets equipped!`, "error");
+                }
+                state.equippedPetIds.push(uid);
+            }
             renderAll();
         }
 
         function equipBestPets() {
-            const sorted = [...(state.pets || [])].sort((a, b) => {
-                const ma = (PET_SPECIES[a.speciesKey]?.mult || 1) * (a.tier || 1);
-                const mb = (PET_SPECIES[b.speciesKey]?.mult || 1) * (b.tier || 1);
-                return mb - ma;
+            const sorted = [...state.pets].sort((a, b) => {
+                const sa = PET_SPECIES.find(s => s.id === a.speciesId)?.baseMult || 1;
+                const ta = PET_TIERS.find(t => t.tier === a.tier)?.mult || 1;
+                const sb = PET_SPECIES.find(s => s.id === b.speciesId)?.baseMult || 1;
+                const tb = PET_TIERS.find(t => t.tier === b.tier)?.mult || 1;
+                return (sb * tb) - (sa * ta);
             });
-            const max = state.maxEquippedPets || 4;
-            state.pets.forEach(p => p.equipped = false);
-            sorted.slice(0, max).forEach(p => p.equipped = true);
-            renderPetsModal();
+            state.equippedPetIds = sorted.slice(0, getMaxPetSlots()).map(p => p.uid);
+            playSound("buy");
             renderAll();
-            showToast("Equipped your strongest pets!", "success");
+            showToast("✨ Equipped your strongest pets!", "success");
         }
 
         function fuseAllPets() {
-            showToast("Fused matching pets into higher tiers!", "success");
-            renderPetsModal();
-            renderAll();
+            let fusedCount = 0;
+            for (let tier = 1; tier <= 4; tier++) {
+                for (const sp of PET_SPECIES) {
+                    let matching = state.pets.filter(p => p.speciesId === sp.id && p.tier === tier);
+                    while (matching.length >= 3) {
+                        const toRemove = matching.slice(0, 3).map(p => p.uid);
+                        state.pets = state.pets.filter(p => !toRemove.includes(p.uid));
+                        state.equippedPetIds = state.equippedPetIds.filter(id => !toRemove.includes(id));
+                        state.pets.push({
+                            uid: "pet_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+                            speciesId: sp.id,
+                            tier: tier + 1
+                        });
+                        fusedCount++;
+                        matching = state.pets.filter(p => p.speciesId === sp.id && p.tier === tier);
+                    }
+                }
+            }
+            if (fusedCount > 0) {
+                equipBestPets();
+                showToast(`🔥 Fused ${fusedCount} upgraded pet(s)!`, "success");
+            } else {
+                showToast("Need 3 matching pets of the same tier to fuse!", "info");
+            }
         }
 
-        function renderWardrobeModal() {
-            const isAdmin = isCurrentUserVerifiedAdmin();
-            const renderGroup = (elId, items, unlockedList, equippedId, type) => {
-                const el = document.getElementById(elId);
-                if (!el) return;
-                el.innerHTML = items.filter(i => !i.adminOnly || isAdmin).map(item => {
-                    const unlocked = unlockedList.includes(item.id) || item.adminOnly;
-                    const equipped = equippedId === item.id;
-                    return `<button type="button" onclick="selectWardrobeItem('${type}', '${item.id}')" class="arcade-btn p-2.5 rounded-2xl text-left border ${item.adminOnly ? "obsidian-neon-rainbow" : equipped ? "border-emerald-400 bg-emerald-950/30" : "border-white/10 bg-slate-950/80"}">
-                        <div class="text-xs font-extrabold text-white truncate">${item.name}</div>
-                        <div class="text-[10px] text-amber-300 font-bold mt-0.5">${item.mult ? item.mult + "x Power" : "Custom Voice"}</div>
-                        <div class="text-[10px] font-black mt-1 ${equipped ? "text-emerald-400" : unlocked ? "text-sky-400" : "text-slate-400"}">${equipped ? "EQUIPPED" : unlocked ? "EQUIP" : `${formatNum(item.cost)} Gems`}</div>
-                    </button>`;
-                }).join("");
-            };
-            renderGroup("skinsGrid", SKINS_DATA, state.unlockedSkins || ["classic"], state.equippedSkin, "skin");
-            renderGroup("aurasGrid", AURAS_DATA, state.unlockedAuras || ["none"], state.equippedAura, "aura");
-            renderGroup("hatsGrid", HATS_DATA, state.unlockedHats || ["none"], state.equippedHat, "hat");
-            renderGroup("shadesGrid", SHADES_DATA, state.unlockedShades || ["none"], state.equippedShades, "shades");
-            renderGroup("voicesGrid", VOICES_DATA, state.unlockedVoices || ["classic"], state.equippedVoice, "voice");
-        }
-
-        function selectWardrobeItem(type, id) {
+        function selectWardrobeItem(category, id) {
             const maps = {
-                skin: [SKINS_DATA, "unlockedSkins", "equippedSkin"],
-                aura: [AURAS_DATA, "unlockedAuras", "equippedAura"],
-                hat: [HATS_DATA, "unlockedHats", "equippedHat"],
-                shades: [SHADES_DATA, "unlockedShades", "equippedShades"],
-                voice: [VOICES_DATA, "unlockedVoices", "equippedVoice"]
+                skin: { list: SKINS_DATA, unlocked: "unlockedSkins", equipped: "equippedSkin" },
+                aura: { list: AURAS_DATA, unlocked: "unlockedAuras", equipped: "equippedAura" },
+                hat: { list: HATS_DATA, unlocked: "unlockedHats", equipped: "equippedHat" },
+                shades: { list: SHADES_DATA, unlocked: "unlockedShades", equipped: "equippedShades" },
+                voice: { list: VOICES_DATA, unlocked: "unlockedVoices", equipped: "equippedVoice" }
             };
-            const [list, unlockKey, equipKey] = maps[type];
-            const item = list.find(x => x.id === id);
+            const cfg = maps[category];
+            const item = cfg.list.find(x => x.id === id);
             if (!item) return;
-            if (item.adminOnly && !isCurrentUserVerifiedAdmin()) return;
-            if (!state[unlockKey].includes(id)) {
+            if (item.adminOnly && !isCurrentUserVerifiedAdmin()) {
+                return showToast("🔒 Exclusive to RainbowLord16 Admin Account!", "error");
+            }
+            if (!state[cfg.unlocked].includes(id)) {
                 if (state.gems < item.cost) return showToast("Not enough Gems!", "error");
                 state.gems -= item.cost;
-                state[unlockKey].push(id);
+                state[cfg.unlocked].push(id);
             }
-            state[equipKey] = id;
-            playSound("quack");
-            saveGame();
-            renderWardrobeModal();
+            state[cfg.equipped] = id;
+            playSound(category === "voice" ? "quack" : "buy");
             renderAll();
         }
 
-        function renderRebirthModal() {
-            const rebCost = sanitizeNum(100000 * Math.pow(3, sanitizeNum(state.rebirths, 0)), 100000);
-            const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-            set("modalRebirthCount", formatNum(state.rebirths));
-            set("rebirthCostText", formatNum(rebCost));
-            set("modalTranscendCount", formatNum(state.transcendenceCount));
+        /* =========================================================================
+           8. REBIRTH, VOID FORGE, SKILLS, ALCHEMY, DIG, CARDS, WHEEL, ARCADE, BOSS
+           ========================================================================= */
+        function getRebirthCost() {
+            return Math.floor(100000 * Math.pow(2.5, sanitizeNum(state.rebirths, 0)));
         }
 
-        function performRebirth() {
-            const rebCost = sanitizeNum(100000 * Math.pow(3, sanitizeNum(state.rebirths, 0)), 100000);
-            if (state.quacks < rebCost) return showToast("Not enough Quacks to Rebirth!", "error");
+        function performRebirth(silent = false) {
+            const cost = getRebirthCost();
+            if (state.quacks < cost) {
+                if (!silent) showToast(`Need ${formatNumber(cost)} Quacks to Rebirth!`, "error");
+                return;
+            }
+            const rpGain = 1 + Math.floor(state.currentWorld / 3);
+            const gemGain = 25 + state.currentWorld * 5;
+            state.rebirths += 1;
+            state.rp += rpGain;
+            state.gems += gemGain;
             state.quacks = 0;
             state.upgrades = { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0 };
-            state.rebirths = (state.rebirths || 0) + 1;
-            state.rp = (state.rp || 0) + 1;
-            state.gems = (state.gems || 0) + 25;
-            playSound("crit");
-            renderRebirthModal();
-            renderAll();
-            showToast("♻️ Rebirth Complete! +1 RP & +25 Gems!", "success");
+            if (!silent) {
+                playSound("crit");
+                showToast(`♻️ Rebirth #${state.rebirths}! +${rpGain} RP & +${gemGain} Gems!`, "success");
+                renderAll();
+            }
         }
 
         function performTranscendence() {
-            if (state.currentWorld < 15) return showToast("Reach World 15 first to Transcend!", "error");
-            state.transcendenceCount = (state.transcendenceCount || 0) + 1;
-            state.shards = (state.shards || 0) + 10;
+            if (state.currentWorld < 15) return showToast("Reach World 15+ to Transcend into the Void!", "error");
+            const gain = 10 + (state.currentWorld - 15) * 5;
+            state.transcendenceCount += 1;
+            state.shards += gain;
             state.quacks = 0;
             state.rebirths = 0;
-            renderRebirthModal();
+            state.upgrades = { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0 };
+            playSound("crit");
+            showToast(`🌌 Void Transcendence! Harvested +${gain} Void Shards!`, "success");
             renderAll();
-            showToast("🌌 Void Transcendence Complete! +10 Void Shards!", "success");
         }
 
-        function renderProfileModal() {
-            const nameInp = document.getElementById("playerNameInput");
-            if (nameInp) nameInp.value = state.playerName || "QuackCommander";
-            const preview = document.getElementById("profileAvatarPreview");
-            if (preview) {
-                preview.innerHTML = state.profilePic
-                    ? `<img src="${state.profilePic}" alt="Avatar" class="w-full h-full object-cover">`
-                    : `<i class="fa-solid fa-duck text-2xl text-amber-400"></i>`;
-            }
-            const isAdmin = isCurrentUserVerifiedAdmin();
-            const pill = document.getElementById("adminStatusPill");
-            const actions = document.getElementById("adminUnlockedActions");
-            if (pill) {
-                pill.textContent = isAdmin ? "UNLOCKED" : "LOCKED";
-                pill.className = `text-[10px] font-black px-2 py-0.5 rounded-full ${isAdmin ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40" : "bg-rose-500/20 text-rose-300 border border-rose-500/40"}`;
-            }
-            if (actions) {
-                if (isAdmin) actions.classList.remove("hidden");
-                else actions.classList.add("hidden");
-            }
-        }
-
-        function savePlayerName() {
-            const inp = document.getElementById("playerNameInput");
-            if (!inp) return;
-            const clean = inp.value.trim().slice(0, 20) || "QuackCommander";
-            if (clean === ADMIN_OWNER_NAME && !isAdminAuthenticated) {
-                showToast("Unlock the Admin Vault below to claim RainbowLord16!", "error");
-                return;
-            }
-            state.playerName = clean;
-            saveGame();
+        function buyRpUpgrade(id) {
+            const def = RP_UPGRADES_DATA.find(u => u.id === id);
+            const lvl = sanitizeNum(state.rpUpgrades[id], 0);
+            if (!def || lvl >= def.max) return;
+            const cost = def.baseCost * (lvl + 1);
+            if (state.rp < cost) return showToast("Not enough RP!", "error");
+            state.rp -= cost;
+            state.rpUpgrades[id] = lvl + 1;
+            playSound("buy");
             renderAll();
-            syncLeaderboardScore(true);
-            showToast("Commander name saved!", "success");
         }
 
-        function handleProfilePicUpload(e) {
-            const file = e.target.files && e.target.files[0];
-            if (!file) return;
-            if (file.size > 6 * 1024 * 1024) return showToast("Image must be 6 MB or smaller!", "error");
-            const reader = new FileReader();
-            reader.onload = () => {
-                state.profilePic = reader.result;
-                saveGame();
-                renderProfileModal();
-                renderAll();
-                syncLeaderboardScore(true);
-                showToast("Profile picture updated!", "success");
+        function buyVoidUpgrade(id) {
+            const def = VOID_UPGRADES_DATA.find(u => u.id === id);
+            const lvl = sanitizeNum(state.voidUpgrades[id], 0);
+            if (!def || lvl >= def.max) return;
+            const cost = def.baseCost * (lvl + 1);
+            if (state.shards < cost) return showToast("Not enough Void Shards!", "error");
+            state.shards -= cost;
+            state.voidUpgrades[id] = lvl + 1;
+            playSound("buy");
+            renderAll();
+        }
+
+        function buySkillNode(id) {
+            const def = SKILLS_DATA.find(s => s.id === id);
+            const lvl = sanitizeNum(state.skills[id], 0);
+            if (!def || lvl >= def.max) return;
+            const cost = def.cost * (lvl + 1);
+            if (state.feathers < cost) return showToast("Not enough Golden Feathers!", "error");
+            state.feathers -= cost;
+            state.skills[id] = lvl + 1;
+            playSound("buy");
+            renderAll();
+        }
+
+        function brewPotion(id) {
+            const p = POTIONS_DATA.find(x => x.id === id);
+            if (!p) return;
+            if (state.gems < p.cost) return showToast("Not enough Gems!", "error");
+            state.gems -= p.cost;
+            state.activePotions[p.id] = Date.now() + p.duration * 1000;
+            state.masteryXp.alchemy += 25;
+            if (state.masteryXp.alchemy >= state.masteryLevels.alchemy * 100) {
+                state.masteryXp.alchemy = 0;
+                state.masteryLevels.alchemy++;
+            }
+            playSound("crit");
+            showToast(`🧪 Brewed ${p.name}!`, "success");
+            renderAll();
+        }
+
+        function excavateLayer() {
+            if (state.gems < 10) return showToast("Need 10 Gems to excavate!", "error");
+            state.gems -= 10;
+            state.digDepth += 15;
+            state.relics += 1;
+            const locked = RELICS_DATA.filter(r => !state.unlockedRelics.includes(r.id));
+            if (locked.length > 0 && Math.random() < 0.35) {
+                const found = locked[0];
+                state.unlockedRelics.push(found.id);
+                showToast(`🏺 Unearthed Relic: ${found.name} (${found.mult}x)!`, "success");
+            } else {
+                state.shards += 2;
+                showToast(`⛏️ Excavated ${state.digDepth}m! +1 Relic & +2 Void Shards`, "info");
+            }
+            playSound("buy");
+            renderAll();
+        }
+
+        function openCardPack() {
+            if (state.gems < 250) return showToast("Need 250 Gems for a Card Pack!", "error");
+            state.gems -= 250;
+            const card = CARDS_DATA[Math.floor(Math.random() * CARDS_DATA.length)];
+            if (!state.collectedCards.includes(card.id)) {
+                state.collectedCards.push(card.id);
+                showToast(`🃏 Unlocked Card: ${card.name} (${card.mult}x)!`, "success");
+            } else {
+                state.feathers += 2;
+                showToast(`🃏 Duplicate ${card.name}! Converted to +2 Feathers`, "info");
+            }
+            playSound("crit");
+            renderAll();
+        }
+
+        function buildMonument(id) {
+            const mon = MONUMENTS_DATA.find(m => m.id === id);
+            if (!mon || state.builtMonuments.includes(id)) return;
+            if (state.gems < mon.cost) return showToast("Not enough Gems!", "error");
+            state.gems -= mon.cost;
+            state.builtMonuments.push(id);
+            playSound("crit");
+            showToast(`🏛️ Built ${mon.name} (${mon.mult}x)!`, "success");
+            renderAll();
+        }
+
+        let wheelSpinning = false;
+        let wheelRotation = 0;
+        const WHEEL_SLICES = [
+            { label: "+500 Gems", color: "#10b981", fn: () => { state.gems += 500; } },
+            { label: "+5 Feathers", color: "#f59e0b", fn: () => { state.feathers += 5; } },
+            { label: "+15 Shards", color: "#a855f7", fn: () => { state.shards += 15; } },
+            { label: "100x Quacks", color: "#0ea5e9", fn: () => { state.quacks += getQuacksPerClick() * 100; } },
+            { label: "+2,500 Gems", color: "#ec4899", fn: () => { state.gems += 2500; } },
+            { label: "+25 RP", color: "#06b6d4", fn: () => { state.rp += 25; } }
+        ];
+
+        function drawFortuneWheel() {
+            const canvas = document.getElementById("wheelCanvas");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            const cx = canvas.width / 2, cy = canvas.height / 2, r = cx - 8;
+            const arc = (Math.PI * 2) / WHEEL_SLICES.length;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            WHEEL_SLICES.forEach((s, i) => {
+                const start = wheelRotation + i * arc;
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.arc(cx, cy, r, start, start + arc);
+                ctx.fillStyle = s.color;
+                ctx.fill();
+                ctx.strokeStyle = "#0f172a";
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(start + arc / 2);
+                ctx.fillStyle = "#fff";
+                ctx.font = "bold 12px sans-serif";
+                ctx.textAlign = "right";
+                ctx.fillText(s.label, r - 14, 4);
+                ctx.restore();
+            });
+        }
+
+        function spinFortuneWheel() {
+            if (wheelSpinning) return;
+            if (state.gems < 100) return showToast("Need 100 Gems to spin!", "error");
+            state.gems -= 100;
+            wheelSpinning = true;
+            const extra = Math.PI * 10 + Math.random() * Math.PI * 2;
+            const startRot = wheelRotation;
+            const startTime = performance.now();
+            function anim(now) {
+                const t = Math.min(1, (now - startTime) / 2800);
+                const ease = 1 - Math.pow(1 - t, 3);
+                wheelRotation = startRot + extra * ease;
+                drawFortuneWheel();
+                if (t < 1) requestAnimationFrame(anim);
+                else {
+                    wheelSpinning = false;
+                    const norm = ((Math.PI * 1.5 - wheelRotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+                    const idx = Math.floor(norm / ((Math.PI * 2) / WHEEL_SLICES.length));
+                    const prize = WHEEL_SLICES[idx];
+                    prize.fn();
+                    playSound("crit");
+                    showToast(`🎡 Wheel Won: ${prize.label}!`, "success");
+                    renderAll();
+                }
+            }
+            requestAnimationFrame(anim);
+        }
+
+        let arcadeRunning = false;
+        let arcadeScore = 0;
+        let arcadeDuckX = 160;
+        let arcadeLoaves = [];
+        function startArcadeGame() {
+            const canvas = document.getElementById("arcadeCanvas");
+            if (!canvas) return;
+            canvas.width = canvas.clientWidth || 480;
+            canvas.height = canvas.clientHeight || 256;
+            arcadeRunning = true;
+            arcadeScore = 0;
+            arcadeLoaves = [];
+            document.getElementById("arcadeScoreVal").textContent = "0";
+            canvas.onpointermove = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                arcadeDuckX = e.clientX - rect.left;
             };
-            reader.readAsDataURL(file);
+            const ctx = canvas.getContext("2d");
+            function loop() {
+                if (!arcadeRunning) return;
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (Math.random() < 0.08) {
+                    arcadeLoaves.push({ x: Math.random() * (canvas.width - 24) + 12, y: -12, vy: 2.8 + Math.random() * 2 });
+                }
+                ctx.fillStyle = "#facc15";
+                ctx.beginPath();
+                ctx.roundRect(arcadeDuckX - 28, canvas.height - 28, 56, 18, 9);
+                ctx.fill();
+
+                for (let i = arcadeLoaves.length - 1; i >= 0; i--) {
+                    const b = arcadeLoaves[i];
+                    b.y += b.vy;
+                    ctx.fillStyle = "#fb923c";
+                    ctx.beginPath();
+                    ctx.arc(b.x, b.y, 10, 0, Math.PI * 2);
+                    ctx.fill();
+                    if (b.y >= canvas.height - 32 && Math.abs(b.x - arcadeDuckX) < 34) {
+                        arcadeScore += 10;
+                        state.gems += 5;
+                        document.getElementById("arcadeScoreVal").textContent = arcadeScore;
+                        arcadeLoaves.splice(i, 1);
+                    } else if (b.y > canvas.height + 20) {
+                        arcadeLoaves.splice(i, 1);
+                    }
+                }
+                requestAnimationFrame(loop);
+            }
+            requestAnimationFrame(loop);
         }
 
+        function attackBoss() {
+            const dmg = Math.max(100, getQuacksPerClick());
+            state.bossHp -= dmg;
+            playSound("crit");
+            if (state.bossHp <= 0) {
+                state.bossesSlain += 1;
+                state.bossLevel += 1;
+                state.bossMaxHp = Math.floor(1000 * Math.pow(3.2, state.bossLevel - 1));
+                state.bossHp = state.bossMaxHp;
+                const gemReward = 50 * state.bossLevel;
+                state.gems += gemReward;
+                state.feathers += 2;
+                state.masteryXp.boss += 50;
+                if (state.masteryXp.boss >= state.masteryLevels.boss * 100) {
+                    state.masteryXp.boss = 0;
+                    state.masteryLevels.boss++;
+                }
+                showToast(`🐉 Boss Defeated! +${gemReward} Gems & +2 Feathers!`, "success");
+                window.syncLeaderboardScore(false);
+            }
+            renderBossModal();
+            updateHudFast();
+        }
+
+        function claimSeasonTier(tier) {
+            if (state.claimedPassTiers.includes(tier)) return;
+            const reqXp = tier * 100;
+            if (state.passXp < reqXp) return showToast(`Need ${reqXp} Pass XP!`, "error");
+            state.claimedPassTiers.push(tier);
+            state.gems += tier * 25;
+            if (tier % 5 === 0) state.feathers += 3;
+            playSound("crit");
+            showToast(`🎁 Claimed Season Tier ${tier} Reward!`, "success");
+            renderAll();
+        }
+
+        function redeemPromoCode() {
+            const inp = document.getElementById("promoCodeInput");
+            const code = (inp ? inp.value : "").trim().toUpperCase();
+            if (!code) return;
+            if (state.redeemedCodes.includes(code)) return showToast("Code already redeemed!", "error");
+            const reward = PROMO_CODES[code];
+            if (!reward) return showToast("Invalid promo code!", "error");
+            state.redeemedCodes.push(code);
+            if (reward.gems) state.gems += reward.gems;
+            if (reward.quacks) state.quacks += reward.quacks;
+            if (reward.feathers) state.feathers += reward.feathers;
+            if (reward.shards) state.shards += reward.shards;
+            if (inp) inp.value = "";
+            playSound("crit");
+            showToast(`🎉 Code Redeemed: ${reward.msg}`, "success");
+            renderAll();
+        }
+
+        /* =========================================================================
+           9. ADMIN MAX-OUT & COMMUNITY ADMIN ABUSE COMMANDS
+           ========================================================================= */
         function restoreMaxedAccount() {
             if (!isCurrentUserVerifiedAdmin()) return showToast("Admin authentication required!", "error");
             const MAX_VAL = 999999999999999999999999999; // 999 Sp
@@ -1958,7 +2201,12 @@
             state.transcendenceCount = 999999;
             state.currentWorld = 21;
             state.unlockedWorlds = WORLDS_DATA.map(w => w.id);
-            state.upgrades = { clickPower: 999, autoSpeed: 999, critChance: 999, feverBoost: 999 };
+
+            UPGRADES_DATA.forEach(u => state.upgrades[u.id] = u.max);
+            RP_UPGRADES_DATA.forEach(u => state.rpUpgrades[u.id] = u.max);
+            VOID_UPGRADES_DATA.forEach(u => state.voidUpgrades[u.id] = u.max);
+            SKILLS_DATA.forEach(s => state.skills[s.id] = s.max);
+
             state.unlockedSkins = SKINS_DATA.map(s => s.id);
             state.equippedSkin = "admin_neon_rainbow";
             state.unlockedAuras = AURAS_DATA.map(a => a.id);
@@ -1968,108 +2216,170 @@
             state.unlockedShades = SHADES_DATA.map(s => s.id);
             state.equippedShades = "admin_neon_visor";
             state.unlockedVoices = VOICES_DATA.map(v => v.id);
-            state.equippedVoice = "admin_neon";
-            state.maxEquippedPets = 8;
-            state.pets = Object.keys(PET_SPECIES).map((key, idx) => ({
-                id: "admin_pet_" + key,
-                speciesKey: key,
-                tier: 5,
-                equipped: idx >= Object.keys(PET_SPECIES).length - 8
+            state.equippedVoice = "admin_neon_symphony";
+
+            state.pets = PET_SPECIES.map((sp, i) => ({
+                uid: `admin_pet_${sp.id}_${i}`,
+                speciesId: sp.id,
+                tier: 5
             }));
+            equipBestPets();
+
+            state.unlockedRelics = RELICS_DATA.map(r => r.id);
+            state.collectedCards = CARDS_DATA.map(c => c.id);
+            state.builtMonuments = MONUMENTS_DATA.map(m => m.id);
+            Object.keys(state.masteryLevels).forEach(k => state.masteryLevels[k] = 99);
+            state.passXp = 999999;
+            const farFuture = Date.now() + 365 * 24 * 3600 * 1000;
+            POTIONS_DATA.forEach(p => state.activePotions[p.id] = farFuture);
+
             saveGame();
+            window.syncLeaderboardScore(true);
             renderAll();
-            syncLeaderboardScore(true);
-            showToast("🌈 MAXED OUT EVERYTHING (999 Sp + World 21 + All Neon Rainbow Gear)!", "success");
+            showToast("🌈 MAXED EVERYTHING TO 999 Sp + WORLD 21!", "success");
         }
 
-        function runAdminCommand(cmd) {
-            if (!isCurrentUserVerifiedAdmin()) return showToast("Restricted to RainbowLord16!", "error");
-            if (cmd === "max_currencies") {
-                restoreMaxedAccount();
-            } else if (cmd === "world_21") {
-                travelToWorld(21);
-                showToast("👑 Teleported to World 21: Rainbow Sovereign Sanctuary!", "success");
-            } else if (cmd === "spawn_god_pet") {
-                state.pets.push({ id: "god_" + Date.now(), speciesKey: "genesis", tier: 5, equipped: true });
-                renderAll();
-                showToast("🐉 Spawned Rainbow Supreme Genesis Quack God!", "success");
-            } else if (cmd === "rainbow_storm" || cmd === "super_fever" || cmd === "global_gift") {
-                broadcastAdminAbuseEvent(cmd);
-            }
-        }
-
-        function executeTypedAdminCommand() {
-            if (!isCurrentUserVerifiedAdmin()) return;
-            const inp = document.getElementById("adminCmdInput");
-            if (!inp) return;
-            const raw = inp.value.trim();
-            inp.value = "";
-            if (!raw) return;
-            if (raw.startsWith("/announce ")) {
-                broadcastAdminAbuseEvent("announce", raw.slice(10));
-            } else if (raw.startsWith("/give ")) {
-                const parts = raw.split(/\s+/);
-                const cur = (parts[1] || "").toLowerCase();
-                const amt = Number(parts[2]) || 999999999;
-                if (cur in state) {
-                    state[cur] = sanitizeNum((state[cur] || 0) + amt, 0);
-                    renderAll();
-                    showToast(`👑 Gave ${formatNum(amt)} ${cur}!`, "success");
-                }
-            } else {
-                broadcastAdminAbuseEvent("announce", raw);
-            }
-        }
-
-        async function broadcastAdminAbuseEvent(type, customMsg = "") {
-            const label = type === "rainbow_storm" ? "🌈 RAINBOW STORM (100x POWER) TRIGGERED BY RAINBOWLORD16!"
-                : type === "super_fever" ? "🔥 GLOBAL HYPER FEVER ACTIVATED BY RAINBOWLORD16!"
-                : type === "global_gift" ? "🎁 GLOBAL GIFT: +1,000,000 GEMS SENT BY RAINBOWLORD16!"
-                : `👑 RAINBOWLORD16: ${customMsg}`;
-            triggerLocalAdminAbuseEffect(type, label);
+        async function broadcastCommunityAdminEvent(type, text) {
+            const eventPayload = {
+                id: "evt_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+                type,
+                text,
+                by: ADMIN_OWNER_NAME,
+                createdAt: Date.now()
+            };
+            applyAdminAbuseEvent(eventPayload);
             const api = window.__cloudApi;
             if (api && api.getDb() && api.getUser()) {
                 try {
-                    const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "adminEvents", "latest");
-                    await api.setDoc(ref, { id: "evt_" + Date.now(), type, label, createdAt: Date.now() });
+                    const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "admin_events", "live");
+                    await api.setDoc(ref, eventPayload);
                 } catch (e) {}
             }
         }
 
-        function triggerLocalAdminAbuseEffect(type, label) {
+        function applyAdminAbuseEvent(evt) {
+            if (!evt || !evt.id || evt.id === lastHandledAdminEventId) return;
+            lastHandledAdminEventId = evt.id;
+            localStorage.setItem("dqLastAdminEventId", evt.id);
+
             const banner = document.getElementById("adminAbuseBanner");
-            const txt = document.getElementById("adminAbuseBannerText");
-            if (banner && txt) {
-                txt.textContent = label;
+            const bannerText = document.getElementById("adminAbuseBannerText");
+            if (banner && bannerText) {
+                bannerText.textContent = `👑 [ADMIN ABUSE by ${evt.by || "RainbowLord16"}]: ${evt.text}`;
                 banner.classList.remove("hidden");
                 setTimeout(() => banner.classList.add("hidden"), 15000);
             }
-            if (type === "rainbow_storm") {
-                currentWeather = { id: "admin_rainbow", label: "🌈 Admin Rainbow Storm (100x)", mult: 100 };
-                setTimeout(() => { currentWeather = { id: "clear", label: "☀️ Clear Skies (1x)", mult: 1 }; }, 30000);
-            } else if (type === "super_fever") {
-                state.feverVal = 100;
-                state.isFeverActive = true;
-            } else if (type === "global_gift") {
-                state.gems = sanitizeNum((state.gems || 0) + 1000000, 0);
+            if (evt.type === "rainbow_storm") {
+                activeWeather = { name: "Admin Rainbow Storm", icon: "🌈", mult: 100, timer: 60000 };
+                showToast("🌈 ADMIN ABUSE: 100x RAINBOW STORM ACTIVE FOR EVERYONE!", "success");
+            } else if (evt.type === "super_fever") {
+                feverCharge = 100;
+                feverActiveTimer = 30000;
+                showToast("🔥 ADMIN ABUSE: GLOBAL HYPER FEVER ACTIVATED!", "success");
+            } else if (evt.type === "global_gift") {
+                state.gems += 10000;
+                state.feathers += 25;
+                state.shards += 50;
+                showToast("🎁 ADMIN GIFT: +10,000 Gems, +25 Feathers & +50 Shards!", "success");
+            } else {
+                showToast(`📢 ${evt.text}`, "info");
             }
             renderAll();
         }
 
-        window.startAdminAbuseListener = function() {
-            const api = window.__cloudApi;
-            if (!api || !api.getDb()) return;
-            const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "adminEvents", "latest");
-            api.onSnapshot(ref, (snap) => {
-                if (!snap.exists()) return;
-                const evt = snap.data();
-                if (!evt || !evt.id || evt.id === lastHandledAdminEventId) return;
-                if (Date.now() - (evt.createdAt || 0) > 60000) return;
-                lastHandledAdminEventId = evt.id;
-                localStorage.setItem("dqLastAdminEventId", evt.id);
-                triggerLocalAdminAbuseEffect(evt.type, evt.label);
-            }, () => {});
-        };
+        function runAdminCommand(cmd) {
+            if (!isCurrentUserVerifiedAdmin()) return showToast("🔒 Admin authentication required!", "error");
+            if (cmd === "max_currencies") return restoreMaxedAccount();
+            if (cmd === "rainbow_storm") return broadcastCommunityAdminEvent("rainbow_storm", "100x Neon Rainbow Storm Summoned Across All Servers!");
+            if (cmd === "super_fever") return broadcastCommunityAdminEvent("super_fever", "Global 30s Hyper Quack Fever Activated!");
+            if (cmd === "global_gift") return broadcastCommunityAdminEvent("global_gift", "Free Gems, Golden Feathers & Void Shards Dropped for All Players!");
+            if (cmd === "world_21") {
+                selectOrUnlockWorld(21);
+                return showToast("🌈 Teleported to World 21: Rainbow Sovereign Sanctuary!", "success");
+            }
+            if (cmd === "spawn_god_pet") {
+                state.pets.push({ uid: "god_" + Date.now(), speciesId: "genesis", tier: 5 });
+                equipBestPets();
+                return showToast("🐉 Spawned Rainbow Supreme Genesis Quack God!", "success");
+            }
+        }
+
+        function executeTypedAdminCommand() {
+            if (!isCurrentUserVerifiedAdmin()) return showToast("🔒 Admin authentication required!", "error");
+            const inp = document.getElementById("adminCmdInput");
+            const raw = (inp ? inp.value : "").trim();
+            if (!raw) return;
+            if (inp) inp.value = "";
+            if (raw.startsWith("/announce ")) {
+                return broadcastCommunityAdminEvent("announce", raw.slice(10));
+            }
+            const parts = raw.split(/\s+/);
+            if (parts[0] === "/give" && parts.length >= 3) {
+                const cur = parts[1].toLowerCase();
+                const amt = sanitizeNum(parts[2], 0);
+                if (["quacks", "gems", "rp", "feathers", "shards", "relics"].includes(cur)) {
+                    state[cur] += amt;
+                    if (cur === "quacks") state.lifetimeQuacks += amt;
+                    renderAll();
+                    return showToast(`⚡ Granted +${formatNumber(amt)} ${cur}!`, "success");
+                }
+            }
+            runAdminCommand(raw.replace("/", ""));
+        }
+
+        /* =========================================================================
+           10. PROFILE, AVATAR ISOLATION, LOG OUT & REAL-TIME LEADERBOARD
+           ========================================================================= */
+        function handleProfilePicUpload(e) {
+            const file = e.target.files && e.target.files[0];
+            if (!file) return;
+            if (file.size > 6 * 1024 * 1024) return showToast("Image must be under 6 MB!", "error");
+            const reader = new FileReader();
+            reader.onload = () => {
+                state.profilePic = reader.result;
+                saveGame();
+                window.syncLeaderboardScore(true);
+                renderProfilePreview();
+                showToast("🖼️ Profile picture updated!", "success");
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeProfilePic() {
+            state.profilePic = "";
+            saveGame();
+            window.syncLeaderboardScore(false);
+            renderProfilePreview();
+            showToast("Profile picture removed.", "info");
+        }
+
+        function savePlayerName() {
+            const inp = document.getElementById("playerNameInput");
+            const val = (inp ? inp.value : "").trim();
+            if (!val) return;
+            if (val === ADMIN_OWNER_NAME && !isAdminAuthenticated) {
+                return showToast("🔒 Unlock the Admin Vault below to use RainbowLord16!", "error");
+            }
+            state.playerName = val;
+            saveGame();
+            window.syncLeaderboardScore(true);
+            showToast(`Commander name set to ${val}!`, "success");
+        }
+
+        function logoutAndResetAccount() {
+            window.syncLeaderboardScore(false);
+            isAdminAuthenticated = false;
+            sessionStorage.removeItem("dqAdminSessionAuth");
+            localStorage.removeItem(SAVE_KEY);
+            const freshSlot = "QUACK-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+            localStorage.setItem(LOCAL_SLOT_ID_KEY, freshSlot);
+            state = createFreshDefaultState();
+            saveGame();
+            updateAdminUiState();
+            renderAll();
+            closeModal("profileModal");
+            showToast("👋 Logged out! Started a fresh Commander account.", "info");
+        }
 
         function loadLocalLeaderboardArchive() {
             try {
@@ -2081,17 +2391,37 @@
             }
         }
 
+        function ensureAdminLeaderboardSeed() {
+            const archive = loadLocalLeaderboardArchive();
+            if (!archive.some(r => r && r.id === "ADMIN_RAINBOWLORD16")) {
+                archive.push({
+                    id: "ADMIN_RAINBOWLORD16",
+                    name: ADMIN_OWNER_NAME,
+                    quacks: 1e300,
+                    rebirths: 999999999,
+                    bosses: 999999999,
+                    eggs: 999999999,
+                    profilePic: "",
+                    isAdmin: true,
+                    updatedAt: Date.now()
+                });
+                try { localStorage.setItem(LB_LOCAL_ARCHIVE_KEY, JSON.stringify(archive)); } catch (e) {}
+            }
+        }
+
         function getMergedLeaderboardRows() {
+            ensureAdminLeaderboardSeed();
             const slotId = getCurrentSlotId();
+            const isAdminNow = isCurrentUserVerifiedAdmin();
             const meRow = {
                 id: slotId,
                 name: state.playerName || "QuackCommander",
-                quacks: sanitizeNum(state.lifetimeQuacks, 0),
-                rebirths: sanitizeNum(state.rebirths, 0),
-                bosses: sanitizeNum(state.bossesSlain, 0),
-                eggs: sanitizeNum(state.eggsHatched, 0),
+                quacks: isAdminNow ? Math.max(sanitizeNum(state.lifetimeQuacks, 0), 1e300) : sanitizeNum(state.lifetimeQuacks, 0),
+                rebirths: isAdminNow ? Math.max(sanitizeNum(state.rebirths, 0), 999999999) : sanitizeNum(state.rebirths, 0),
+                bosses: isAdminNow ? Math.max(sanitizeNum(state.bossesSlain, 0), 999999999) : sanitizeNum(state.bossesSlain, 0),
+                eggs: isAdminNow ? Math.max(sanitizeNum(state.eggsHatched, 0), 999999999) : sanitizeNum(state.eggsHatched, 0),
                 profilePic: state.profilePic || "",
-                isAdmin: isCurrentUserVerifiedAdmin()
+                isAdmin: isAdminNow
             };
             const map = new Map();
             for (const row of [...loadLocalLeaderboardArchive(), ...cloudLeaderboardRows]) {
@@ -2100,7 +2430,11 @@
             map.set(slotId, meRow);
             const rows = Array.from(map.values());
             const key = leaderboardTab;
-            rows.sort((a, b) => sanitizeNum(b[key], 0) - sanitizeNum(a[key], 0));
+            rows.sort((a, b) => {
+                if (a.id === "ADMIN_RAINBOWLORD16" && b.id !== "ADMIN_RAINBOWLORD16") return -1;
+                if (b.id === "ADMIN_RAINBOWLORD16" && a.id !== "ADMIN_RAINBOWLORD16") return 1;
+                return sanitizeNum(b[key], 0) - sanitizeNum(a[key], 0);
+            });
             return rows;
         }
 
@@ -2108,7 +2442,9 @@
             leaderboardTab = tab;
             document.querySelectorAll(".lb-tab-btn").forEach(btn => {
                 const active = btn.getAttribute("data-tab") === tab;
-                btn.className = `lb-tab-btn px-3 py-1.5 rounded-xl text-xs font-extrabold ${active ? "bg-amber-500 text-slate-950" : "bg-slate-800 text-slate-300"}`;
+                btn.className = active
+                    ? "lb-tab-btn bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-extrabold"
+                    : "lb-tab-btn bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-extrabold";
             });
             renderFullLeaderboard();
         }
@@ -2116,62 +2452,61 @@
         function renderMiniLeaderboard() {
             const box = document.getElementById("miniLeaderboardList");
             if (!box) return;
-            const top3 = getMergedLeaderboardRows().slice(0, 3);
-            box.innerHTML = top3.map((r, i) => `
-                <div class="flex items-center justify-between bg-slate-950/75 border ${r.id === "ADMIN_RAINBOWLORD16" ? "border-pink-500/40" : "border-white/10"} px-2.5 py-1.5 rounded-xl">
+            const rows = getMergedLeaderboardRows().slice(0, 3);
+            box.innerHTML = rows.map((r, i) => `
+                <div class="flex items-center justify-between bg-slate-950/80 border ${r.id === "ADMIN_RAINBOWLORD16" ? "border-pink-500/50" : "border-white/10"} rounded-xl px-2.5 py-1.5">
                     <div class="flex items-center gap-2 min-w-0">
                         <span class="font-black text-amber-300">#${i + 1}</span>
-                        <span class="font-bold text-white truncate">${r.name}</span>
+                        <span class="font-extrabold text-white truncate">${r.name}</span>
                     </div>
-                    <span class="font-extrabold text-amber-300 shrink-0">${formatNum(r.quacks)}</span>
+                    <span class="font-black text-amber-300 shrink-0">${formatNumber(r.quacks)}</span>
                 </div>
             `).join("");
         }
 
         function renderFullLeaderboard() {
             const box = document.getElementById("fullLeaderboardList");
+            const idLbl = document.getElementById("lbPlayerIdText");
+            if (idLbl) idLbl.textContent = getCurrentSlotId();
             if (!box) return;
             const rows = getMergedLeaderboardRows();
-            box.innerHTML = rows.map((r, i) => `
-                <div class="flex items-center justify-between bg-slate-950/85 border ${r.id === "ADMIN_RAINBOWLORD16" ? "obsidian-neon-rainbow" : "border-white/10"} p-3 rounded-2xl">
-                    <div class="flex items-center gap-3 min-w-0">
-                        <span class="w-7 h-7 rounded-xl bg-slate-900 flex items-center justify-center font-black text-xs text-amber-300">#${i + 1}</span>
-                        <div class="w-9 h-9 rounded-xl bg-slate-900 overflow-hidden flex items-center justify-center shrink-0">
-                            ${r.profilePic ? `<img src="${r.profilePic}" class="w-full h-full object-cover">` : `<i class="fa-solid fa-duck text-amber-400"></i>`}
+            const key = leaderboardTab;
+            box.innerHTML = rows.map((r, i) => {
+                const isAdminRow = r.id === "ADMIN_RAINBOWLORD16";
+                const avatarHtml = (r.profilePic && (isAdminRow || r.id === getCurrentSlotId()))
+                    ? `<img src="${r.profilePic}" class="w-9 h-9 rounded-xl object-cover border border-amber-400/60" alt="">`
+                    : `<div class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-amber-300 font-black">${(r.name || "Q")[0].toUpperCase()}</div>`;
+                return `
+                    <div class="flex items-center justify-between gap-3 p-3 rounded-2xl ${isAdminRow ? "obsidian-neon-rainbow" : "bg-slate-950/85 border border-white/10"}">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="w-7 h-7 rounded-lg bg-slate-900 flex items-center justify-center font-black text-xs ${i === 0 ? "text-amber-300" : "text-slate-300"}">#${i + 1}</span>
+                            ${avatarHtml}
+                            <div class="min-w-0">
+                                <div class="text-sm font-black text-white truncate">${r.name} ${isAdminRow ? "👑" : ""}</div>
+                                <div class="text-[10px] font-bold text-slate-400">${isAdminRow ? "King of Rainbows • Owner" : r.id}</div>
+                            </div>
                         </div>
-                        <div class="min-w-0">
-                            <div class="text-xs font-extrabold text-white truncate">${r.name}</div>
-                            <div class="text-[10px] text-slate-400 font-mono">${r.id}</div>
+                        <div class="text-right shrink-0">
+                            <div class="title-font text-sm font-bold text-amber-300">${formatNumber(r[key])}</div>
+                            <div class="text-[10px] uppercase text-slate-400 font-bold">${key}</div>
                         </div>
                     </div>
-                    <div class="text-sm font-black text-amber-300 shrink-0">${formatNum(r[leaderboardTab] || 0)}</div>
-                </div>
-            `).join("");
+                `;
+            }).join("");
         }
-
-        window.startLeaderboardListener = function() {
-            const api = window.__cloudApi;
-            if (!api || !api.getDb()) return;
-            const colRef = api.collection(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard");
-            api.onSnapshot(colRef, (snap) => {
-                const list = [];
-                snap.forEach(d => list.push(d.data()));
-                cloudLeaderboardRows = list;
-                renderMiniLeaderboard();
-                renderFullLeaderboard();
-            }, () => {});
-        };
 
         window.syncLeaderboardScore = async function(notify = false) {
             const slotId = getCurrentSlotId();
+            const isAdminNow = isCurrentUserVerifiedAdmin();
             const entry = {
                 id: slotId,
                 name: state.playerName || "QuackCommander",
-                quacks: sanitizeNum(state.lifetimeQuacks, 0),
-                rebirths: sanitizeNum(state.rebirths, 0),
-                bosses: sanitizeNum(state.bossesSlain, 0),
-                eggs: sanitizeNum(state.eggsHatched, 0),
+                quacks: isAdminNow ? Math.max(sanitizeNum(state.lifetimeQuacks, 0), 1e300) : sanitizeNum(state.lifetimeQuacks, 0),
+                rebirths: isAdminNow ? Math.max(sanitizeNum(state.rebirths, 0), 999999999) : sanitizeNum(state.rebirths, 0),
+                bosses: isAdminNow ? Math.max(sanitizeNum(state.bossesSlain, 0), 999999999) : sanitizeNum(state.bossesSlain, 0),
+                eggs: isAdminNow ? Math.max(sanitizeNum(state.eggsHatched, 0), 999999999) : sanitizeNum(state.eggsHatched, 0),
                 profilePic: state.profilePic && state.profilePic.length < 400000 ? state.profilePic : "",
+                isAdmin: isAdminNow,
                 updatedAt: Date.now()
             };
             const archive = loadLocalLeaderboardArchive().filter(r => r.id !== slotId);
@@ -2189,61 +2524,72 @@
                 showToast("🏆 Saved to local Hall of Fame!", "info");
             }
             renderMiniLeaderboard();
+            renderFullLeaderboard();
         };
 
-        function redeemPromoCode() {
-            const inp = document.getElementById("promoCodeInput");
-            if (!inp) return;
-            const code = inp.value.trim().toUpperCase();
-            if (!code) return;
-            if ((state.redeemedCodes || []).includes(code)) return showToast("Code already redeemed!", "error");
-            const codes = {
-                QUACK2026: () => { state.gems += 500; showToast("+500 Gems!", "success"); },
-                GRIND3MONTHS: () => { state.gems += 1500; state.feathers += 5; showToast("+1,500 Gems & +5 Feathers!", "success"); },
-                FEATHERGOD: () => { state.feathers += 25; showToast("+25 Golden Feathers!", "success"); },
-                VOIDSHARD99: () => { state.shards += 99; showToast("+99 Void Shards!", "success"); },
-                GENESISDUCK: () => { state.gems += 5000; showToast("+5,000 Gems!", "success"); }
-            };
-            if (!codes[code]) return showToast("Invalid promo code!", "error");
-            state.redeemedCodes = [...(state.redeemedCodes || []), code];
-            codes[code]();
-            inp.value = "";
-            saveGame();
-            renderAll();
+        window.startLeaderboardListener = function() {
+            const api = window.__cloudApi;
+            if (!api || !api.getDb()) return;
+            try {
+                const col = api.collection(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard");
+                api.onSnapshot(col, (snap) => {
+                    const list = [];
+                    snap.forEach(d => list.push(d.data()));
+                    cloudLeaderboardRows = list;
+                    renderMiniLeaderboard();
+                    renderFullLeaderboard();
+                }, (err) => console.warn("Leaderboard snapshot:", err));
+            } catch (e) {}
+        };
+
+        window.startAdminAbuseListener = function() {
+            const api = window.__cloudApi;
+            if (!api || !api.getDb()) return;
+            try {
+                const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "admin_events", "live");
+                api.onSnapshot(ref, (snap) => {
+                    if (snap.exists()) applyAdminAbuseEvent(snap.data());
+                }, (err) => console.warn("Admin event snapshot:", err));
+            } catch (e) {}
+        };
+
+        window.addEventListener("storage", (e) => {
+            if (e.key === LB_LOCAL_ARCHIVE_KEY) {
+                renderMiniLeaderboard();
+                renderFullLeaderboard();
+            }
+        });
+
+        /* =========================================================================
+           11. SAVE / LOAD & CLOUD BACKUP
+           ========================================================================= */
+        function saveGame() {
+            try {
+                localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+            } catch (e) {}
         }
 
-        function removeProfilePic() {
-            state.profilePic = "";
-            saveGame();
-            renderProfileModal();
-            renderAll();
-            syncLeaderboardScore(true);
-            showToast("Profile picture removed.", "info");
-        }
-
-        function logoutAndResetAccount() {
-            syncLeaderboardScore(false);
-            isAdminAuthenticated = false;
-            sessionStorage.removeItem("dqAdminSessionAuth");
-            localStorage.removeItem("dqLocalPlayerId");
-            state = createFreshDefaultState();
-            saveGame();
-            renderProfileModal();
-            renderAll();
-            syncLeaderboardScore(false);
-            showToast("Logged out! Started a fresh account while preserving RainbowLord16 on the leaderboard.", "success");
+        function loadGame() {
+            try {
+                if (sessionStorage.getItem("dqAdminSessionAuth") === "1") {
+                    isAdminAuthenticated = true;
+                }
+                const raw = localStorage.getItem(SAVE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    state = { ...createFreshDefaultState(), ...parsed };
+                }
+                enforceAdminSecurity();
+            } catch (e) {}
         }
 
         async function saveToCloud() {
             const api = window.__cloudApi;
-            if (!api || !api.getDb() || !api.getUser()) {
-                saveGame();
-                return showToast("Saved locally (Cloud offline).", "info");
-            }
+            if (!api || !api.getDb() || !api.getUser()) return showToast("Cloud unavailable offline.", "error");
             try {
                 const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "users", api.getUser().uid, "saves", "main");
-                await api.setDoc(ref, { ...state, profilePic: "", savedAt: Date.now() }, { merge: true });
-                showToast("☁️ Cloud Backup complete!", "success");
+                await api.setDoc(ref, { ...state, savedAt: Date.now() });
+                showToast("☁️ Cloud backup complete!", "success");
             } catch (e) {
                 showToast("Cloud backup failed.", "error");
             }
@@ -2251,22 +2597,18 @@
 
         async function loadFromCloud() {
             const api = window.__cloudApi;
-            if (!api || !api.getDb() || !api.getUser()) {
-                loadGame();
-                renderAll();
-                return showToast("Loaded local save.", "info");
-            }
+            if (!api || !api.getDb() || !api.getUser()) return showToast("Cloud unavailable offline.", "error");
             try {
                 const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "users", api.getUser().uid, "saves", "main");
                 const snap = await api.getDoc(ref);
                 if (snap.exists()) {
-                    state = { ...state, ...snap.data() };
+                    state = { ...createFreshDefaultState(), ...snap.data() };
                     enforceAdminSecurity();
                     saveGame();
                     renderAll();
-                    showToast("☁️ Cloud Restore complete!", "success");
+                    showToast("☁️ Cloud save restored!", "success");
                 } else {
-                    showToast("No cloud backup found.", "info");
+                    showToast("No cloud backup found yet.", "info");
                 }
             } catch (e) {
                 showToast("Cloud restore failed.", "error");
@@ -2274,258 +2616,471 @@
         }
 
         function exportSaveString() {
-            try {
-                const str = btoa(unescape(encodeURIComponent(JSON.stringify({ ...state, profilePic: "" }))));
-                const ta = document.createElement("textarea");
-                ta.value = str;
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand("copy");
-                ta.remove();
-                showToast("Save string copied to clipboard!", "success");
-            } catch (e) {
-                showToast("Failed to copy save string.", "error");
-            }
+            const str = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+            const ta = document.createElement("textarea");
+            ta.value = str;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            ta.remove();
+            showToast("📋 Save string copied to clipboard!", "success");
         }
 
         function importSaveString() {
-            const modal = document.getElementById("codesModal");
-            if (modal) {
-                openModal("codesModal");
-                showToast("Paste your save string or promo code!", "info");
+            const code = window.prompt("Paste your Duck Quack Save String:");
+            if (!code) return;
+            try {
+                const parsed = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
+                state = { ...createFreshDefaultState(), ...parsed };
+                enforceAdminSecurity();
+                saveGame();
+                renderAll();
+                showToast("✅ Save imported successfully!", "success");
+            } catch (e) {
+                showToast("❌ Invalid save string!", "error");
             }
         }
 
-        function excavateLayer() {
-            if (state.gems < 10) return showToast("Need 10 Gems to excavate!", "error");
-            state.gems -= 10;
-            state.digDepth = (state.digDepth || 0) + 5;
-            state.relics = (state.relics || 0) + 1;
-            const depthEl = document.getElementById("digDepthText");
-            if (depthEl) depthEl.textContent = formatNum(state.digDepth);
-            renderAll();
-            showToast("⛏️ Excavated +5m & found 1 Ancient Relic!", "success");
-        }
-
-        function openCardPack() {
-            if (state.gems < 250) return showToast("Need 250 Gems for a Card Pack!", "error");
-            state.gems -= 250;
-            const keys = Object.keys(PET_SPECIES);
-            const pick = keys[Math.floor(Math.random() * keys.length)];
-            state.cards[pick] = (state.cards[pick] || 0) + 1;
-            renderAll();
-            showToast(`🃏 Pulled ${PET_SPECIES[pick].name} Collector Card!`, "success");
-        }
-
-        function spinFortuneWheel() {
-            if (state.gems < 100) return showToast("Need 100 Gems to spin!", "error");
-            state.gems -= 100;
-            const prizes = [
-                () => { state.gems += 500; showToast("🎡 Won +500 Gems!", "success"); },
-                () => { state.feathers += 2; showToast("🎡 Won +2 Golden Feathers!", "success"); },
-                () => { state.quacks += getQuacksPerClick() * 500; showToast("🎡 Won Mega Quack Jackpot!", "success"); },
-                () => { state.shards += 5; showToast("🎡 Won +5 Void Shards!", "success"); }
-            ];
-            prizes[Math.floor(Math.random() * prizes.length)]();
-            playSound("crit");
-            renderAll();
-        }
-
-        function startArcadeGame() {
-            state.gems += 25;
-            const sc = document.getElementById("arcadeScoreVal");
-            if (sc) sc.textContent = "250";
-            renderAll();
-            showToast("🍞 Caught Golden Bread! +25 Gems!", "success");
-        }
-
-        function attackBoss() {
-            const dmg = getQuacksPerClick();
-            state.bossHp = Math.max(0, (state.bossHp || 1000) - dmg);
-            playSound("quack");
-            if (state.bossHp <= 0) {
-                state.bossLevel = (state.bossLevel || 1) + 1;
-                state.bossesSlain = (state.bossesSlain || 0) + 1;
-                state.bossMaxHp = sanitizeNum(1000 * Math.pow(2.5, state.bossLevel - 1), 1000);
-                state.bossHp = state.bossMaxHp;
-                state.gems += 100 * state.bossLevel;
-                showToast(`🐉 Boss Defeated! +${formatNum(100 * state.bossLevel)} Gems!`, "success");
+        /* =========================================================================
+           12. UI & SVG RENDERERS
+           ========================================================================= */
+        function openModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove("hidden");
+            el.classList.add("flex");
+            if (id === "wheelModal") drawFortuneWheel();
+            if (id === "bossModal") renderBossModal();
+            if (id === "leaderboardModal") renderFullLeaderboard();
+            if (id === "profileModal") {
+                const inp = document.getElementById("playerNameInput");
+                if (inp) inp.value = state.playerName || "";
+                renderProfilePreview();
+                updateAdminUiState();
             }
-            const bar = document.getElementById("bossHpBar");
-            const lbl = document.getElementById("bossHpLabel");
-            const lvl = document.getElementById("bossLevelVal");
-            const slain = document.getElementById("bossSlainVal");
-            if (bar) bar.style.width = `${Math.max(0, (state.bossHp / (state.bossMaxHp || 1000)) * 100)}%`;
-            if (lbl) lbl.textContent = `${formatNum(state.bossHp)} / ${formatNum(state.bossMaxHp || 1000)} HP`;
-            if (lvl) lvl.textContent = formatNum(state.bossLevel || 1);
-            if (slain) slain.textContent = formatNum(state.bossesSlain || 0);
-            renderAll();
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add("hidden");
+            el.classList.remove("flex");
+            if (id === "arcadeModal") arcadeRunning = false;
+        }
+
+        function renderProfilePreview() {
+            const box = document.getElementById("profileAvatarPreview");
+            if (!box) return;
+            box.innerHTML = state.profilePic
+                ? `<img src="${state.profilePic}" class="w-full h-full object-cover" alt="">`
+                : `<i class="fa-solid fa-duck text-2xl text-amber-400"></i>`;
         }
 
         function renderHeroDuckSvg() {
             const wrap = document.getElementById("duckVisualWrapper");
-            if (!wrap) return;
-            const skin = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
-            const isAdminNeon = skin.id === "admin_neon_rainbow";
-            const isRainbow = skin.rainbow || isAdminNeon;
-            const strokeColor = isAdminNeon ? "#00e5ff" : "#090d16";
-            const hatSvg = state.equippedHat === "admin_neon_crown" || state.equippedHat === "rainbow_crown"
-                ? `<polygon points="82,42 94,18 110,36 120,14 130,36 146,18 158,42" fill="#facc15" stroke="${strokeColor}" stroke-width="4" stroke-linejoin="round"/>`
-                : state.equippedHat === "wizard"
-                ? `<polygon points="80,44 120,4 160,44" fill="#7e22ce" stroke="#090d16" stroke-width="4"/>`
-                : state.equippedHat === "propeller"
-                ? `<path d="M90,44 A30,22 0 0,1 150,44 Z" fill="#ef4444" stroke="#090d16" stroke-width="4"/><rect x="102" y="18" width="36" height="5" rx="2" fill="#38bdf8"/>`
-                : "";
-            const shadesSvg = state.equippedShades !== "none"
-                ? `<rect x="82" y="64" width="76" height="16" rx="6" fill="${state.equippedShades === "admin_neon_visor" ? "#ff007f" : "#0f172a"}" stroke="#38bdf8" stroke-width="3"/>`
-                : "";
-
-            wrap.innerHTML = `<svg viewBox="0 0 240 240" class="w-full h-full ${isAdminNeon ? "neon-rainbow-admin" : isRainbow ? "rainbow-prism-anim" : ""}">
-                <ellipse cx="120" cy="206" rx="74" ry="15" fill="rgba(0,0,0,0.45)"/>
-                <path d="M52 136 C52 94, 182 94, 188 142 C194 182, 156 192, 116 192 C70 192, 52 172, 52 136 Z" fill="${skin.body}" stroke="${strokeColor}" stroke-width="7"/>
-                <path d="M70 144 C74 118, 150 118, 156 146 C160 168, 136 176, 110 176 C82 176, 68 164, 70 144 Z" fill="${skin.belly}"/>
-                <circle cx="120" cy="78" r="44" fill="${skin.body}" stroke="${strokeColor}" stroke-width="7"/>
-                <circle cx="104" cy="72" r="7" fill="${isAdminNeon ? "#00ff9d" : "#090d16"}"/>
-                <circle cx="136" cy="72" r="7" fill="${isAdminNeon ? "#00ff9d" : "#090d16"}"/>
-                ${shadesSvg}
-                <path d="M96 90 C96 80, 144 80, 144 92 C144 104, 96 104, 96 90 Z" fill="${skin.beak}" stroke="${strokeColor}" stroke-width="6"/>
-                ${hatSvg}
-            </svg>`;
-
             const auraEl = document.getElementById("duckAuraElement");
+            const skinTitle = document.getElementById("equippedSkinTitle");
+            if (!wrap) return;
+
+            const skin = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
             const aura = AURAS_DATA.find(a => a.id === state.equippedAura) || AURAS_DATA[0];
+            const isAdminSkin = skin.id === "admin_neon_rainbow";
+
             if (auraEl) {
-                auraEl.className = `duck-aura-ring absolute w-60 h-60 sm:w-68 sm:h-68 rounded-full pointer-events-none ${aura.adminOnly ? "obsidian-neon-rainbow" : ""}`;
-                auraEl.style.cssText = aura.adminOnly ? "" : aura.style;
+                auraEl.style.cssText = aura.css;
+                auraEl.className = `duck-aura-ring absolute w-60 h-60 sm:w-68 sm:h-68 rounded-full pointer-events-none ${aura.id === "admin_neon_halo" ? "obsidian-neon-rainbow" : ""}`;
             }
+            if (skinTitle) skinTitle.textContent = skin.name;
+
+            let hatSvg = "";
+            if (state.equippedHat === "propeller") {
+                hatSvg = `<rect x="85" y="22" width="30" height="10" rx="5" fill="#38bdf8"/><line x1="100" y1="22" x2="100" y2="12" stroke="#facc15" stroke-width="4"/><ellipse cx="100" cy="12" rx="22" ry="4" fill="#f43f5e"/>`;
+            } else if (state.equippedHat === "wizard") {
+                hatSvg = `<polygon points="100,4 72,36 128,36" fill="#7e22ce" stroke="#facc15" stroke-width="3"/>`;
+            } else if (state.equippedHat === "rainbow_crown" || state.equippedHat === "admin_neon_crown") {
+                hatSvg = `<polygon points="74,34 80,14 92,26 100,10 108,26 120,14 126,34" fill="#facc15" stroke="#ff007f" stroke-width="3"/>`;
+            }
+
+            let shadesSvg = "";
+            if (state.equippedShades === "cool") {
+                shadesSvg = `<rect x="74" y="48" width="22" height="11" rx="3" fill="#090d16"/><rect x="104" y="48" width="22" height="11" rx="3" fill="#090d16"/><line x1="96" y1="52" x2="104" y2="52" stroke="#090d16" stroke-width="3"/>`;
+            } else if (state.equippedShades === "cyber_visor" || state.equippedShades === "admin_neon_visor") {
+                shadesSvg = `<rect x="70" y="46" width="60" height="13" rx="6" fill="#00e5ff" stroke="#ff007f" stroke-width="3"/>`;
+            }
+
+            const strokeColor = isAdminSkin ? "#00e5ff" : "#090d16";
+            wrap.innerHTML = `
+                <svg viewBox="0 0 200 200" class="w-full h-full ${skin.rainbow ? "rainbow-prism-anim" : ""} ${isAdminSkin ? "neon-rainbow-admin" : ""}">
+                    <path d="M44 132 C44 92, 156 92, 162 136 C168 174, 134 182, 100 182 C62 182, 44 166, 44 132 Z" fill="${skin.body}" stroke="${strokeColor}" stroke-width="7"/>
+                    <ellipse cx="102" cy="144" rx="40" ry="24" fill="${skin.belly}" opacity="0.85"/>
+                    <circle cx="100" cy="64" r="38" fill="${skin.body}" stroke="${strokeColor}" stroke-width="7"/>
+                    <circle cx="86" cy="54" r="5.5" fill="${isAdminSkin ? "#00ff9d" : "#090d16"}"/>
+                    <circle cx="114" cy="54" r="5.5" fill="${isAdminSkin ? "#00ff9d" : "#090d16"}"/>
+                    ${shadesSvg}
+                    <ellipse cx="100" cy="72" rx="22" ry="11" fill="${skin.beak}" stroke="${strokeColor}" stroke-width="5"/>
+                    ${hatSvg}
+                </svg>
+            `;
+        }
+
+        function renderBossModal() {
+            const lvl = document.getElementById("bossLevelVal");
+            const slain = document.getElementById("bossSlainVal");
+            const bar = document.getElementById("bossHpBar");
+            const lbl = document.getElementById("bossHpLabel");
+            if (lvl) lvl.textContent = state.bossLevel;
+            if (slain) slain.textContent = state.bossesSlain;
+            const pct = Math.max(0, Math.min(100, (state.bossHp / state.bossMaxHp) * 100));
+            if (bar) bar.style.width = `${pct}%`;
+            if (lbl) lbl.textContent = `${formatNumber(state.bossHp)} / ${formatNumber(state.bossMaxHp)} HP`;
+        }
+
+        function updateHudFast() {
+            const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+            setTxt("dispQuacks", formatNumber(state.quacks));
+            setTxt("dispGems", formatNumber(state.gems));
+            setTxt("dispRP", formatNumber(state.rp));
+            setTxt("dispFeathers", formatNumber(state.feathers));
+            setTxt("dispShards", formatNumber(state.shards));
+            setTxt("dispRelics", formatNumber(state.relics));
+
+            setTxt("statQpc", formatNumber(getQuacksPerClick()));
+            setTxt("statQps", `${formatNumber(getQuacksPerSec())}/s`);
+            setTxt("statWorldMult", `${formatNumber(getWorldMultiplier())}x`);
+            setTxt("statPetMult", `+${formatNumber((getPetMultiplier() - 1) * 100)}%`);
+            setTxt("statGearMult", `${formatNumber(getGearMultiplier())}x`);
+            setTxt("statWeatherVoidMult", `${formatNumber(getWeatherAndVoidMultiplier())}x`);
+            setTxt("statEndgameMult", `${formatNumber(getEndgameMultiplier())}x`);
+            setTxt("statRebirthMult", `${formatNumber(getRebirthMultiplier())}x`);
+
+            setTxt("comboBadge", `${comboCount.toFixed(1)}x Combo`);
+            const bar = document.getElementById("feverBarFill");
+            if (bar) bar.style.width = `${feverActiveTimer > 0 ? (feverActiveTimer / 12000) * 100 : feverCharge}%`;
         }
 
         function renderAll() {
             enforceAdminSecurity();
-            const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-
-            set("dispQuacks", formatNum(state.quacks));
-            set("dispGems", formatNum(state.gems));
-            set("dispRP", formatNum(state.rp));
-            set("dispFeathers", formatNum(state.feathers));
-            set("dispShards", formatNum(state.shards));
-            set("dispRelics", formatNum(state.relics));
-
-            set("statQpc", formatNum(getQuacksPerClick()));
-            set("statQps", formatNum(getQuacksPerSec()) + "/s");
-            set("statWorldMult", formatNum(getWorldMultiplier()) + "x");
-            set("statPetMult", "+" + formatNum((getPetMultiplier() - 1) * 100) + "%");
-            set("statGearMult", formatNum(getGearMultiplier()) + "x");
-            set("statWeatherVoidMult", formatNum(currentWeather.mult || 1) + "x");
-            set("statEndgameMult", formatNum(getEndgameMultiplier()) + "x");
-            set("statRebirthMult", formatNum(getRebirthMultiplier()) + "x");
-
-            const world = WORLDS_DATA.find(w => w.id === state.currentWorld) || WORLDS_DATA[0];
-            set("headerWorldBadge", `W${world.id}: ${world.name}`);
-            set("headerRankBadge", isCurrentUserVerifiedAdmin() ? "KING OF RAINBOWS" : state.currentWorld >= 15 ? "VOID OVERLORD" : state.currentWorld >= 5 ? "QUACK MASTER" : "NOVICE");
-            set("currentWorldTitle", world.name);
-            set("currentWorldDesc", world.desc);
-            set("worldProgressText", `${world.id} / ${isCurrentUserVerifiedAdmin() ? 21 : 20}`);
-            set("unlockedWorldCountLabel", isCurrentUserVerifiedAdmin() ? "21" : "20");
-
-            const realmCard = document.getElementById("currentRealmCard");
-            if (realmCard) {
-                if (world.id === 21) realmCard.classList.add("obsidian-neon-rainbow");
-                else realmCard.classList.remove("obsidian-neon-rainbow");
-            }
-
-            set("lvlClick", `Lv.${state.upgrades.clickPower || 1}`);
-            set("costClick", formatNum(getUpgradeCost("clickPower")));
-            set("lvlAuto", `Lv.${state.upgrades.autoSpeed || 0}`);
-            set("costAuto", formatNum(getUpgradeCost("autoSpeed")));
-            set("lvlCrit", `Lv.${state.upgrades.critChance || 0}`);
-            set("costCrit", formatNum(getUpgradeCost("critChance")));
-
-            const lblTap = document.getElementById("lblAutoTap");
-            if (lblTap) {
-                lblTap.textContent = state.autoClickerOn ? "ACTIVE" : "OFF";
-                lblTap.className = `text-xs font-black mt-0.5 ${state.autoClickerOn ? "text-emerald-400" : "text-rose-400"}`;
-            }
-            const lblReb = document.getElementById("lblAutoRebirth");
-            if (lblReb) {
-                lblReb.textContent = state.autoRebirthOn ? "ACTIVE" : "OFF";
-                lblReb.className = `text-xs font-black mt-0.5 ${state.autoRebirthOn ? "text-emerald-400" : "text-rose-400"}`;
-            }
-            const lblHatch = document.getElementById("lblAutoHatch");
-            if (lblHatch) {
-                lblHatch.textContent = state.autoHatchOn ? "ACTIVE" : "OFF";
-                lblHatch.className = state.autoHatchOn ? "text-emerald-400" : "text-rose-400";
-            }
-
-            const skin = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
-            set("equippedSkinTitle", skin.name);
-            set("weatherStatusPill", currentWeather.label);
-            set("comboBadge", `${(1 + Math.min(comboCount * 0.05, 4)).toFixed(1)}x Combo`);
-            set("lbPlayerIdText", getCurrentSlotId());
-
-            const feverFill = document.getElementById("feverBarFill");
-            if (feverFill) feverFill.style.width = `${Math.min(100, Math.max(0, state.feverVal || 0))}%`;
-
-            const equippedPets = (state.pets || []).filter(p => p.equipped);
-            set("equippedCountText", `${equippedPets.length}/${state.maxEquippedPets || 4}`);
-            const strip = document.getElementById("equippedPetsStrip");
-            if (strip) {
-                strip.innerHTML = equippedPets.length
-                    ? equippedPets.map(p => `<span class="bg-slate-900 border border-purple-400/30 text-[10px] font-bold text-purple-200 px-2 py-1 rounded-lg shrink-0">${PET_SPECIES[p.speciesKey]?.name || p.speciesKey}</span>`).join("")
-                    : `<span class="text-xs text-slate-400 italic px-2">No pets equipped</span>`;
-            }
-
+            updateHudFast();
+            updateAutomationButtons();
             renderHeroDuckSvg();
             renderMiniLeaderboard();
+
+            const w = WORLDS_DATA.find(x => x.id === state.currentWorld) || WORLDS_DATA[0];
+            const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+            setTxt("headerWorldBadge", `W${w.id}: ${w.name}`);
+            setTxt("headerRankBadge", isCurrentUserVerifiedAdmin() ? "KING OF RAINBOWS" : state.rebirths >= 10 ? "QUACK EMPEROR" : "COMMANDER");
+            setTxt("currentWorldTitle", w.name);
+            setTxt("currentWorldDesc", w.desc);
+            setTxt("worldProgressText", `${w.id} / ${isCurrentUserVerifiedAdmin() ? 21 : 20}`);
+            setTxt("unlockedWorldCountLabel", isCurrentUserVerifiedAdmin() ? "21" : "20");
+
+            const bg = document.getElementById("worldBackdropSvg");
+            if (bg) bg.style.background = `radial-gradient(circle at 50% 45%, ${w.bg}, transparent 75%)`;
+
+            // Core upgrades
+            setTxt("lvlClick", `Lv.${state.upgrades.clickPower || 1}`);
+            setTxt("costClick", formatNumber(getUpgradeCost("clickPower")));
+            setTxt("lvlAuto", `Lv.${state.upgrades.autoSpeed || 0}`);
+            setTxt("costAuto", formatNumber(getUpgradeCost("autoSpeed")));
+            setTxt("lvlCrit", `Lv.${state.upgrades.critChance || 0}`);
+            setTxt("costCrit", formatNumber(getUpgradeCost("critChance")));
+
+            // Equipped pets strip
+            setTxt("equippedCountText", `${state.equippedPetIds.length}/${getMaxPetSlots()}`);
+            const strip = document.getElementById("equippedPetsStrip");
+            if (strip) {
+                if (state.equippedPetIds.length === 0) {
+                    strip.innerHTML = `<span class="text-xs text-slate-400 italic px-2">No pets equipped</span>`;
+                } else {
+                    strip.innerHTML = state.equippedPetIds.map(uid => {
+                        const p = state.pets.find(x => x.uid === uid);
+                        const sp = p ? PET_SPECIES.find(s => s.id === p.speciesId) : null;
+                        return sp ? `<span class="bg-slate-900 border border-purple-400/40 px-2.5 py-1 rounded-xl text-[11px] font-extrabold text-purple-200 shrink-0">${sp.name}</span>` : "";
+                    }).join("");
+                }
+            }
+
+            // Orbiting pet badges
+            const orbitBox = document.getElementById("orbitingPetsContainer");
+            if (orbitBox) {
+                orbitBox.innerHTML = state.equippedPetIds.map((uid, idx) => {
+                    const p = state.pets.find(x => x.uid === uid);
+                    const sp = p ? PET_SPECIES.find(s => s.id === p.speciesId) : null;
+                    if (!sp) return "";
+                    const ang = (idx / Math.max(1, state.equippedPetIds.length)) * Math.PI * 2;
+                    const left = 50 + Math.cos(ang) * 44;
+                    const top = 50 + Math.sin(ang) * 44;
+                    return `<div class="orbit-pet-badge absolute w-9 h-9 rounded-full border-2 border-slate-950 shadow-lg flex items-center justify-center text-xs font-black text-slate-950" style="left:${left}%; top:${top}%; background:${sp.color};">🦆</div>`;
+                }).join("");
+            }
+
+            // Worlds Grid
+            const wGrid = document.getElementById("worldsGrid");
+            if (wGrid) {
+                const visibleWorlds = WORLDS_DATA.filter(item => !item.adminOnly || isCurrentUserVerifiedAdmin());
+                wGrid.innerHTML = visibleWorlds.map(item => {
+                    const unlocked = state.unlockedWorlds.includes(item.id);
+                    const active = state.currentWorld === item.id;
+                    return `
+                        <div class="${item.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-950/80 border border-white/10"} rounded-2xl p-3.5 flex flex-col justify-between">
+                            <div>
+                                <div class="flex justify-between text-xs font-black">
+                                    <span class="text-sky-400">World ${item.id}</span>
+                                    <span class="text-amber-300">${formatNumber(item.mult)}x</span>
+                                </div>
+                                <div class="title-font text-base font-bold text-white mt-1">${item.name}</div>
+                                <p class="text-[11px] text-slate-400 mt-1">${item.desc}</p>
+                            </div>
+                            <button type="button" onclick="selectOrUnlockWorld(${item.id})" class="arcade-btn mt-3 w-full py-2 rounded-xl text-xs font-extrabold ${active ? "bg-emerald-600 text-white" : unlocked ? "bg-sky-600 text-white" : "bg-amber-500 text-slate-950"}">
+                                ${active ? "Current Realm" : unlocked ? "Travel" : `Unlock (${formatNumber(item.cost)})`}
+                            </button>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            // All Upgrades Modal Grid
+            const uGrid = document.getElementById("allUpgradesGrid");
+            if (uGrid) {
+                uGrid.innerHTML = UPGRADES_DATA.map(u => {
+                    const lvl = state.upgrades[u.id] || 0;
+                    return `
+                        <div class="bg-slate-950/80 border border-white/10 rounded-2xl p-3.5 flex items-center justify-between gap-2">
+                            <div>
+                                <div class="text-sm font-extrabold text-white">${u.name} <span class="text-amber-300">Lv.${lvl}</span></div>
+                                <div class="text-xs text-slate-400">${u.desc}</div>
+                            </div>
+                            <button type="button" onclick="buyUpgrade('${u.id}')" class="arcade-btn bg-amber-500 text-slate-950 px-3 py-2 rounded-xl text-xs font-black shrink-0">${formatNumber(getUpgradeCost(u.id))}</button>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            // Eggs Grid
+            const eGrid = document.getElementById("eggsGrid");
+            if (eGrid) {
+                eGrid.innerHTML = EGGS_DATA.map(e => `
+                    <div class="bg-slate-950/80 border border-amber-400/25 rounded-2xl p-4 text-center flex flex-col justify-between">
+                        <div>
+                            <div class="text-3xl mb-1">🥚</div>
+                            <div class="title-font text-base font-bold text-amber-300">${e.name}</div>
+                            <div class="text-[11px] text-slate-400 mt-1">Contains ${e.pool.length} species</div>
+                        </div>
+                        <button type="button" onclick="hatchEgg('${e.id}')" class="arcade-btn mt-3 w-full py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-black">
+                            Hatch (${formatNumber(e.cost)} ${e.currency})
+                        </button>
+                    </div>
+                `).join("");
+            }
+
+            // Pets Grid
+            const pGrid = document.getElementById("petsGrid");
+            if (pGrid) {
+                pGrid.innerHTML = state.pets.slice(-60).reverse().map(p => {
+                    const sp = PET_SPECIES.find(s => s.id === p.speciesId) || PET_SPECIES[0];
+                    const tr = PET_TIERS.find(t => t.tier === p.tier) || PET_TIERS[0];
+                    const eq = state.equippedPetIds.includes(p.uid);
+                    return `
+                        <button type="button" onclick="toggleEquipPet('${p.uid}')" class="arcade-btn rarity-${sp.rarity.toLowerCase()} border rounded-2xl p-3 text-left flex flex-col justify-between ${eq ? "ring-2 ring-emerald-400" : ""}">
+                            <div class="flex justify-between items-center">
+                                <span class="text-[9px] font-black px-1.5 py-0.5 rounded ${tr.badge}">${tr.name}</span>
+                                ${eq ? `<span class="text-[9px] font-black text-emerald-300">EQUIPPED</span>` : ""}
+                            </div>
+                            <div class="text-xs font-extrabold text-white mt-2">${sp.name}</div>
+                            <div class="text-[11px] font-black text-amber-300">${formatNumber(sp.baseMult * tr.mult)}x</div>
+                        </button>
+                    `;
+                }).join("");
+            }
+
+            // Wardrobe Grids
+            const renderWardrobeSection = (gridId, list, unlockedKey, equippedKey, cat) => {
+                const el = document.getElementById(gridId);
+                if (!el) return;
+                el.innerHTML = list.filter(x => !x.adminOnly || isCurrentUserVerifiedAdmin()).map(item => {
+                    const owned = state[unlockedKey].includes(item.id);
+                    const eq = state[equippedKey] === item.id;
+                    return `
+                        <button type="button" onclick="selectWardrobeItem('${cat}', '${item.id}')" class="arcade-btn ${item.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-950/85 border border-white/10"} rounded-2xl p-3 text-left">
+                            <div class="text-xs font-extrabold text-white">${item.name}</div>
+                            ${item.mult ? `<div class="text-[10px] font-bold text-amber-300">${item.mult}x Power</div>` : ""}
+                            <div class="mt-2 text-[10px] font-black ${eq ? "text-emerald-400" : owned ? "text-sky-300" : "text-amber-300"}">
+                                ${eq ? "EQUIPPED" : owned ? "EQUIP" : `${formatNumber(item.cost)} Gems`}
+                            </div>
+                        </button>
+                    `;
+                }).join("");
+            };
+            renderWardrobeSection("skinsGrid", SKINS_DATA, "unlockedSkins", "equippedSkin", "skin");
+            renderWardrobeSection("aurasGrid", AURAS_DATA, "unlockedAuras", "equippedAura", "aura");
+            renderWardrobeSection("hatsGrid", HATS_DATA, "unlockedHats", "equippedHat", "hat");
+            renderWardrobeSection("shadesGrid", SHADES_DATA, "unlockedShades", "equippedShades", "shades");
+            renderWardrobeSection("voicesGrid", VOICES_DATA, "unlockedVoices", "equippedVoice", "voice");
+
+            // Rebirth & Void Forge
+            setTxt("modalRebirthCount", formatNumber(state.rebirths));
+            setTxt("modalTranscendCount", formatNumber(state.transcendenceCount));
+            setTxt("rebirthCostText", formatNumber(getRebirthCost()));
+            const rpGrid = document.getElementById("rpShopGrid");
+            if (rpGrid) {
+                rpGrid.innerHTML = RP_UPGRADES_DATA.map(u => {
+                    const lvl = state.rpUpgrades[u.id] || 0;
+                    return `<button type="button" onclick="buyRpUpgrade('${u.id}')" class="arcade-btn bg-slate-950/80 border border-cyan-400/25 rounded-2xl p-3 text-left flex justify-between items-center"><div><div class="text-xs font-extrabold text-white">${u.name} Lv.${lvl}</div><div class="text-[10px] text-slate-400">${u.desc}</div></div><span class="text-xs font-black text-cyan-300">${u.baseCost * (lvl + 1)} RP</span></button>`;
+                }).join("");
+            }
+            const vfGrid = document.getElementById("voidForgeGrid");
+            if (vfGrid) {
+                vfGrid.innerHTML = VOID_UPGRADES_DATA.map(u => {
+                    const lvl = state.voidUpgrades[u.id] || 0;
+                    return `<button type="button" onclick="buyVoidUpgrade('${u.id}')" class="arcade-btn bg-slate-950/80 border border-purple-400/25 rounded-2xl p-3 text-left flex justify-between items-center"><div><div class="text-xs font-extrabold text-white">${u.name} Lv.${lvl}</div><div class="text-[10px] text-slate-400">${u.desc}</div></div><span class="text-xs font-black text-purple-300">${u.baseCost * (lvl + 1)} Shards</span></button>`;
+                }).join("");
+            }
+
+            // Skills, Alchemy, Dig, Mastery, Cards, Season Pass
+            const skGrid = document.getElementById("skillsGrid");
+            if (skGrid) {
+                skGrid.innerHTML = SKILLS_DATA.map(s => {
+                    const lvl = state.skills[s.id] || 0;
+                    return `<button type="button" onclick="buySkillNode('${s.id}')" class="arcade-btn bg-slate-950/80 border border-yellow-400/25 rounded-2xl p-3 text-left flex justify-between items-center"><div><div class="text-xs font-extrabold text-white">${s.name} Lv.${lvl}</div><div class="text-[10px] text-slate-400">${s.desc}</div></div><span class="text-xs font-black text-yellow-300">${s.cost * (lvl + 1)} Feathers</span></button>`;
+                }).join("");
+            }
+            const alGrid = document.getElementById("alchemyGrid");
+            if (alGrid) {
+                alGrid.innerHTML = POTIONS_DATA.map(p => `<button type="button" onclick="brewPotion('${p.id}')" class="arcade-btn bg-slate-950/80 border border-fuchsia-400/25 rounded-2xl p-3 text-left flex justify-between items-center"><div><div class="text-xs font-extrabold text-white">${p.name}</div><div class="text-[10px] text-slate-400">${p.desc}</div></div><span class="text-xs font-black text-emerald-300">${p.cost} Gems</span></button>`).join("");
+            }
+            setTxt("digDepthText", formatNumber(state.digDepth));
+            const relGrid = document.getElementById("relicsGrid");
+            if (relGrid) {
+                relGrid.innerHTML = RELICS_DATA.map(r => {
+                    const has = state.unlockedRelics.includes(r.id);
+                    return `<div class="bg-slate-950/80 border ${has ? "border-amber-400/50" : "border-white/10"} rounded-2xl p-3"><div class="text-xs font-extrabold text-white">${r.name}</div><div class="text-[11px] font-bold ${has ? "text-emerald-400" : "text-slate-500"}">${has ? `Active (${r.mult}x)` : "Locked"}</div></div>`;
+                }).join("");
+            }
+            const mGrid = document.getElementById("masteryGrid");
+            if (mGrid) {
+                mGrid.innerHTML = MASTERIES_DATA.map(m => `<div class="bg-slate-950/80 border border-emerald-400/25 rounded-2xl p-3"><div class="text-xs font-extrabold text-white">${m.name} — Rank ${state.masteryLevels[m.id] || 1}</div><div class="text-[10px] text-slate-400 mt-1">${m.desc}</div></div>`).join("");
+            }
+            const cGrid = document.getElementById("cardsGrid");
+            if (cGrid) {
+                cGrid.innerHTML = CARDS_DATA.map(c => {
+                    const has = state.collectedCards.includes(c.id);
+                    return `<div class="bg-slate-950/80 border ${has ? "border-violet-400/50" : "border-white/10"} rounded-2xl p-3 text-center"><div class="text-xs font-extrabold text-white">${c.name}</div><div class="text-[10px] text-amber-300 mt-1">${has ? `${c.mult}x Owned` : "Uncollected"}</div></div>`;
+                }).join("");
+            }
+            const monGrid = document.getElementById("monumentsGrid");
+            if (monGrid) {
+                monGrid.innerHTML = MONUMENTS_DATA.map(m => {
+                    const built = state.builtMonuments.includes(m.id);
+                    return `<button type="button" onclick="buildMonument('${m.id}')" class="arcade-btn bg-slate-950/80 border border-amber-400/25 rounded-2xl p-3 text-left flex justify-between items-center"><div><div class="text-xs font-extrabold text-white">${m.name}</div><div class="text-[10px] text-slate-400">${m.mult}x Multiplier</div></div><span class="text-xs font-black text-emerald-300">${built ? "BUILT" : `${m.cost} Gems`}</span></button>`;
+                }).join("");
+            }
+            const unlockedTier = Math.min(50, Math.max(1, Math.floor(state.passXp / 100) + 1));
+            setTxt("passXpText", formatNumber(state.passXp));
+            setTxt("passTierText", `${unlockedTier} / 50`);
+            const spGrid = document.getElementById("seasonPassGrid");
+            if (spGrid) {
+                let html = "";
+                for (let t = 1; t <= 50; t++) {
+                    const claimed = state.claimedPassTiers.includes(t);
+                    const ready = state.passXp >= t * 100;
+                    html += `<button type="button" onclick="claimSeasonTier(${t})" class="arcade-btn bg-slate-950/80 border ${claimed ? "border-emerald-400/50" : ready ? "border-amber-400" : "border-white/10"} rounded-xl p-2.5 text-center"><div class="text-[10px] font-black text-slate-400">Tier ${t}</div><div class="text-xs font-extrabold text-amber-300 mt-1">+${t * 25} Gems</div><div class="text-[9px] font-black mt-1 ${claimed ? "text-emerald-400" : ready ? "text-amber-300" : "text-slate-500"}">${claimed ? "CLAIMED" : ready ? "CLAIM" : `${t * 100} XP`}</div></button>`;
+                }
+                spGrid.innerHTML = html;
+            }
         }
 
-        // 100ms Main Game Loop
+        /* =========================================================================
+           13. LASER CANVAS & 100MS MAIN SIMULATION LOOP
+           ========================================================================= */
+        function renderLaserCanvas() {
+            const canvas = document.getElementById("petLaserCanvas");
+            if (!canvas) return;
+            if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+                canvas.width = canvas.clientWidth;
+                canvas.height = canvas.clientHeight;
+            }
+            const ctx = canvas.getContext("2d");
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (activeLaserBeams.length === 0 || state.equippedPetIds.length === 0) return;
+
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            for (let i = activeLaserBeams.length - 1; i >= 0; i--) {
+                const beam = activeLaserBeams[i];
+                ctx.strokeStyle = beam.color;
+                ctx.globalAlpha = beam.alpha;
+                ctx.lineWidth = 3;
+                state.equippedPetIds.forEach((_, idx) => {
+                    const ang = (idx / state.equippedPetIds.length) * Math.PI * 2;
+                    const px = cx + Math.cos(ang) * 115;
+                    const py = cy + Math.sin(ang) * 115;
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(cx, cy);
+                    ctx.stroke();
+                });
+                beam.alpha -= 0.12;
+                if (beam.alpha <= 0) activeLaserBeams.splice(i, 1);
+            }
+            ctx.globalAlpha = 1;
+        }
+
         setInterval(() => {
-            const qpsGain = getQuacksPerSec() / 10;
-            if (qpsGain > 0) {
-                state.quacks = sanitizeNum(state.quacks + qpsGain, 0);
-                state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + qpsGain, 0);
+            // Passive Quacks/sec
+            const qps = getQuacksPerSec();
+            if (qps > 0) {
+                const tickGain = qps / 10;
+                state.quacks += tickGain;
+                state.lifetimeQuacks += tickGain;
             }
 
+            // Automation triggers
             if (state.autoClickerOn) {
-                const tapGain = getQuacksPerClick();
-                state.quacks = sanitizeNum(state.quacks + tapGain, 0);
-                state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + tapGain, 0);
+                window.onDuckClick(null, true);
             }
-
-            if (state.autoRebirthOn) {
-                const rebCost = sanitizeNum(100000 * Math.pow(3, sanitizeNum(state.rebirths, 0)), 100000);
-                if (state.quacks >= rebCost) performRebirth();
+            if (state.autoRebirthOn && state.quacks >= getRebirthCost()) {
+                performRebirth(true);
             }
-
             if (state.autoHatchOn) {
                 const affordable = [...EGGS_DATA].reverse().find(e => e.currency === "quacks" && state.quacks >= e.cost);
-                if (affordable) hatchEgg(affordable.id);
+                if (affordable) hatchEgg(affordable.id, true);
             }
 
-            if (comboDecayMs > 0) {
-                comboDecayMs -= 100;
-                if (comboDecayMs <= 0) comboCount = 0;
+            // Combo & Fever decay
+            if (comboDecayTimer > 0) {
+                comboDecayTimer -= 100;
+            } else if (comboCount > 1.0) {
+                comboCount = Math.max(1.0, +(comboCount - 0.1).toFixed(2));
+            }
+            if (feverActiveTimer > 0) {
+                feverActiveTimer = Math.max(0, feverActiveTimer - 100);
+                if (feverActiveTimer === 0) feverCharge = 0;
+            }
+            if (activeWeather.timer > 0) {
+                activeWeather.timer = Math.max(0, activeWeather.timer - 100);
+                if (activeWeather.timer === 0) {
+                    activeWeather = { name: "Clear Skies", icon: "☀️", mult: 1, timer: 0 };
+                }
             }
 
-            if (state.isFeverActive) {
-                state.feverVal = Math.max(0, (state.feverVal || 0) - 1.2);
-                if (state.feverVal <= 0) state.isFeverActive = false;
-            }
+            const wPill = document.getElementById("weatherStatusPill");
+            if (wPill) wPill.textContent = `${activeWeather.icon} ${activeWeather.name} (${activeWeather.mult}x)`;
 
-            renderAll();
+            renderLaserCanvas();
+            updateHudFast();
         }, 100);
 
-        // Auto-save & Leaderboard Sync every 8 seconds
         setInterval(() => {
             saveGame();
-            syncLeaderboardScore(false);
-        }, 8000);
+            window.syncLeaderboardScore(false);
+        }, 3000);
 
-        window.addEventListener("load", () => {
+        window.addEventListener("DOMContentLoaded", () => {
             loadGame();
+            ensureAdminLeaderboardSeed();
+            updateAdminUiState();
             renderAll();
-            syncLeaderboardScore(false);
+            window.syncLeaderboardScore(false);
         });
     </script>
 </body>
