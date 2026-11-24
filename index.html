@@ -1061,7 +1061,7 @@
            ========================================================================= */
         const ADMIN_OWNER_NAME = "RainbowLord16";
         const ADMIN_SALT = "DQ_ULTIMATE_SALT_2026_";
-        const ADMIN_SHA256_HEX = "e2c52c0142ab526c71b1b598a472a765be9c09d622aa80222846644462520e35";
+        const ADMIN_SHA256_HEX = "439a5850c3f739a811a26c92cb8a629880f685a27d9cf535069b2f5920233a51";
         let isAdminAuthenticated = false;
         let lastHandledAdminEventId = localStorage.getItem("dqLastAdminEventId") || "";
 
@@ -2579,6 +2579,24 @@
                     const parsed = JSON.parse(raw);
                     state = { ...createFreshDefaultState(), ...parsed };
                 }
+                // Normalize array fields in case an older save stored objects/nulls
+                const arrayKeys = [
+                    "unlockedWorlds", "pets", "equippedPetIds",
+                    "unlockedSkins", "unlockedAuras", "unlockedHats",
+                    "unlockedShades", "unlockedVoices", "unlockedRelics",
+                    "collectedCards", "builtMonuments", "claimedPassTiers", "redeemedCodes"
+                ];
+                arrayKeys.forEach(k => {
+                    if (!Array.isArray(state[k])) {
+                        state[k] = state[k] && typeof state[k] === "object" ? Object.keys(state[k]).map(v => isNaN(v) ? v : Number(v)) : [];
+                    }
+                });
+                if (!state.unlockedWorlds.includes(1)) state.unlockedWorlds.push(1);
+                if (!state.unlockedSkins.includes("classic")) state.unlockedSkins.push("classic");
+                if (!state.unlockedAuras.includes("none")) state.unlockedAuras.push("none");
+                if (!state.unlockedHats.includes("none")) state.unlockedHats.push("none");
+                if (!state.unlockedShades.includes("none")) state.unlockedShades.push("none");
+                if (!state.unlockedVoices.includes("classic")) state.unlockedVoices.push("classic");
                 enforceAdminSecurity();
             } catch (e) {}
         }
