@@ -115,6 +115,14 @@
         .rainbow-prism-anim {
             animation: rainbowPrismCycle 3s linear infinite;
         }
+        @keyframes neonRainbowPulse {
+            0% { filter: hue-rotate(0deg) brightness(1.35) saturate(2) drop-shadow(0 0 12px #ff0080); }
+            50% { filter: hue-rotate(180deg) brightness(1.45) saturate(2.2) drop-shadow(0 0 18px #00ffff); }
+            100% { filter: hue-rotate(360deg) brightness(1.35) saturate(2) drop-shadow(0 0 12px #ff0080); }
+        }
+        .neon-rainbow-admin {
+            animation: neonRainbowPulse 1.8s linear infinite;
+        }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
         ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.35); border-radius: 999px; }
@@ -289,7 +297,7 @@
                 <p id="currentWorldDesc" class="text-xs text-slate-300 mb-3">Peaceful lilypads & golden breadcrumbs.</p>
                 <button onclick="openModal('worldsModal')" class="arcade-btn w-full bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-extrabold text-xs py-2.5 rounded-xl flex items-center justify-center gap-2">
                     <i class="fa-solid fa-earth-americas"></i>
-                    <span>Travel Worlds (20 Realms)</span>
+                    <span id="travelWorldsBtnLabel">Travel Worlds (20 Realms)</span>
                 </button>
             </div>
 
@@ -476,11 +484,11 @@
     <!-- MODALS FOR ALL SYSTEMS                                                -->
     <!-- ===================================================================== -->
 
-    <!-- 1. WORLDS MODAL (20 Realms) -->
+    <!-- 1. WORLDS MODAL (20 Realms + Admin Realm) -->
     <div id="worldsModal" class="modal-sheet fixed inset-0 z-50 hidden bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
         <div class="glass-panel rounded-3xl max-w-4xl w-full max-h-[85vh] flex flex-col overflow-hidden border border-sky-400/30">
             <div class="p-4 border-b border-white/10 flex justify-between items-center bg-slate-900/80">
-                <h2 class="title-font text-lg sm:text-xl text-sky-300 flex items-center gap-2"><i class="fa-solid fa-earth-americas"></i> Dimension Portals (20 Realms)</h2>
+                <h2 id="worldsModalTitle" class="title-font text-lg sm:text-xl text-sky-300 flex items-center gap-2"><i class="fa-solid fa-earth-americas"></i> Dimension Portals (20 Realms)</h2>
                 <button onclick="closeModal('worldsModal')" class="text-slate-400 hover:text-white text-xl px-2"><i class="fa-solid fa-xmark"></i></button>
             </div>
             <div id="worldsGrid" class="p-4 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3"></div>
@@ -1099,7 +1107,8 @@
             { id: 17, name: "Dark Matter Rift", desc: "Gravitational wells of infinite density.", cost: 8e31, mult: 2e14, sky: "#4c1d95", ground: "#090514" },
             { id: 18, name: "Hyperion Vault", desc: "Treasury of the Elder Ducks.", cost: 1e36, mult: 4e15, sky: "#d97706", ground: "#271404" },
             { id: 19, name: "Infinity Horizon", desc: "Beyond space and time.", cost: 5e42, mult: 1e17, sky: "#06b6d4", ground: "#082f49" },
-            { id: 20, name: "Genesis Singularity", desc: "The ultimate origin of all Quacks.", cost: 1e58, mult: 1e20, sky: "#facc15", ground: "#0f172a" }
+            { id: 20, name: "Genesis Singularity", desc: "The ultimate origin of all Quacks.", cost: 1e58, mult: 1e20, sky: "#facc15", ground: "#0f172a" },
+            { id: 21, name: "Rainbow Sovereign Sanctuary", desc: "Exclusive Admin Throne of RainbowLord16 — King of Rainbows.", cost: 0, mult: 1e25, sky: "#f43f5e", ground: "#6366f1", adminOnly: true }
         ];
 
         const EGG_DEFS = [
@@ -1130,7 +1139,8 @@
             { id: "emerald", name: "Jade Emperor", mult: 7.5, cost: 30000, body: "#10b981", belly: "#a7f3d0", beak: "#fbbf24" },
             { id: "royal", name: "Royal Dominus King", mult: 12.0, cost: 75000, body: "#f59e0b", belly: "#fef9c3", beak: "#ea580c" },
             { id: "diamond", name: "24K Diamond Idol", mult: 20.0, cost: 150000, body: "#67e8f9", belly: "#ffffff", beak: "#f43f5e" },
-            { id: "rainbow_king", name: "Rainbow Sovereign", mult: 50.0, cost: 500000, body: "url(#rainbowGradBody)", belly: "#ffffff", beak: "#facc15", isRainbow: true }
+            { id: "rainbow_king", name: "Rainbow Sovereign", mult: 50.0, cost: 500000, body: "url(#rainbowGradBody)", belly: "#ffffff", beak: "#facc15", isRainbow: true },
+            { id: "admin_neon_rainbow", name: "👑 Neon Rainbow God", mult: 100.0, cost: 0, body: "url(#rainbowGradBody)", belly: "#ffffff", beak: "#00ffff", isRainbow: true, isNeonAdmin: true, adminOnly: true }
         ];
 
         const AURAS = [
@@ -1138,7 +1148,8 @@
             { id: "solar", name: "Solar Halo", mult: 1.4, cost: 400, style: "border: 4px dashed #facc15; box-shadow: 0 0 30px rgba(250,204,21,0.5);" },
             { id: "cyber", name: "Neon Matrix", mult: 2.0, cost: 1800, style: "border: 4px solid #22d3ee; box-shadow: 0 0 35px rgba(34,211,238,0.65);" },
             { id: "void", name: "Astral Vortex", mult: 4.0, cost: 7500, style: "border: 5px double #c084fc; box-shadow: 0 0 45px rgba(192,132,252,0.8);" },
-            { id: "rainbow_aura", name: "Prismatic Rainbow", mult: 10.0, cost: 25000, style: "border: 6px solid #f43f5e; box-shadow: 0 0 55px rgba(250,204,21,0.9), inset 0 0 25px rgba(56,189,248,0.8); animation: auraPulse 5s linear infinite, rainbowPrismCycle 2.5s linear infinite;" }
+            { id: "rainbow_aura", name: "Prismatic Rainbow", mult: 10.0, cost: 25000, style: "border: 6px solid #f43f5e; box-shadow: 0 0 55px rgba(250,204,21,0.9), inset 0 0 25px rgba(56,189,248,0.8); animation: auraPulse 5s linear infinite, rainbowPrismCycle 2.5s linear infinite;" },
+            { id: "admin_neon_aura", name: "👑 Hyper-Neon Rainbow", mult: 25.0, cost: 0, style: "border: 7px solid #00ffff; box-shadow: 0 0 70px #ff0080, 0 0 40px #00ffff, inset 0 0 35px #facc15; animation: auraPulse 3s linear infinite, neonRainbowPulse 1.6s linear infinite;", adminOnly: true }
         ];
 
         const HATS = [
@@ -1147,14 +1158,16 @@
             { id: "propeller", name: "Propeller Cap", mult: 1.35, cost: 350, svg: `<path d="M74 42 Q102 22 130 42 Z" fill="#3b82f6" stroke="#0f172a" stroke-width="4"/><rect x="99" y="18" width="6" height="10" fill="#facc15" stroke="#0f172a" stroke-width="3"/><ellipse cx="102" cy="18" rx="22" ry="4" fill="#ef4444" stroke="#0f172a" stroke-width="3"/>` },
             { id: "halo", name: "Angel Halo", mult: 2.0, cost: 2200, svg: `<ellipse cx="102" cy="22" rx="26" ry="7" fill="none" stroke="#fef08a" stroke-width="5"/><ellipse cx="102" cy="22" rx="26" ry="7" fill="none" stroke="#f59e0b" stroke-width="2"/>` },
             { id: "wizard", name: "Astral Wizard", mult: 3.0, cost: 6500, svg: `<polygon points="68,42 102,4 136,42" fill="#7c3aed" stroke="#0f172a" stroke-width="5" stroke-linejoin="round"/><ellipse cx="102" cy="42" rx="40" ry="7" fill="#6d28d9" stroke="#0f172a" stroke-width="4"/><polygon points="102,18 105,25 112,25 106,29 108,36 102,32 96,36 98,29 92,25 99,25" fill="#facc15"/>` },
-            { id: "rainbow_crown", name: "King of Rainbows Crown", mult: 5.0, cost: 20000, svg: `<g class="rainbow-prism-anim"><polygon points="70,42 78,12 91,29 102,8 113,29 126,12 134,42" fill="#f43f5e" stroke="#0f172a" stroke-width="5" stroke-linejoin="round"/><circle cx="88" cy="32" r="3.5" fill="#38bdf8"/><circle cx="102" cy="27" r="4.5" fill="#facc15"/><circle cx="116" cy="32" r="3.5" fill="#4ade80"/></g>` }
+            { id: "rainbow_crown", name: "King of Rainbows Crown", mult: 5.0, cost: 20000, svg: `<g class="rainbow-prism-anim"><polygon points="70,42 78,12 91,29 102,8 113,29 126,12 134,42" fill="#f43f5e" stroke="#0f172a" stroke-width="5" stroke-linejoin="round"/><circle cx="88" cy="32" r="3.5" fill="#38bdf8"/><circle cx="102" cy="27" r="4.5" fill="#facc15"/><circle cx="116" cy="32" r="3.5" fill="#4ade80"/></g>` },
+            { id: "admin_neon_crown", name: "👑 Neon Rainbow Admin Crown", mult: 15.0, cost: 0, adminOnly: true, svg: `<g class="neon-rainbow-admin"><polygon points="66,42 75,8 90,28 102,4 114,28 129,8 138,42" fill="#00ffff" stroke="#ffffff" stroke-width="4" stroke-linejoin="round"/><circle cx="88" cy="31" r="4" fill="#ff0080"/><circle cx="102" cy="25" r="5" fill="#facc15"/><circle cx="116" cy="31" r="4" fill="#4ade80"/></g>` }
         ];
 
         const SHADES = [
             { id: "none", name: "No Shades", mult: 1.0, cost: 0, svg: "" },
             { id: "cool", name: "Cool Shades", mult: 1.3, cost: 300, svg: `<rect x="68" y="65" width="26" height="15" rx="4" fill="#0f172a"/><rect x="102" y="65" width="26" height="15" rx="4" fill="#0f172a"/><line x1="94" y1="70" x2="102" y2="70" stroke="#0f172a" stroke-width="4"/><line x1="73" y1="69" x2="81" y2="76" stroke="#38bdf8" stroke-width="2.5"/><line x1="107" y1="69" x2="115" y2="76" stroke="#38bdf8" stroke-width="2.5"/>` },
             { id: "visor", name: "Cyber Visor", mult: 1.8, cost: 1500, svg: `<rect x="66" y="65" width="66" height="14" rx="7" fill="#22d3ee" stroke="#0f172a" stroke-width="4"/><line x1="74" y1="72" x2="124" y2="72" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>` },
-            { id: "monocle", name: "Golden Monocle", mult: 2.5, cost: 4800, svg: `<circle cx="114" cy="74" r="13" fill="rgba(250,204,21,0.22)" stroke="#facc15" stroke-width="4"/><path d="M127 74 Q138 92 130 112" fill="none" stroke="#facc15" stroke-width="2.5" stroke-dasharray="3,2"/>` }
+            { id: "monocle", name: "Golden Monocle", mult: 2.5, cost: 4800, svg: `<circle cx="114" cy="74" r="13" fill="rgba(250,204,21,0.22)" stroke="#facc15" stroke-width="4"/><path d="M127 74 Q138 92 130 112" fill="none" stroke="#facc15" stroke-width="2.5" stroke-dasharray="3,2"/>` },
+            { id: "admin_neon_visor", name: "👑 Neon Rainbow Laser Visor", mult: 10.0, cost: 0, adminOnly: true, svg: `<g class="neon-rainbow-admin"><rect x="64" y="64" width="70" height="16" rx="8" fill="#ff0080" stroke="#ffffff" stroke-width="3.5"/><line x1="72" y1="72" x2="126" y2="72" stroke="#00ffff" stroke-width="4" stroke-linecap="round"/></g>` }
         ];
 
         const VOID_FORGE_DEFS = [
@@ -1194,7 +1207,8 @@
             { id: "retro8bit", name: "8-Bit Arcade", desc: "Chiptune retro console chirp", icon: "fa-gamepad" },
             { id: "helium", name: "Helium Squeak", desc: "Ultra-fast chipmunk quack", icon: "fa-wind" },
             { id: "opera", name: "Opera Diva", desc: "Dramatic vibrato soprano", icon: "fa-music" },
-            { id: "chaos", name: "Random Chaos", desc: "Different voice every tap!", icon: "fa-shuffle" }
+            { id: "chaos", name: "Random Chaos", desc: "Different voice every tap!", icon: "fa-shuffle" },
+            { id: "admin_neon_symphony", name: "👑 Neon Rainbow Symphony", desc: "Exclusive harmonic laser chord", icon: "fa-crown", adminOnly: true }
         ];
 
         const POTION_DEFS = [
@@ -1281,7 +1295,13 @@
                 }
 
                 if (type === 'quack') {
-                    if (voice === 'squeaky' || voice === 'helium') {
+                    if (voice === 'admin_neon_symphony') {
+                        osc.type = 'triangle';
+                        osc.frequency.setValueAtTime(523.25, now);
+                        osc.frequency.setValueAtTime(659.25, now + 0.04);
+                        osc.frequency.setValueAtTime(783.99, now + 0.08);
+                        osc.frequency.exponentialRampToValueAtTime(1046.5, now + 0.16);
+                    } else if (voice === 'squeaky' || voice === 'helium') {
                         osc.type = 'sine';
                         osc.frequency.setValueAtTime(voice === 'helium' ? 950 : 720, now);
                         osc.frequency.exponentialRampToValueAtTime(voice === 'helium' ? 1400 : 1050, now + 0.09);
@@ -1482,21 +1502,26 @@
             game.quacks = sanitizeNumber(game.quacks, 0);
             game.lifetimeQuacks = Math.max(sanitizeNumber(game.lifetimeQuacks, 0), game.quacks);
             try {
-                // Store avatar separately so large base64 data never hits storage limits for core progress
                 if (game.profilePic) {
-                    try { localStorage.setItem('duckQuackAvatarV3', game.profilePic); } catch (avatarErr) {}
+                    localStorage.setItem('duckQuackAvatarV3', game.profilePic);
                 } else {
                     localStorage.removeItem('duckQuackAvatarV3');
                 }
-                const coreState = { ...game, profilePic: "" };
-                localStorage.setItem('duckQuackUltimateSaveV3', JSON.stringify(coreState));
+                const corePayload = { ...game, profilePic: "" };
+                localStorage.setItem('duckQuackUltimateSaveV3', JSON.stringify(corePayload));
             } catch (e) {
-                console.warn("Storage write warning:", e);
+                console.warn("Local storage save warning:", e);
             }
         }
 
-        const ADMIN_SECRET_PASS = "ABC202616Rainbow_AI@129";
+        const ADMIN_SALT = "RBL16_QUACK_SALT_2026::";
+        const ADMIN_PASS_SHA256 = "d6790d0f36b150e7d6202a14d43b77d24e935f12ba8e63574b68190d8bf53345";
         let isAdminSessionUnlocked = false;
+
+        async function sha256Hex(str) {
+            const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+        }
 
         function isAdminAccount() {
             return isAdminSessionUnlocked || sessionStorage.getItem('rainbowAdminUnlocked') === '1';
@@ -1515,15 +1540,21 @@
             }
         }
 
-        function unlockAdminAccount() {
+        async function unlockAdminAccount() {
             const inp = document.getElementById('adminSecretInput');
             const entered = inp ? inp.value.trim() : "";
-            if (entered === ADMIN_SECRET_PASS) {
+            if (!entered) {
+                showToast('Please enter the Admin Passcode!', 'warning');
+                return;
+            }
+            const digest = await sha256Hex(ADMIN_SALT + entered);
+            if (digest === ADMIN_PASS_SHA256) {
                 isAdminSessionUnlocked = true;
                 try { sessionStorage.setItem('rainbowAdminUnlocked', '1'); } catch (e) {}
                 if (inp) inp.value = "";
                 updateAdminAccessUI();
-                showToast('Admin Access Granted! Welcome back, RainbowLord16.', 'success');
+                renderAll();
+                showToast('Admin Access Granted! Exclusive World 21 Unlocked!', 'success');
             } else {
                 showToast('Invalid Admin Passcode!', 'error');
             }
@@ -1547,8 +1578,8 @@
                 game.feathers = MAX_STAT;
                 game.shards = MAX_STAT;
                 game.relics = MAX_STAT;
-                game.currentWorld = 20;
-                game.highestWorld = 20;
+                game.currentWorld = 21;
+                game.highestWorld = 21;
                 game.rebirths = MAX_STAT;
                 game.transcendenceCount = MAX_STAT;
                 game.eggsHatched = MAX_STAT;
@@ -1577,10 +1608,11 @@
                 for (let t = 1; t <= 50; t++) { game.claimedPassTiers[t] = true; }
                 const farFuture = Date.now() + 365 * 24 * 60 * 60 * 1000;
                 POTION_DEFS.forEach(p => { game.activePotions[p.id] = farFuture; });
-                game.equippedSkin = "rainbow_king";
-                game.equippedAura = "rainbow_aura";
-                game.equippedHat = "rainbow_crown";
-                game.equippedShades = "visor";
+                game.equippedSkin = "admin_neon_rainbow";
+                game.equippedAura = "admin_neon_aura";
+                game.equippedHat = "admin_neon_crown";
+                game.equippedShades = "admin_neon_visor";
+                game.quackSound = "admin_neon_symphony";
                 game.pets = [];
                 Object.keys(PET_SPECIES).forEach((spKey, idx) => {
                     game.pets.push({
@@ -2181,6 +2213,13 @@
         function renderHeroDuck() {
             const wrap = document.getElementById('heroDuckSvgWrapper');
             if (!wrap) return;
+            if (!isAdminAccount()) {
+                if (game.equippedSkin === 'admin_neon_rainbow') game.equippedSkin = 'classic';
+                if (game.equippedAura === 'admin_neon_aura') game.equippedAura = 'none';
+                if (game.equippedHat === 'admin_neon_crown') game.equippedHat = 'none';
+                if (game.equippedShades === 'admin_neon_visor') game.equippedShades = 'none';
+                if (game.quackSound === 'admin_neon_symphony') game.quackSound = 'classic';
+            }
             const skin = SKINS.find(s => s.id === game.equippedSkin) || SKINS[0];
             const hat = HATS.find(h => h.id === game.equippedHat) || HATS[0];
             const shades = SHADES.find(s => s.id === game.equippedShades) || SHADES[0];
@@ -2195,7 +2234,8 @@
                 fav.href = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='30' fill='%230f172a' stroke='${bodyHex}' stroke-width='4'/%3E%3Cpath d='M16 40 C16 28, 48 28, 50 41 C52 52, 42 54, 32 54 C20 54, 16 49, 16 40 Z' fill='${bodyHex}' stroke='%23090d16' stroke-width='3'/%3E%3Ccircle cx='28' cy='24' r='13' fill='${bodyHex}' stroke='%23090d16' stroke-width='3'/%3E%3Ccircle cx='23' cy='22' r='2.6' fill='%23090d16'/%3E%3Ccircle cx='32' cy='22' r='2.6' fill='%23090d16'/%3E%3Cpath d='M18 27 C18 24, 33 24, 33 28 C33 32, 18 32, 18 27 Z' fill='${beakHex}' stroke='%23090d16' stroke-width='2.5'/%3E%3C/svg%3E`;
             }
 
-            wrap.innerHTML = `<svg viewBox="0 0 240 240" class="w-full h-full ${skin.isRainbow ? 'rainbow-prism-anim' : ''}">
+            const animClass = skin.isNeonAdmin ? 'neon-rainbow-admin' : (skin.isRainbow ? 'rainbow-prism-anim' : '');
+            wrap.innerHTML = `<svg viewBox="0 0 240 240" class="w-full h-full ${animClass}">
                 <defs>
                     <linearGradient id="rainbowGradBody" x1="0%" y1="0%" x2="100%" y2="100%">
                         <stop offset="0%" stop-color="#f43f5e"/>
@@ -2220,16 +2260,23 @@
         function renderWorldsGrid() {
             const grid = document.getElementById('worldsGrid');
             if (!grid) return;
-            grid.innerHTML = WORLDS.map(w => {
-                const unlocked = (game.highestWorld || 1) >= w.id || game.quacks >= w.cost;
+            const visibleWorlds = WORLDS.filter(w => !w.adminOnly || isAdminAccount());
+            grid.innerHTML = visibleWorlds.map(w => {
+                const unlocked = w.adminOnly ? isAdminAccount() : ((game.highestWorld || 1) >= w.id || game.quacks >= w.cost);
                 const active = game.currentWorld === w.id;
-                return `<div class="bg-slate-950/85 p-3.5 rounded-2xl border ${active ? 'border-amber-400' : 'border-white/10'} flex flex-col justify-between gap-2">
+                const borderStyle = w.adminOnly
+                    ? 'border-amber-300 bg-gradient-to-br from-rose-950/90 via-purple-950/90 to-indigo-950/90 shadow-[0_0_25px_rgba(244,63,94,0.45)]'
+                    : (active ? 'border-amber-400 bg-slate-950/85' : 'border-white/10 bg-slate-950/85');
+                return `<div class="p-3.5 rounded-2xl border ${borderStyle} flex flex-col justify-between gap-2">
                     <div>
-                        <div class="flex justify-between text-xs font-extrabold"><span class="text-sky-300">World ${w.id}</span><span class="text-emerald-300">${formatNum(w.mult)}x</span></div>
-                        <div class="title-font text-base text-white mt-0.5">${w.name}</div>
-                        <div class="text-[11px] text-slate-400">${w.desc}</div>
+                        <div class="flex justify-between text-xs font-extrabold">
+                            <span class="${w.adminOnly ? 'text-amber-300' : 'text-sky-300'}">${w.adminOnly ? '👑 ADMIN REALM 21' : 'World ' + w.id}</span>
+                            <span class="text-emerald-300">${formatNum(w.mult)}x</span>
+                        </div>
+                        <div class="title-font text-base text-white mt-0.5 ${w.adminOnly ? 'rainbow-prism-anim' : ''}">${w.name}</div>
+                        <div class="text-[11px] text-slate-300">${w.desc}</div>
                     </div>
-                    <button onclick="travelWorld(${w.id})" class="arcade-btn w-full ${active ? 'bg-slate-700 text-slate-300' : unlocked ? 'bg-sky-500 text-slate-950' : 'bg-slate-800 text-slate-400'} font-extrabold text-xs py-2 rounded-xl">
+                    <button onclick="travelWorld(${w.id})" class="arcade-btn w-full ${active ? 'bg-slate-700 text-slate-300' : w.adminOnly ? 'bg-gradient-to-r from-rose-500 via-amber-400 to-cyan-400 text-slate-950' : unlocked ? 'bg-sky-500 text-slate-950' : 'bg-slate-800 text-slate-400'} font-extrabold text-xs py-2 rounded-xl">
                         ${active ? 'CURRENT' : unlocked ? 'TRAVEL' : formatNum(w.cost) + ' Quacks'}
                     </button>
                 </div>`;
@@ -2239,13 +2286,19 @@
         function travelWorld(id) {
             const w = WORLDS.find(x => x.id === id);
             if (!w) return;
-            if ((game.highestWorld || 1) < id) {
+            if (w.adminOnly && !isAdminAccount()) {
+                showToast("World 21 is restricted to the Admin Account!", "error");
+                return;
+            }
+            if (!w.adminOnly && (game.highestWorld || 1) < id) {
                 if (game.quacks < w.cost) {
                     showToast(`Need ${formatNum(w.cost)} Quacks to unlock ${w.name}!`, "warning");
                     return;
                 }
                 game.quacks -= w.cost;
                 game.highestWorld = id;
+            } else if (w.adminOnly) {
+                game.highestWorld = Math.max(game.highestWorld || 1, 21);
             }
             game.currentWorld = id;
             saveGame();
@@ -2419,18 +2472,25 @@
         function renderSkinsList() {
             const el = document.getElementById('skinsGrid');
             if (!el) return;
-            el.innerHTML = SKINS.map(s => {
-                const unlocked = game.unlockedSkins.includes(s.id);
+            const visibleSkins = SKINS.filter(s => !s.adminOnly || isAdminAccount());
+            el.innerHTML = visibleSkins.map(s => {
+                const unlocked = s.adminOnly ? isAdminAccount() : game.unlockedSkins.includes(s.id);
                 const eq = game.equippedSkin === s.id;
                 const swatchStyle = s.isRainbow
                     ? 'background: linear-gradient(135deg, #f43f5e, #facc15, #4ade80, #38bdf8, #c084fc);'
                     : `background:${s.body};`;
-                return `<div class="bg-slate-950/80 p-3 rounded-2xl border ${eq ? 'border-amber-400' : 'border-white/10'} text-center">
-                    <div class="w-8 h-8 rounded-full mx-auto mb-1 ${s.isRainbow ? 'rainbow-prism-anim' : ''}" style="${swatchStyle}"></div>
+                const cardBorder = s.adminOnly
+                    ? 'border-cyan-300 bg-gradient-to-br from-rose-950/90 via-purple-950/90 to-cyan-950/90 shadow-[0_0_20px_rgba(0,255,255,0.4)]'
+                    : (eq ? 'border-amber-400 bg-slate-950/80' : 'border-white/10 bg-slate-950/80');
+                const btnStyle = s.adminOnly
+                    ? 'bg-gradient-to-r from-rose-500 via-amber-300 to-cyan-400 text-slate-950 font-black neon-rainbow-admin'
+                    : (eq ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-200');
+                return `<div class="p-3 rounded-2xl border ${cardBorder} text-center">
+                    <div class="w-8 h-8 rounded-full mx-auto mb-1 ${s.isNeonAdmin ? 'neon-rainbow-admin' : (s.isRainbow ? 'rainbow-prism-anim' : '')}" style="${swatchStyle}"></div>
                     <div class="text-xs font-extrabold text-white">${s.name}</div>
                     <div class="text-[10px] text-amber-300 mb-2">${s.mult}x Power</div>
-                    <button onclick="selectSkin('${s.id}')" class="arcade-btn w-full ${eq ? 'bg-emerald-600 text-white' : 'bg-slate-800 text-slate-200'} text-[11px] font-bold py-1.5 rounded-xl">
-                        ${eq ? 'EQUIPPED' : unlocked ? 'EQUIP' : formatNum(s.cost) + ' Gems'}
+                    <button type="button" onclick="selectSkin('${s.id}')" class="arcade-btn w-full ${btnStyle} text-[11px] font-bold py-1.5 rounded-xl">
+                        ${eq ? 'EQUIPPED' : unlocked ? (s.adminOnly ? 'ACTIVATE NEON' : 'EQUIP') : formatNum(s.cost) + ' Gems'}
                     </button>
                 </div>`;
             }).join('');
@@ -2439,9 +2499,15 @@
         function selectSkin(id) {
             const s = SKINS.find(x => x.id === id);
             if (!s) return;
+            if (s.adminOnly && !isAdminAccount()) {
+                showToast("Neon Rainbow God Skin is Admin-Only!", "error");
+                return;
+            }
             if (!game.unlockedSkins.includes(id)) {
-                if (game.gems < s.cost) { showToast("Not enough Gems!", "warning"); return; }
-                game.gems -= s.cost;
+                if (!s.adminOnly) {
+                    if (game.gems < s.cost) { showToast("Not enough Gems!", "warning"); return; }
+                    game.gems -= s.cost;
+                }
                 game.unlockedSkins.push(id);
             }
             game.equippedSkin = id;
@@ -2453,14 +2519,21 @@
         function renderAurasList() {
             const el = document.getElementById('aurasGrid');
             if (!el) return;
-            el.innerHTML = AURAS.map(a => {
-                const unlocked = game.unlockedAuras.includes(a.id);
+            const visibleAuras = AURAS.filter(a => !a.adminOnly || isAdminAccount());
+            el.innerHTML = visibleAuras.map(a => {
+                const unlocked = a.adminOnly ? isAdminAccount() : game.unlockedAuras.includes(a.id);
                 const eq = game.equippedAura === a.id;
-                return `<div class="bg-slate-950/80 p-3 rounded-2xl border ${eq ? 'border-purple-400' : 'border-white/10'} text-center">
+                const cardBorder = a.adminOnly
+                    ? 'border-cyan-300 bg-gradient-to-br from-rose-950/90 via-purple-950/90 to-cyan-950/90 shadow-[0_0_20px_rgba(255,0,128,0.4)]'
+                    : (eq ? 'border-purple-400 bg-slate-950/80' : 'border-white/10 bg-slate-950/80');
+                const btnStyle = a.adminOnly
+                    ? 'bg-gradient-to-r from-rose-500 via-amber-300 to-cyan-400 text-slate-950 font-black neon-rainbow-admin'
+                    : (eq ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-200');
+                return `<div class="p-3 rounded-2xl border ${cardBorder} text-center">
                     <div class="text-xs font-extrabold text-white">${a.name}</div>
                     <div class="text-[10px] text-purple-300 mb-2">${a.mult}x Power</div>
-                    <button onclick="selectAura('${a.id}')" class="arcade-btn w-full ${eq ? 'bg-purple-600 text-white' : 'bg-slate-800 text-slate-200'} text-[11px] font-bold py-1.5 rounded-xl">
-                        ${eq ? 'EQUIPPED' : unlocked ? 'EQUIP' : formatNum(a.cost) + ' Gems'}
+                    <button type="button" onclick="selectAura('${a.id}')" class="arcade-btn w-full ${btnStyle} text-[11px] font-bold py-1.5 rounded-xl">
+                        ${eq ? 'EQUIPPED' : unlocked ? (a.adminOnly ? 'ACTIVATE NEON' : 'EQUIP') : formatNum(a.cost) + ' Gems'}
                     </button>
                 </div>`;
             }).join('');
@@ -2469,9 +2542,15 @@
         function selectAura(id) {
             const a = AURAS.find(x => x.id === id);
             if (!a) return;
+            if (a.adminOnly && !isAdminAccount()) {
+                showToast("Hyper-Neon Rainbow Aura is Admin-Only!", "error");
+                return;
+            }
             if (!game.unlockedAuras.includes(id)) {
-                if (game.gems < a.cost) { showToast("Not enough Gems!", "warning"); return; }
-                game.gems -= a.cost;
+                if (!a.adminOnly) {
+                    if (game.gems < a.cost) { showToast("Not enough Gems!", "warning"); return; }
+                    game.gems -= a.cost;
+                }
                 game.unlockedAuras.push(id);
             }
             game.equippedAura = id;
@@ -2483,13 +2562,20 @@
         function renderHatsList() {
             const el = document.getElementById('hatsGrid');
             if (!el) return;
-            el.innerHTML = HATS.map(h => {
-                const unlocked = game.unlockedHats.includes(h.id);
+            const visibleHats = HATS.filter(h => !h.adminOnly || isAdminAccount());
+            el.innerHTML = visibleHats.map(h => {
+                const unlocked = h.adminOnly ? isAdminAccount() : game.unlockedHats.includes(h.id);
                 const eq = game.equippedHat === h.id;
-                return `<div class="bg-slate-950/80 p-2.5 rounded-xl border ${eq ? 'border-cyan-400' : 'border-white/10'} text-center">
+                const cardBorder = h.adminOnly
+                    ? 'border-cyan-300 bg-gradient-to-br from-rose-950/90 to-cyan-950/90'
+                    : (eq ? 'border-cyan-400 bg-slate-950/80' : 'border-white/10 bg-slate-950/80');
+                const btnStyle = h.adminOnly
+                    ? 'bg-gradient-to-r from-rose-500 via-amber-300 to-cyan-400 text-slate-950 font-black neon-rainbow-admin'
+                    : 'bg-slate-800 text-white';
+                return `<div class="p-2.5 rounded-xl border ${cardBorder} text-center">
                     <div class="text-xs font-bold text-white">${h.name}</div>
-                    <button onclick="selectHat('${h.id}')" class="arcade-btn w-full mt-1.5 bg-slate-800 text-[10px] font-bold py-1 rounded-lg">
-                        ${eq ? 'WORN' : unlocked ? 'WEAR' : h.cost + ' Gems'}
+                    <button type="button" onclick="selectHat('${h.id}')" class="arcade-btn w-full mt-1.5 ${btnStyle} text-[10px] font-bold py-1 rounded-lg">
+                        ${eq ? 'WORN' : unlocked ? (h.adminOnly ? 'NEON CROWN' : 'WEAR') : h.cost + ' Gems'}
                     </button>
                 </div>`;
             }).join('');
@@ -2498,9 +2584,15 @@
         function selectHat(id) {
             const h = HATS.find(x => x.id === id);
             if (!h) return;
+            if (h.adminOnly && !isAdminAccount()) {
+                showToast("Neon Rainbow Admin Crown is Admin-Only!", "error");
+                return;
+            }
             if (!game.unlockedHats.includes(id)) {
-                if (game.gems < h.cost) return;
-                game.gems -= h.cost;
+                if (!h.adminOnly) {
+                    if (game.gems < h.cost) return;
+                    game.gems -= h.cost;
+                }
                 game.unlockedHats.push(id);
             }
             game.equippedHat = id;
@@ -2512,13 +2604,20 @@
         function renderShadesList() {
             const el = document.getElementById('shadesGrid');
             if (!el) return;
-            el.innerHTML = SHADES.map(s => {
-                const unlocked = game.unlockedShades.includes(s.id);
+            const visibleShades = SHADES.filter(s => !s.adminOnly || isAdminAccount());
+            el.innerHTML = visibleShades.map(s => {
+                const unlocked = s.adminOnly ? isAdminAccount() : game.unlockedShades.includes(s.id);
                 const eq = game.equippedShades === s.id;
-                return `<div class="bg-slate-950/80 p-2.5 rounded-xl border ${eq ? 'border-rose-400' : 'border-white/10'} text-center">
+                const cardBorder = s.adminOnly
+                    ? 'border-cyan-300 bg-gradient-to-br from-rose-950/90 to-cyan-950/90'
+                    : (eq ? 'border-rose-400 bg-slate-950/80' : 'border-white/10 bg-slate-950/80');
+                const btnStyle = s.adminOnly
+                    ? 'bg-gradient-to-r from-rose-500 via-amber-300 to-cyan-400 text-slate-950 font-black neon-rainbow-admin'
+                    : 'bg-slate-800 text-white';
+                return `<div class="p-2.5 rounded-xl border ${cardBorder} text-center">
                     <div class="text-xs font-bold text-white">${s.name}</div>
-                    <button onclick="selectShades('${s.id}')" class="arcade-btn w-full mt-1.5 bg-slate-800 text-[10px] font-bold py-1 rounded-lg">
-                        ${eq ? 'WORN' : unlocked ? 'WEAR' : s.cost + ' Gems'}
+                    <button type="button" onclick="selectShades('${s.id}')" class="arcade-btn w-full mt-1.5 ${btnStyle} text-[10px] font-bold py-1 rounded-lg">
+                        ${eq ? 'WORN' : unlocked ? (s.adminOnly ? 'NEON VISOR' : 'WEAR') : s.cost + ' Gems'}
                     </button>
                 </div>`;
             }).join('');
@@ -2527,9 +2626,15 @@
         function selectShades(id) {
             const s = SHADES.find(x => x.id === id);
             if (!s) return;
+            if (s.adminOnly && !isAdminAccount()) {
+                showToast("Neon Rainbow Laser Visor is Admin-Only!", "error");
+                return;
+            }
             if (!game.unlockedShades.includes(id)) {
-                if (game.gems < s.cost) return;
-                game.gems -= s.cost;
+                if (!s.adminOnly) {
+                    if (game.gems < s.cost) return;
+                    game.gems -= s.cost;
+                }
                 game.unlockedShades.push(id);
             }
             game.equippedShades = id;
@@ -2541,13 +2646,30 @@
         function renderQuackSoundsList() {
             const el = document.getElementById('quackSoundsGrid');
             if (!el) return;
-            el.innerHTML = QUACK_SOUNDS.map(q => {
+            const visibleSounds = QUACK_SOUNDS.filter(q => !q.adminOnly || isAdminAccount());
+            el.innerHTML = visibleSounds.map(q => {
                 const eq = game.quackSound === q.id;
-                return `<button onclick="game.quackSound='${q.id}'; playSound('quack'); saveGame(); renderQuackSoundsList();" class="arcade-btn p-3 rounded-2xl border ${eq ? 'border-emerald-400 bg-emerald-950/40' : 'border-white/10 bg-slate-950/80'} text-left">
-                    <div class="text-xs font-extrabold text-white">${q.name}</div>
-                    <div class="text-[10px] text-slate-400">${q.desc}</div>
+                const btnStyle = q.adminOnly
+                    ? 'border-cyan-300 bg-gradient-to-r from-rose-600 via-amber-400 to-cyan-500 text-slate-950 neon-rainbow-admin'
+                    : (eq ? 'border-emerald-400 bg-emerald-950/40 text-white' : 'border-white/10 bg-slate-950/80 text-white');
+                return `<button type="button" onclick="selectQuackSound('${q.id}')" class="arcade-btn p-3 rounded-2xl border ${btnStyle} text-left">
+                    <div class="text-xs font-extrabold">${q.name}</div>
+                    <div class="text-[10px] ${q.adminOnly ? 'text-slate-900 font-bold' : 'text-slate-400'}">${q.desc}</div>
                 </button>`;
             }).join('');
+        }
+
+        function selectQuackSound(id) {
+            const q = QUACK_SOUNDS.find(x => x.id === id);
+            if (!q) return;
+            if (q.adminOnly && !isAdminAccount()) {
+                showToast("Neon Rainbow Symphony is Admin-Only!", "error");
+                return;
+            }
+            game.quackSound = id;
+            playSound('quack');
+            saveGame();
+            renderQuackSoundsList();
         }
 
         function renderPromoCodesList() {
@@ -2937,37 +3059,50 @@
                 idBadge.textContent = getLocalPlayerId();
             }
 
+            if (game.currentWorld === 21 && !isAdminAccount()) {
+                game.currentWorld = 20;
+            }
+            const totalWorldsCount = isAdminAccount() ? 21 : 20;
             const w = WORLDS.find(x => x.id === game.currentWorld) || WORLDS[0];
             setTxt('headerWorldBadge', `W${w.id}: ${w.name}`);
             setTxt('currentWorldName', w.name);
             setTxt('currentWorldDesc', w.desc);
-            setTxt('worldTierTag', `${w.id} / 20`);
+            setTxt('worldTierTag', `${w.id} / ${totalWorldsCount}`);
+            setTxt('travelWorldsBtnLabel', `Travel Worlds (${totalWorldsCount} Realms)`);
+            const wmTitle = document.getElementById('worldsModalTitle');
+            if (wmTitle) wmTitle.innerHTML = `<i class="fa-solid fa-earth-americas"></i> Dimension Portals (${totalWorldsCount} Realms)`;
 
             const worldBg = document.getElementById('worldSvgBg');
             if (worldBg) {
-                worldBg.innerHTML = `<svg viewBox="0 0 800 500" preserveAspectRatio="none" class="w-full h-full opacity-55">
-                    <defs>
-                        <radialGradient id="realmGlow" cx="50%" cy="35%" r="65%">
-                            <stop offset="0%" stop-color="${w.sky}" stop-opacity="0.55"/>
-                            <stop offset="100%" stop-color="${w.ground}" stop-opacity="0.1"/>
-                        </radialGradient>
-                    </defs>
-                    <rect width="800" height="500" fill="url(#realmGlow)"/>
-                    <path d="M0 370 Q200 325 400 370 T800 360 L800 500 L0 500 Z" fill="${w.ground}" opacity="0.45"/>
-                    <path d="M0 415 Q250 385 500 420 T800 405 L800 500 L0 500 Z" fill="${w.sky}" opacity="0.25"/>
-                </svg>`;
-            }
-
-            const now = Date.now();
-            const activePots = Object.entries(game.activePotions || {}).filter(([, exp]) => exp > now);
-            setTxt('activePotionsBadge', `${activePots.length} Active Potions`);
-            const strip = document.getElementById('activePotionsStrip');
-            if (strip) {
-                strip.innerHTML = activePots.map(([pid, exp]) => {
-                    const pDef = POTION_DEFS.find(x => x.id === pid);
-                    const secs = Math.max(0, Math.ceil((exp - now) / 1000));
-                    return `<span class="bg-fuchsia-950/80 border border-fuchsia-400/40 text-fuchsia-200 text-[10px] font-bold px-2 py-0.5 rounded-full">${pDef ? pDef.name : pid} (${secs}s)</span>`;
-                }).join('');
+                if (w.adminOnly) {
+                    worldBg.innerHTML = `<svg viewBox="0 0 800 500" preserveAspectRatio="none" class="w-full h-full opacity-75 rainbow-prism-anim">
+                        <defs>
+                            <linearGradient id="adminRainbowSky" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" stop-color="#f43f5e" stop-opacity="0.55"/>
+                                <stop offset="25%" stop-color="#facc15" stop-opacity="0.5"/>
+                                <stop offset="50%" stop-color="#4ade80" stop-opacity="0.5"/>
+                                <stop offset="75%" stop-color="#38bdf8" stop-opacity="0.55"/>
+                                <stop offset="100%" stop-color="#c084fc" stop-opacity="0.6"/>
+                            </linearGradient>
+                        </defs>
+                        <rect width="800" height="500" fill="url(#adminRainbowSky)"/>
+                        <circle cx="400" cy="230" r="170" fill="none" stroke="#fde047" stroke-width="4" stroke-dasharray="12 8" opacity="0.75"/>
+                        <path d="M0 370 Q200 315 400 370 T800 355 L800 500 L0 500 Z" fill="#a855f7" opacity="0.45"/>
+                        <path d="M0 415 Q250 380 500 420 T800 400 L800 500 L0 500 Z" fill="#38bdf8" opacity="0.35"/>
+                    </svg>`;
+                } else {
+                    worldBg.innerHTML = `<svg viewBox="0 0 800 500" preserveAspectRatio="none" class="w-full h-full opacity-55">
+                        <defs>
+                            <radialGradient id="realmGlow" cx="50%" cy="35%" r="65%">
+                                <stop offset="0%" stop-color="${w.sky}" stop-opacity="0.55"/>
+                                <stop offset="100%" stop-color="${w.ground}" stop-opacity="0.1"/>
+                            </radialGradient>
+                        </defs>
+                        <rect width="800" height="500" fill="url(#realmGlow)"/>
+                        <path d="M0 370 Q200 325 400 370 T800 360 L800 500 L0 500 Z" fill="${w.ground}" opacity="0.45"/>
+                        <path d="M0 415 Q250 385 500 420 T800 405 L800 500 L0 500 Z" fill="${w.sky}" opacity="0.25"/>
+                    </svg>`;
+                }
             }
 
             setTxt('statQPC', formatNum(getQuacksPerClick()));
@@ -2979,36 +3114,50 @@
             setTxt('statEndgameMult', formatNum(getEndgameMultiplier()) + 'x');
             setTxt('statRebirthMult', formatNum(getRebirthMultiplier()) + 'x');
 
-            setTxt('lvlClick', 'Lv.' + (game.upgrades.clickPower || 1));
+            setTxt('lvlClick', 'Lv.' + formatNum(game.upgrades.clickPower || 1));
             setTxt('costClick', formatNum(getUpgradeCost('clickPower')));
-            setTxt('lvlAuto', 'Lv.' + (game.upgrades.autoSpeed || 0));
+            setTxt('lvlAuto', 'Lv.' + formatNum(game.upgrades.autoSpeed || 0));
             setTxt('costAuto', formatNum(getUpgradeCost('autoSpeed')));
-            setTxt('lvlCrit', 'Lv.' + (game.upgrades.critChance || 1));
+            setTxt('lvlCrit', 'Lv.' + formatNum(game.upgrades.critChance || 1));
             setTxt('costCrit', formatNum(getUpgradeCost('critChance')));
 
-            const acLbl = document.getElementById('lblAutoClick');
-            if (acLbl) {
-                acLbl.textContent = game.autoClickerOn ? 'ACTIVE' : 'OFF';
-                acLbl.className = game.autoClickerOn ? 'text-emerald-400 font-extrabold' : 'text-rose-400 font-extrabold';
+            const autoClickLbl = document.getElementById('lblAutoClick');
+            if (autoClickLbl) {
+                autoClickLbl.textContent = game.autoClickerOn ? 'ACTIVE' : 'OFF';
+                autoClickLbl.className = game.autoClickerOn ? 'text-emerald-400 font-extrabold' : 'text-rose-400 font-extrabold';
             }
-            const arLbl = document.getElementById('lblAutoRebirth');
-            if (arLbl) {
-                arLbl.textContent = game.autoRebirthOn ? 'ACTIVE' : 'OFF';
-                arLbl.className = game.autoRebirthOn ? 'text-emerald-400 font-extrabold' : 'text-rose-400 font-extrabold';
+            const autoRebirthLbl = document.getElementById('lblAutoRebirth');
+            if (autoRebirthLbl) {
+                autoRebirthLbl.textContent = game.autoRebirthOn ? 'ACTIVE' : 'OFF';
+                autoRebirthLbl.className = game.autoRebirthOn ? 'text-emerald-400 font-extrabold' : 'text-rose-400 font-extrabold';
             }
 
             const feverBar = document.getElementById('feverProgressBar');
-            if (feverBar) feverBar.style.width = (game.feverVal || 0) + '%';
+            if (feverBar) feverBar.style.width = Math.min(100, game.feverVal || 0) + '%';
             setTxt('feverMultiplierLabel', game.isFeverActive ? '4.0x FEVER!' : '1.0x Combo');
 
-            const equipped = (game.pets || []).filter(p => p.equipped);
             const maxSlots = 3 + (game.ascensionNodes?.t_slots || 0);
+            const equipped = (game.pets || []).filter(p => p.equipped);
             setTxt('equippedCountText', `${equipped.length}/${maxSlots}`);
             const dock = document.getElementById('equippedPetsDock');
             if (dock) {
-                dock.innerHTML = equipped.length
-                    ? equipped.map(p => `<span class="bg-purple-500/20 border border-purple-400/40 text-purple-200 text-[10px] font-bold px-2 py-1 rounded-lg shrink-0">${PET_SPECIES[p.speciesKey]?.name || p.speciesKey}</span>`).join('')
-                    : `<span class="text-[11px] text-slate-400">No pets equipped</span>`;
+                dock.innerHTML = equipped.map(p => {
+                    const sp = PET_SPECIES[p.speciesKey] || { name: p.speciesKey };
+                    return `<span class="text-[10px] font-bold bg-slate-900 border border-purple-400/30 text-purple-200 px-2.5 py-1 rounded-xl shrink-0">${sp.name}</span>`;
+                }).join('') || '<span class="text-[11px] text-slate-500">No pets equipped</span>';
+            }
+
+            const now = Date.now();
+            const activePotList = POTION_DEFS.filter(p => (game.activePotions?.[p.id] || 0) > now);
+            setTxt('activePotionsBadge', `${activePotList.length} Active Potions`);
+            const potStrip = document.getElementById('activePotionsStrip');
+            if (potStrip) {
+                potStrip.innerHTML = activePotList.map(p => {
+                    const rem = Math.max(0, Math.ceil((game.activePotions[p.id] - now) / 1000));
+                    const mins = Math.floor(rem / 60);
+                    const secs = String(rem % 60).padStart(2, '0');
+                    return `<span class="text-[10px] font-extrabold bg-slate-950/85 border border-fuchsia-400/40 ${p.color} px-2 py-0.5 rounded-full">${p.name} (${mins}:${secs})</span>`;
+                }).join('');
             }
 
             renderHeroDuck();
@@ -3016,25 +3165,23 @@
             renderMiniLeaderboard();
         }
 
-        // Core 100ms Tick Loop
-        let autoClickSoundTick = 0;
+        let autoSoundTick = 0;
         setInterval(() => {
-            const qps = getQuacksPerSecond();
-            if (qps > 0) addQuacks(qps / 10);
+            const qpsGain = getQuacksPerSecond() / 10;
+            if (qpsGain > 0) addQuacks(qpsGain);
+
             if (game.autoClickerOn) {
-                addQuacks(getQuacksPerClick() * 0.5);
+                addQuacks(getQuacksPerClick());
                 game.totalTaps = (game.totalTaps || 0) + 1;
-                autoClickSoundTick++;
-                if (autoClickSoundTick % 4 === 0) {
-                    playSound('quack');
-                    const wrapper = document.getElementById('heroDuckSvgWrapper');
-                    if (wrapper) {
-                        wrapper.classList.remove('animate-squash');
-                        void wrapper.offsetWidth;
-                        wrapper.classList.add('animate-squash');
-                    }
-                }
+                autoSoundTick++;
+                if (autoSoundTick % 4 === 0) playSound('quack');
             }
+
+            if (game.autoHatchOn) {
+                const affordableEgg = [...EGG_DEFS].reverse().find(e => e.currency === 'quacks' && game.quacks >= e.cost);
+                if (affordableEgg) hatchEggFromModal(affordableEgg.id);
+            }
+
             if (game.autoRebirthOn && game.quacks >= getRebirthCost()) {
                 performRebirth();
             }
