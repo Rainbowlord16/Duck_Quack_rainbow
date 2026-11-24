@@ -969,7 +969,7 @@
                     </div>
                     <p class="text-[11px] text-slate-400">Enter your secret Admin Passcode to unlock World 21, Obsidian Neon Gear & Community Admin Abuse Commands.</p>
                     <div class="flex gap-2">
-                        <input type="password" id="adminSecretInput" placeholder="Enter Admin Passcode..." class="flex-1 bg-black border border-white/20 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-cyan-400">
+                        <input type="password" id="adminSecretInput" onkeydown="if(event.key==='Enter') verifyAdminPasscode()" placeholder="Enter Admin Passcode..." class="flex-1 bg-black border border-white/20 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-cyan-400">
                         <button type="button" onclick="verifyAdminPasscode()" class="arcade-btn bg-gradient-to-r from-pink-500 via-amber-400 to-cyan-400 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black">Unlock</button>
                     </div>
                     <div id="adminUnlockedActions" class="hidden pt-2 border-t border-white/10 space-y-2">
@@ -1057,88 +1057,38 @@
     <!-- MAIN GAME ENGINE -->
     <script>
         /* =========================================================================
-           1. ENCRYPTED ADMIN SECURITY & COMMUNITY ADMIN ABUSE ENGINE
+           1. EXTERNAL SECRET FILE ADMIN SECURITY & COMMUNITY ADMIN ABUSE ENGINE
            ========================================================================= */
         const ADMIN_OWNER_NAME = "RainbowLord16";
-        const ADMIN_SALT = "DQ_ULTIMATE_SALT_2026_";
-        const ADMIN_SHA256_HEX = "439a5850c3f739a811a26c92cb8a629880f685a27d9cf535069b2f5920233a51";
         let isAdminAuthenticated = false;
         let lastHandledAdminEventId = localStorage.getItem("dqLastAdminEventId") || "";
 
-        async function sha256HexString(str) {
-            if (window.crypto && window.crypto.subtle) {
-                const buf = await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
-                return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
-            }
-            // Pure-JS SHA-256 fallback for restricted non-HTTPS contexts
-            const rightRotate = (value, amount) => (value >>> amount) | (value << (32 - amount));
-            const mathPow = Math.pow;
-            const maxWord = mathPow(2, 32);
-            let result = "";
-            const words = [];
-            const asciiBitLength = str.length * 8;
-            const hash = [];
-            const k = [];
-            let primeCounter = 0;
-            const isComposite = {};
-            for (let candidate = 2; primeCounter < 64; candidate++) {
-                if (!isComposite[candidate]) {
-                    for (let i = 0; i < 313; i += candidate) isComposite[i] = candidate;
-                    hash[primeCounter] = (mathPow(candidate, 0.5) % 1) * maxWord | 0;
-                    k[primeCounter++] = (mathPow(candidate, 1 / 3) % 1) * maxWord | 0;
-                }
-            }
-            str += "\x80";
-            while (str.length % 64 - 56) str += "\x00";
-            for (let i = 0; i < str.length; i++) {
-                const j = str.charCodeAt(i);
-                words[i >> 2] |= j << ((3 - i) % 4) * 8;
-            }
-            words[words.length] = (asciiBitLength / maxWord) | 0;
-            words[words.length] = asciiBitLength;
-            for (let j = 0; j < words.length;) {
-                const w = words.slice(j, j += 16);
-                const oldHash = hash.slice(0);
-                for (let i = 0; i < 64; i++) {
-                    const w15 = w[i - 15], w2 = w[i - 2];
-                    const a = hash[0], e = hash[4];
-                    const temp1 = hash[7]
-                        + (rightRotate(e, 6) ^ rightRotate(e, 11) ^ rightRotate(e, 25))
-                        + ((e & hash[5]) ^ ((~e) & hash[6]))
-                        + k[i]
-                        + (w[i] = (i < 16) ? w[i] : (
-                            w[i - 16]
-                            + (rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3))
-                            + w[i - 7]
-                            + (rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10))
-                        ) | 0);
-                    const temp2 = (rightRotate(a, 2) ^ rightRotate(a, 13) ^ rightRotate(a, 22))
-                        + ((a & hash[1]) ^ (a & hash[2]) ^ (hash[1] & hash[2]));
-                    hash.unshift((temp1 + temp2) | 0);
-                    hash[4] = (hash[4] + temp1) | 0;
-                    hash.pop();
-                }
-                for (let i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
-            }
-            for (let i = 0; i < 8; i++) {
-                for (let j = 3; j + 1; j--) {
-                    const b = (hash[i] >> (j * 8)) & 255;
-                    result += ((b < 16) ? 0 : "") + b.toString(16);
-                }
-            }
-            return result;
-        }
-
         function isCurrentUserVerifiedAdmin() {
             return Boolean(isAdminAuthenticated && state && state.playerName === ADMIN_OWNER_NAME);
+        }
+
+        async function fetchRepoAdminSecret() {
+            try {
+                const res = await fetch("./admin.secret.json", { cache: "no-store" });
+                if (!res.ok) return null;
+                const data = await res.json();
+                return data && typeof data.passcode === "string" ? data.passcode.trim() : null;
+            } catch (err) {
+                return null;
+            }
         }
 
         async function verifyAdminPasscode() {
             const inputEl = document.getElementById("adminSecretInput");
             const raw = inputEl ? inputEl.value.trim() : "";
             if (!raw) return showToast("Enter your Admin Passcode first.", "error");
-            const digest = await sha256HexString(ADMIN_SALT + raw);
-            if (digest === ADMIN_SHA256_HEX) {
+
+            const repoSecret = await fetchRepoAdminSecret();
+            if (!repoSecret) {
+                return showToast("⚠️ Missing admin.secret.json in repo root!", "error");
+            }
+
+            if (raw === repoSecret) {
                 isAdminAuthenticated = true;
                 sessionStorage.setItem("dqAdminSessionAuth", "1");
                 state.playerName = ADMIN_OWNER_NAME;
