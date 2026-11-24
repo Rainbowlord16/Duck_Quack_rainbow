@@ -1,0 +1,19 @@
+Keep Admin Passcode Secret Private
+
+admin.secret.json
+admin-secret.json
+*.secret.json
+
+Environment & Local Secrets
+
+.env
+.env.local
+.env.*.local
+
+OS & Editor Files
+
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+node_modules/
