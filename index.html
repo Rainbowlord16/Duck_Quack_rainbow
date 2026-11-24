@@ -1701,6 +1701,13 @@
             else if (modalId === "petsModal") renderPetsModal();
             else if (modalId === "wardrobeModal") renderWardrobeModal();
             else if (modalId === "rebirthModal") renderRebirthModal();
+            else if (modalId === "skillsModal") renderSkillsModal();
+            else if (modalId === "alchemyModal") renderAlchemyModal();
+            else if (modalId === "digModal") renderDigModal();
+            else if (modalId === "masteryModal") renderMasteryModal();
+            else if (modalId === "cardsModal") renderCardsModal();
+            else if (modalId === "wheelModal") drawFortuneWheel();
+            else if (modalId === "arcadeModal") initArcadeCanvas();
             else if (modalId === "bossModal") renderBossModal();
             else if (modalId === "questsModal") renderSeasonPassModal();
             else if (modalId === "leaderboardModal") renderFullLeaderboard();
@@ -1973,6 +1980,281 @@
             if (rCount) rCount.textContent = formatNum(state.rebirths);
             if (rCost) rCost.textContent = formatNum(cost);
             if (tCount) tCount.textContent = formatNum(state.transcendenceCount);
+
+            const rpGrid = document.getElementById("rpShopGrid");
+            if (rpGrid) {
+                const rpDefs = [
+                    { key: "rp_click", name: "RP Tap Amplifier", desc: "+25% Tap Power per level", base: 2 },
+                    { key: "rp_auto", name: "RP Auto Engine", desc: "+25% Auto Power per level", base: 2 },
+                    { key: "rp_fever", name: "RP Fever Charge", desc: "Faster Quack Fever gain", base: 5 },
+                    { key: "rp_hatch", name: "RP Lucky Hatch", desc: "+10% Pet Index bonus", base: 5 }
+                ];
+                rpGrid.innerHTML = rpDefs.map(u => {
+                    const lvl = sanitizeNum(state.rpUpgrades?.[u.key], 0);
+                    const upgCost = Math.floor(u.base * Math.pow(1.5, lvl));
+                    return `<div class="bg-slate-950/85 border border-cyan-400/20 rounded-2xl p-3 flex items-center justify-between gap-2">
+                        <div>
+                            <div class="text-xs font-extrabold text-white">${u.name} <span class="text-cyan-300">Lv.${lvl}</span></div>
+                            <div class="text-[10px] text-slate-400">${u.desc}</div>
+                        </div>
+                        <button type="button" onclick="buyRpUpgrade('${u.key}', ${upgCost})" class="arcade-btn bg-cyan-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black">${formatNum(upgCost)} RP</button>
+                    </div>`;
+                }).join("");
+            }
+
+            const voidGrid = document.getElementById("voidForgeGrid");
+            if (voidGrid) {
+                const voidDefs = [
+                    { key: "v_omni", name: "Void Omnipotence", desc: "+100% All Quacks per level", base: 5 },
+                    { key: "v_laser", name: "Pet Laser Overcharge", desc: "+50% Pet Multiplier per level", base: 8 },
+                    { key: "v_anomaly", name: "Anomaly Harvester", desc: "+2x Weather & Orbit Rewards", base: 10 },
+                    { key: "v_headstart", name: "Eternal Headstart", desc: "Keep +10% Quacks on Rebirth", base: 15 }
+                ];
+                voidGrid.innerHTML = voidDefs.map(u => {
+                    const lvl = sanitizeNum(state.voidUpgrades?.[u.key], 0);
+                    const upgCost = Math.floor(u.base * Math.pow(1.6, lvl));
+                    return `<div class="bg-slate-950/85 border border-purple-400/25 rounded-2xl p-3 flex items-center justify-between gap-2">
+                        <div>
+                            <div class="text-xs font-extrabold text-white">${u.name} <span class="text-purple-300">Lv.${lvl}</span></div>
+                            <div class="text-[10px] text-slate-400">${u.desc}</div>
+                        </div>
+                        <button type="button" onclick="buyVoidUpgrade('${u.key}', ${upgCost})" class="arcade-btn bg-purple-500 text-white px-3 py-1.5 rounded-xl text-xs font-black">${formatNum(upgCost)} Shards</button>
+                    </div>`;
+                }).join("");
+            }
+        }
+
+        function buyRpUpgrade(key, cost) {
+            if (state.rp < cost) return showToast("Not enough RP!", "error");
+            state.rp = sanitizeNum(state.rp - cost, 0);
+            state.rpUpgrades = state.rpUpgrades || {};
+            state.rpUpgrades[key] = sanitizeNum(state.rpUpgrades[key], 0) + 1;
+            playSound("buy");
+            saveGame();
+            renderAll();
+            renderRebirthModal();
+        }
+
+        function buyVoidUpgrade(key, cost) {
+            if (state.shards < cost) return showToast("Not enough Void Shards!", "error");
+            state.shards = sanitizeNum(state.shards - cost, 0);
+            state.voidUpgrades = state.voidUpgrades || {};
+            state.voidUpgrades[key] = sanitizeNum(state.voidUpgrades[key], 0) + 1;
+            playSound("buy");
+            saveGame();
+            renderAll();
+            renderRebirthModal();
+        }
+
+        function renderSkillsModal() {
+            const grid = document.getElementById("skillsGrid");
+            if (!grid) return;
+            const nodes = [
+                { key: "t_click1", name: "Golden Beak Mastery", desc: "+50% Tap Power per rank", cost: 1 },
+                { key: "t_auto1", name: "Eternal Auto-Quack", desc: "+50% Auto Quacks/sec per rank", cost: 1 },
+                { key: "t_crit1", name: "Supernova Criticals", desc: "+5% Crit Chance per rank", cost: 2 },
+                { key: "t_gem1", name: "Gem Magnet", desc: "+25% Bonus Gems from drops", cost: 2 },
+                { key: "t_slots", name: "Squad Commander", desc: "+1 Max Equipped Pet Slot", cost: 5 },
+                { key: "t_relics", name: "Relic Scholar", desc: "+50% Relic Multiplier", cost: 3 }
+            ];
+            grid.innerHTML = nodes.map(n => {
+                const lvl = sanitizeNum(state.ascensionNodes?.[n.key], 0);
+                return `<div class="bg-slate-950/85 border border-yellow-400/25 rounded-2xl p-3.5 flex items-center justify-between gap-2">
+                    <div>
+                        <div class="text-xs font-extrabold text-white">${n.name} <span class="text-yellow-300">Rank ${lvl}</span></div>
+                        <div class="text-[11px] text-slate-400">${n.desc}</div>
+                    </div>
+                    <button type="button" onclick="buySkillNode('${n.key}', ${n.cost})" class="arcade-btn bg-yellow-400 text-slate-950 px-3 py-2 rounded-xl text-xs font-black">${n.cost} Feather</button>
+                </div>`;
+            }).join("");
+        }
+
+        function buySkillNode(key, cost) {
+            if (state.feathers < cost) return showToast("Not enough Golden Feathers!", "error");
+            state.feathers = sanitizeNum(state.feathers - cost, 0);
+            state.ascensionNodes = state.ascensionNodes || {};
+            state.ascensionNodes[key] = sanitizeNum(state.ascensionNodes[key], 0) + 1;
+            if (key === "t_slots") state.maxEquippedPets = Math.min(8, (state.maxEquippedPets || 4) + 1);
+            playSound("buy");
+            saveGame();
+            renderAll();
+            renderSkillsModal();
+        }
+
+        function renderAlchemyModal() {
+            const grid = document.getElementById("alchemyGrid");
+            if (!grid) return;
+            const potions = [
+                { id: "pot_quack", name: "Elixir of 3x Quacks", desc: "3x All Quacks for 5 minutes", cost: 50, dur: 300000 },
+                { id: "pot_gems", name: "Gemstone Draught", desc: "2x Gem Drops for 5 minutes", cost: 75, dur: 300000 },
+                { id: "pot_luck", name: "Clover Hatch Potion", desc: "2x Pet Hatch Power for 5 minutes", cost: 100, dur: 300000 },
+                { id: "pot_god", name: "Ambrosia of the Duck Gods", desc: "10x Total Multiplier for 3 minutes", cost: 250, dur: 180000 }
+            ];
+            const now = Date.now();
+            grid.innerHTML = potions.map(p => {
+                const exp = state.activePotions?.[p.id] || 0;
+                const active = exp > now;
+                return `<div class="bg-slate-950/85 border border-fuchsia-400/25 rounded-2xl p-3.5 flex items-center justify-between gap-2">
+                    <div>
+                        <div class="text-xs font-extrabold text-white">${p.name}</div>
+                        <div class="text-[11px] text-slate-400">${p.desc}</div>
+                        ${active ? `<div class="text-[10px] font-bold text-emerald-400 mt-0.5">ACTIVE (${Math.ceil((exp - now)/1000)}s left)</div>` : ""}
+                    </div>
+                    <button type="button" onclick="brewPotion('${p.id}', ${p.cost}, ${p.dur})" class="arcade-btn bg-fuchsia-600 text-white px-3 py-2 rounded-xl text-xs font-black">${p.cost} Gems</button>
+                </div>`;
+            }).join("");
+        }
+
+        function brewPotion(id, cost, dur) {
+            if (state.gems < cost) return showToast("Not enough Gems!", "error");
+            state.gems = sanitizeNum(state.gems - cost, 0);
+            state.activePotions = state.activePotions || {};
+            state.activePotions[id] = Math.max(Date.now(), state.activePotions[id] || 0) + dur;
+            playSound("buy");
+            saveGame();
+            renderAll();
+            renderAlchemyModal();
+            showToast("🧪 Brewed & drank potion!", "success");
+        }
+
+        function renderDigModal() {
+            const depthEl = document.getElementById("digDepthText");
+            if (depthEl) depthEl.textContent = formatNum(state.digDepth || 0);
+            const grid = document.getElementById("relicsGrid");
+            if (!grid) return;
+            const milestones = [
+                { depth: 50, name: "Fossilized Bread", bonus: "+50% Quack Power" },
+                { depth: 200, name: "Pharaoh Duck Mask", bonus: "+150% Quack Power" },
+                { depth: 500, name: "Atlantean Trident", bonus: "+500% Quack Power" },
+                { depth: 1000, name: "Core of the Earth", bonus: "+2,000% Quack Power" }
+            ];
+            grid.innerHTML = milestones.map(m => {
+                const unlocked = (state.digDepth || 0) >= m.depth;
+                return `<div class="bg-slate-950/85 border ${unlocked ? "border-orange-400" : "border-white/10"} rounded-2xl p-3">
+                    <div class="flex justify-between text-xs font-extrabold">
+                        <span class="text-white">${m.name}</span>
+                        <span class="${unlocked ? "text-emerald-400" : "text-slate-500"}">${unlocked ? "UNEARTHED" : `${m.depth}m`}</span>
+                    </div>
+                    <div class="text-[11px] text-orange-300 mt-1">${m.bonus}</div>
+                </div>`;
+            }).join("");
+        }
+
+        function renderMasteryModal() {
+            const grid = document.getElementById("masteryGrid");
+            if (!grid) return;
+            const list = [
+                { key: "m_tapping", name: "Tapping Mastery", val: state.totalTaps || 0 },
+                { key: "m_hatching", name: "Hatching Mastery", val: state.eggsHatched || 0 },
+                { key: "m_rebirth", name: "Rebirth Mastery", val: state.rebirths || 0 },
+                { key: "m_excavation", name: "Excavation Mastery", val: state.relics || 0 },
+                { key: "m_slayer", name: "Boss Slayer Mastery", val: state.bossesSlain || 0 }
+            ];
+            grid.innerHTML = list.map(m => {
+                const rank = Math.min(99, Math.floor(Math.sqrt(m.val)) + 1);
+                return `<div class="bg-slate-950/85 border border-emerald-400/25 rounded-2xl p-3.5">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-extrabold text-white">${m.name}</span>
+                        <span class="text-xs font-black text-emerald-300">Rank ${rank} / 99</span>
+                    </div>
+                    <div class="text-[11px] text-slate-400 mt-1">Progress: ${formatNum(m.val)} • Bonus: +${rank * 10}%</div>
+                </div>`;
+            }).join("");
+        }
+
+        function renderCardsModal() {
+            const cGrid = document.getElementById("cardsGrid");
+            if (cGrid) {
+                const cards = [
+                    { id: "c1", name: "Pond Scout", mult: "1.5x" },
+                    { id: "c2", name: "Golden Loaf", mult: "2.0x" },
+                    { id: "c3", name: "Cyber Mallard", mult: "3.0x" },
+                    { id: "c4", name: "Rainbow Monarch", mult: "10.0x" }
+                ];
+                cGrid.innerHTML = cards.map(c => {
+                    const count = state.ownedCards?.[c.id] || 0;
+                    return `<div class="bg-slate-950/85 border ${count > 0 ? "border-violet-400" : "border-white/10"} rounded-2xl p-2.5 text-center">
+                        <div class="text-xs font-extrabold text-white">${c.name}</div>
+                        <div class="text-[10px] text-violet-300">${c.mult} Boost</div>
+                        <div class="text-[10px] font-black text-slate-400 mt-1">Owned: ${count}</div>
+                    </div>`;
+                }).join("");
+            }
+            const mGrid = document.getElementById("monumentsGrid");
+            if (mGrid) {
+                const mons = [
+                    { key: "mon_vault", name: "Golden Quack Vault", cost: 100 },
+                    { key: "mon_fountain", name: "Fountain of Feathers", cost: 250 }
+                ];
+                mGrid.innerHTML = mons.map(m => {
+                    const lvl = state.monuments?.[m.key] || 0;
+                    return `<div class="bg-slate-950/85 border border-amber-400/20 rounded-2xl p-3 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-extrabold text-white">${m.name} <span class="text-amber-300">Lv.${lvl}</span></div>
+                            <div class="text-[10px] text-slate-400">+50% Clan Multiplier per level</div>
+                        </div>
+                        <button type="button" onclick="upgradeMonument('${m.key}', ${m.cost})" class="arcade-btn bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black">${m.cost} Gems</button>
+                    </div>`;
+                }).join("");
+            }
+        }
+
+        function upgradeMonument(key, cost) {
+            if (state.gems < cost) return showToast("Not enough Gems!", "error");
+            state.gems = sanitizeNum(state.gems - cost, 0);
+            state.monuments = state.monuments || {};
+            state.monuments[key] = sanitizeNum(state.monuments[key], 0) + 1;
+            playSound("buy");
+            saveGame();
+            renderAll();
+            renderCardsModal();
+        }
+
+        function drawFortuneWheel() {
+            const canvas = document.getElementById("wheelCanvas");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            const slices = [
+                { label: "+300 Gems", color: "#06b6d4" },
+                { label: "+2 Feathers", color: "#f59e0b" },
+                { label: "+5 Shards", color: "#a855f7" },
+                { label: "250x Tap Burst", color: "#ef4444" }
+            ];
+            const arc = (Math.PI * 2) / slices.length;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            slices.forEach((s, i) => {
+                ctx.beginPath();
+                ctx.moveTo(130, 130);
+                ctx.arc(130, 130, 124, i * arc, (i + 1) * arc);
+                ctx.fillStyle = s.color;
+                ctx.fill();
+                ctx.strokeStyle = "#090d16";
+                ctx.lineWidth = 3;
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(130, 130);
+                ctx.rotate(i * arc + arc / 2);
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 12px Plus Jakarta Sans";
+                ctx.textAlign = "right";
+                ctx.fillText(s.label, 110, 4);
+                ctx.restore();
+            });
+        }
+
+        function initArcadeCanvas() {
+            const canvas = document.getElementById("arcadeCanvas");
+            if (!canvas) return;
+            canvas.width = canvas.clientWidth || 480;
+            canvas.height = canvas.clientHeight || 256;
+            const ctx = canvas.getContext("2d");
+            ctx.fillStyle = "#090d16";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#facc15";
+            ctx.font = "bold 16px Plus Jakarta Sans";
+            ctx.textAlign = "center";
+            ctx.fillText("Click 'Start Round' to catch Golden Bread!", canvas.width / 2, canvas.height / 2);
         }
 
         function performRebirth() {
@@ -2020,9 +2302,14 @@
             if (state.gems < 250) return showToast("Need 250 Gems for a Card Pack!", "error");
             state.gems = sanitizeNum(state.gems - 250, 0);
             state.feathers = sanitizeNum(state.feathers + 1, 1);
+            const cardIds = ["c1", "c2", "c3", "c4"];
+            const picked = cardIds[Math.floor(Math.random() * cardIds.length)];
+            state.ownedCards = state.ownedCards || {};
+            state.ownedCards[picked] = (state.ownedCards[picked] || 0) + 1;
             saveGame();
             renderAll();
-            showToast("🃏 Opened Collector Pack! +1 Golden Feather!", "success");
+            renderCardsModal();
+            showToast("🃏 Opened Collector Pack! +1 Card & +1 Golden Feather!", "success");
         }
 
         function spinFortuneWheel() {
@@ -2647,29 +2934,58 @@
             const lblHatch = document.getElementById("lblAutoHatch");
             if (lblHatch) {
                 lblHatch.textContent = state.autoHatchOn ? "ACTIVE" : "OFF";
-                lblHatch.className = state.autoHatchOn ? "text-emerald-400" : "text-rose-400";
+                lblHatch.className = `font-black ${state.autoHatchOn ? "text-emerald-400" : "text-rose-400"}`;
             }
 
             const feverFill = document.getElementById("feverBarFill");
             if (feverFill) feverFill.style.width = `${Math.min(100, Math.max(0, state.feverVal || 0))}%`;
-            setTxt("comboBadge", `${(1 + Math.min(comboCount * 0.05, 4)).toFixed(1)}x Combo`);
-            setTxt("weatherStatusPill", currentWeather.label);
-            setTxt("lbPlayerIdText", getCurrentSlotId());
+            const comboBadge = document.getElementById("comboBadge");
+            if (comboBadge) comboBadge.textContent = `${(1 + Math.min(comboCount * 0.05, 4)).toFixed(1)}x Combo`;
+            const weatherPill = document.getElementById("weatherStatusPill");
+            if (weatherPill) weatherPill.textContent = currentWeather.label;
 
-            const skin = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
-            setTxt("equippedSkinTitle", skin.name);
+            const skinObj = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
+            setTxt("equippedSkinTitle", skinObj.name);
 
             const equippedPets = (state.pets || []).filter(p => p.equipped);
             setTxt("equippedCountText", `${equippedPets.length}/${state.maxEquippedPets || 4}`);
             const strip = document.getElementById("equippedPetsStrip");
             if (strip) {
                 strip.innerHTML = equippedPets.length
-                    ? equippedPets.map(p => `<span class="bg-purple-500/20 border border-purple-400/30 text-purple-200 px-2.5 py-1 rounded-xl text-[11px] font-extrabold shrink-0">${PET_SPECIES[p.speciesKey]?.name || "Pet"}</span>`).join("")
+                    ? equippedPets.map(p => {
+                        const sp = PET_SPECIES[p.speciesKey];
+                        return `<span class="bg-slate-900 border border-white/15 px-2.5 py-1 rounded-xl text-[11px] font-bold text-white shrink-0">${sp ? sp.name : p.speciesKey}</span>`;
+                    }).join("")
                     : `<span class="text-xs text-slate-400 italic px-2">No pets equipped</span>`;
             }
 
+            const lbIdEl = document.getElementById("lbPlayerIdText");
+            if (lbIdEl) lbIdEl.textContent = getCurrentSlotId();
+
             renderHeroDuckVisual();
             renderMiniLeaderboard();
+        }
+
+        // Orbiting Pet Squad Renderer on Stage
+        function renderOrbitingPets() {
+            const container = document.getElementById("orbitingPetsContainer");
+            if (!container) return;
+            const equipped = (state.pets || []).filter(p => p.equipped);
+            if (equipped.length === 0) {
+                container.innerHTML = "";
+                return;
+            }
+            const now = Date.now() / 600;
+            container.innerHTML = equipped.map((pet, idx) => {
+                const angle = now + (idx * (Math.PI * 2 / equipped.length));
+                const xPct = 50 + Math.cos(angle) * 44;
+                const yPct = 50 + Math.sin(angle) * 44;
+                const sp = PET_SPECIES[pet.speciesKey];
+                const col = sp ? sp.color : "#facc15";
+                return `<div class="orbit-pet-badge absolute w-8 h-8 rounded-full border-2 border-slate-950 shadow-lg flex items-center justify-center text-slate-950 text-xs font-black" style="left:${xPct}%; top:${yPct}%; background:${col};">
+                    <i class="fa-solid fa-paw"></i>
+                </div>`;
+            }).join("");
         }
 
         // Main 100ms Simulation Loop
@@ -2690,6 +3006,13 @@
                 if (autoTapTick % 4 === 0) playSound("quack");
             }
 
+            if (state.autoRebirthOn) {
+                const rebCost = sanitizeNum(100000 * Math.pow(3, sanitizeNum(state.rebirths, 0)), 100000);
+                if (state.quacks >= rebCost) {
+                    performRebirth();
+                }
+            }
+
             if (state.isFeverActive) {
                 state.feverVal = Math.max(0, sanitizeNum(state.feverVal, 0) - 1.2);
                 if (state.feverVal <= 0) state.isFeverActive = false;
@@ -2700,6 +3023,7 @@
                 if (comboDecayMs <= 0) comboCount = 0;
             }
 
+            renderOrbitingPets();
             renderAll();
         }, 100);
 
