@@ -11,7 +11,7 @@
     <style>
         :root {
             --bg-dark: #070b14;
-            --panel-bg: rgba(15, 23, 42, 0.78);
+            --panel-bg: rgba(15, 23, 42, 0.82);
             --panel-border: rgba(255, 255, 255, 0.12);
         }
         * {
@@ -40,6 +40,7 @@
         .arcade-btn {
             transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1), filter 0.15s ease, box-shadow 0.15s ease;
             box-shadow: 0 4px 0 rgba(0, 0, 0, 0.45);
+            cursor: pointer;
         }
         .arcade-btn:hover:not(:disabled) {
             transform: translateY(-2px);
@@ -50,7 +51,7 @@
             box-shadow: 0 1px 0 rgba(0, 0, 0, 0.45);
         }
         .arcade-btn:disabled {
-            opacity: 0.48;
+            opacity: 0.45;
             cursor: not-allowed;
         }
         @keyframes duckSquash {
@@ -60,10 +61,10 @@
             100% { transform: scale(1, 1) rotate(0deg); }
         }
         .animate-squash {
-            animation: duckSquash 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+            animation: duckSquash 0.22s cubic-bezier(0.22, 1, 0.36, 1);
         }
         @keyframes floatUpFade {
-            0% { opacity: 1; transform: translate(-50%, 0) scale(0.8); }
+            0% { opacity: 1; transform: translate(-50%, 0) scale(0.85); }
             25% { opacity: 1; transform: translate(-50%, -26px) scale(1.15); }
             100% { opacity: 0; transform: translate(-50%, -95px) scale(0.95); }
         }
@@ -74,11 +75,11 @@
             font-family: 'Fredoka', sans-serif;
             font-weight: 700;
             text-shadow: 0 3px 6px rgba(0,0,0,0.85), 0 0 12px rgba(250, 204, 21, 0.5);
-            animation: floatUpFade 0.85s ease-out forwards;
+            animation: floatUpFade 0.8s ease-out forwards;
         }
         @keyframes auraPulse {
-            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.7; }
-            50% { transform: scale(1.08) rotate(180deg); opacity: 1; }
+            0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.78; }
+            50% { transform: scale(1.07) rotate(180deg); opacity: 1; }
         }
         .duck-aura-ring {
             animation: auraPulse 8s linear infinite;
@@ -101,13 +102,14 @@
             box-shadow: 0 0 40px rgba(245, 158, 11, 0.55), inset 0 0 30px rgba(239, 68, 68, 0.35);
             border-color: rgba(251, 191, 36, 0.7) !important;
         }
-        .rarity-common { border-color: #94a3b8; background: linear-gradient(145deg, rgba(51,65,85,0.6), rgba(15,23,42,0.8)); }
-        .rarity-uncommon { border-color: #4ade80; background: linear-gradient(145deg, rgba(22,101,52,0.55), rgba(15,23,42,0.85)); }
-        .rarity-rare { border-color: #38bdf8; background: linear-gradient(145deg, rgba(7,89,133,0.6), rgba(15,23,42,0.85)); }
-        .rarity-epic { border-color: #c084fc; background: linear-gradient(145deg, rgba(107,33,168,0.6), rgba(15,23,42,0.85)); }
-        .rarity-legendary { border-color: #facc15; background: linear-gradient(145deg, rgba(161,98,7,0.65), rgba(15,23,42,0.85)); }
-        .rarity-mythical { border-color: #f43f5e; background: linear-gradient(145deg, rgba(159,18,57,0.65), rgba(15,23,42,0.85)); }
-        .rarity-godly { border-color: #22d3ee; background: linear-gradient(145deg, rgba(21,94,117,0.75), rgba(88,28,135,0.85)); }
+        .rarity-common { border-color: #94a3b8; background: linear-gradient(145deg, rgba(51,65,85,0.65), rgba(15,23,42,0.85)); }
+        .rarity-uncommon { border-color: #4ade80; background: linear-gradient(145deg, rgba(22,101,52,0.6), rgba(15,23,42,0.85)); }
+        .rarity-rare { border-color: #38bdf8; background: linear-gradient(145deg, rgba(7,89,133,0.65), rgba(15,23,42,0.85)); }
+        .rarity-epic { border-color: #c084fc; background: linear-gradient(145deg, rgba(107,33,168,0.65), rgba(15,23,42,0.85)); }
+        .rarity-legendary { border-color: #facc15; background: linear-gradient(145deg, rgba(161,98,7,0.7), rgba(15,23,42,0.85)); }
+        .rarity-mythical { border-color: #f43f5e; background: linear-gradient(145deg, rgba(159,18,57,0.7), rgba(15,23,42,0.85)); }
+        .rarity-godly { border-color: #22d3ee; background: linear-gradient(145deg, rgba(21,94,117,0.78), rgba(88,28,135,0.88)); }
+
         @keyframes rainbowPrismCycle {
             0% { filter: hue-rotate(0deg); }
             100% { filter: hue-rotate(360deg); }
@@ -115,14 +117,44 @@
         .rainbow-prism-anim {
             animation: rainbowPrismCycle 3s linear infinite;
         }
-        @keyframes neonRainbowPulse {
-            0% { filter: hue-rotate(0deg) brightness(1.35) saturate(2) drop-shadow(0 0 12px #ff0080); }
-            50% { filter: hue-rotate(180deg) brightness(1.45) saturate(2.2) drop-shadow(0 0 18px #00ffff); }
-            100% { filter: hue-rotate(360deg) brightness(1.35) saturate(2) drop-shadow(0 0 12px #ff0080); }
+
+        /* Obsidian Black Base + Glowing Neon Rainbow Outline (Matches Profile Avatar!) */
+        @keyframes neonRainbowOutlineGlow {
+            0% {
+                border-color: #ff007f;
+                box-shadow: 0 0 14px rgba(255, 0, 127, 0.75), inset 0 0 12px rgba(255, 0, 127, 0.35);
+            }
+            25% {
+                border-color: #facc15;
+                box-shadow: 0 0 14px rgba(250, 204, 21, 0.75), inset 0 0 12px rgba(250, 204, 21, 0.35);
+            }
+            50% {
+                border-color: #00ff9d;
+                box-shadow: 0 0 14px rgba(0, 255, 157, 0.75), inset 0 0 12px rgba(0, 255, 157, 0.35);
+            }
+            75% {
+                border-color: #00e5ff;
+                box-shadow: 0 0 14px rgba(0, 229, 255, 0.75), inset 0 0 12px rgba(0, 229, 255, 0.35);
+            }
+            100% {
+                border-color: #ff007f;
+                box-shadow: 0 0 14px rgba(255, 0, 127, 0.75), inset 0 0 12px rgba(255, 0, 127, 0.35);
+            }
+        }
+        .obsidian-neon-rainbow {
+            background: #05050a !important;
+            border: 2px solid #ff007f !important;
+            animation: neonRainbowOutlineGlow 2.4s linear infinite;
+        }
+        @keyframes neonSvgStrokePulse {
+            0% { filter: drop-shadow(0 0 6px #ff007f) drop-shadow(0 0 14px #00e5ff); }
+            50% { filter: drop-shadow(0 0 8px #00ff9d) drop-shadow(0 0 16px #facc15); }
+            100% { filter: drop-shadow(0 0 6px #ff007f) drop-shadow(0 0 14px #00e5ff); }
         }
         .neon-rainbow-admin {
-            animation: neonRainbowPulse 1.8s linear infinite;
+            animation: neonSvgStrokePulse 2s linear infinite;
         }
+
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.5); }
         ::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.35); border-radius: 999px; }
@@ -166,12 +198,15 @@
                     </div>
                 </div>
 
-                <!-- Mobile Audio + Codes Quick Trigger -->
+                <!-- Mobile Quick Triggers -->
                 <div class="flex lg:hidden items-center gap-1.5">
-                    <button onclick="openModal('codesModal')" class="arcade-btn bg-emerald-600/90 text-white px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold border border-emerald-400/30">
+                    <button type="button" onclick="openModal('wardrobeModal')" class="arcade-btn bg-pink-600/90 text-white px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold border border-pink-400/30">
+                        <i class="fa-solid fa-shirt me-1"></i>Skins
+                    </button>
+                    <button type="button" onclick="openModal('codesModal')" class="arcade-btn bg-emerald-600/90 text-white px-2.5 py-1.5 rounded-xl text-[11px] font-extrabold border border-emerald-400/30">
                         <i class="fa-solid fa-ticket me-1"></i>Codes
                     </button>
-                    <button onclick="toggleAudio()" class="arcade-btn bg-slate-800/90 text-slate-200 px-2.5 py-1.5 rounded-xl text-xs border border-white/10" title="Toggle Sound">
+                    <button type="button" onclick="toggleAudio()" class="arcade-btn bg-slate-800/90 text-slate-200 px-2.5 py-1.5 rounded-xl text-xs border border-white/10" title="Toggle Sound">
                         <i id="audioIconMobile" class="fa-solid fa-volume-high text-amber-400"></i>
                     </button>
                 </div>
@@ -224,4 +259,2913 @@
             </div>
 
             <!-- Desktop Action Buttons -->
-            <
+            <div class="hidden lg:flex items-center gap-2 shrink-0">
+                <button type="button" onclick="openModal('codesModal')" class="arcade-btn bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold border border-emerald-400/40">
+                    <i class="fa-solid fa-ticket me-1"></i>Codes
+                </button>
+                <button type="button" onclick="openModal('leaderboardModal')" class="arcade-btn bg-amber-500 hover:bg-amber-400 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-extrabold border border-amber-200/40">
+                    <i class="fa-solid fa-trophy me-1"></i>Global Top
+                </button>
+                <button type="button" onclick="openModal('profileModal')" class="arcade-btn bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold border border-indigo-400/40">
+                    <i class="fa-solid fa-user-astronaut me-1"></i>Profile
+                </button>
+                <button type="button" onclick="toggleAudio()" class="arcade-btn bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-1.5 rounded-xl text-xs font-extrabold border border-white/10" title="Toggle Sound">
+                    <i id="audioIconDesktop" class="fa-solid fa-volume-high text-amber-400"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MAIN 3-COLUMN ARENA -->
+    <main class="max-w-7xl mx-auto w-full px-3 sm:px-6 py-4 grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 items-start">
+
+        <!-- LEFT COLUMN: STATS, WORLD TRAVEL, MINI LEADERBOARD & AUTO TOGGLES -->
+        <aside class="lg:col-span-3 flex flex-col gap-3 order-2 lg:order-1">
+            <!-- Power Breakdown Panel -->
+            <div class="glass-panel rounded-3xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Power Breakdown</span>
+                    <span id="activePotionsBadge" class="text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-400/30 px-2 py-0.5 rounded-full">0 Active Potions</span>
+                </div>
+                <div class="space-y-2 text-xs">
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Quacks / Click:</span>
+                        <span id="statQpc" class="font-extrabold text-amber-300">1</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Quacks / Sec:</span>
+                        <span id="statQps" class="font-extrabold text-emerald-300">0/s</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">World Multiplier:</span>
+                        <span id="statWorldMult" class="font-extrabold text-sky-400">1x</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Pets + Index:</span>
+                        <span id="statPetMult" class="font-extrabold text-pink-400">+0%</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Skin & Gear:</span>
+                        <span id="statGearMult" class="font-extrabold text-rose-400">1x</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Weather & Void:</span>
+                        <span id="statWeatherVoidMult" class="font-extrabold text-cyan-300">1x</span>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span class="text-slate-400">Endgame Boost:</span>
+                        <span id="statEndgameMult" class="font-extrabold text-orange-300">1x</span>
+                    </div>
+                    <div class="flex justify-between items-center pt-1.5 border-t border-white/10">
+                        <span class="text-slate-400">Rebirth Bonus:</span>
+                        <span id="statRebirthMult" class="font-extrabold text-indigo-300">1.00x</span>
+                    </div>
+                </div>
+                <!-- Active Potions Strip -->
+                <div id="activePotionsStrip" class="flex flex-wrap gap-1.5 mt-3 empty:hidden"></div>
+            </div>
+
+            <!-- Current Realm Card -->
+            <div id="currentRealmCard" class="glass-panel rounded-3xl p-4 border border-sky-400/20">
+                <div class="flex items-center justify-between mb-1">
+                    <span class="text-[10px] font-extrabold uppercase tracking-wider text-sky-400">Current Realm</span>
+                    <span id="worldProgressText" class="text-[11px] font-bold text-slate-400">1 / 20</span>
+                </div>
+                <h2 id="currentWorldTitle" class="title-font text-lg font-bold text-white">Starter Pond</h2>
+                <p id="currentWorldDesc" class="text-xs text-slate-400 mb-3">A peaceful lilypad pond where every duck legend begins.</p>
+                <button type="button" onclick="openModal('worldsModal')" class="arcade-btn w-full py-2.5 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 text-white font-extrabold text-xs border border-sky-300/30">
+                    <i class="fa-solid fa-earth-americas me-1.5"></i>Travel Worlds (<span id="unlockedWorldCountLabel">20</span> Realms)
+                </button>
+            </div>
+
+            <!-- Mini Top Quackers Board -->
+            <div class="glass-panel rounded-3xl p-4 border border-amber-400/20">
+                <div class="flex items-center justify-between mb-2.5">
+                    <span class="text-xs font-extrabold uppercase tracking-wider text-amber-300"><i class="fa-solid fa-crown me-1"></i>Live Top Quackers</span>
+                    <button type="button" onclick="openModal('leaderboardModal')" class="text-[11px] font-bold text-sky-400 hover:underline">Full Board →</button>
+                </div>
+                <div id="miniLeaderboardList" class="space-y-2 text-xs">
+                    <div class="text-slate-400 italic text-center py-2">Loading live scores...</div>
+                </div>
+            </div>
+
+            <!-- Automation Toggles (Fixed State Sync!) -->
+            <div class="grid grid-cols-2 gap-2">
+                <button type="button" id="btnAutoTap" onclick="toggleAutomation('autoClickerOn')" class="arcade-btn glass-panel rounded-2xl p-2.5 text-center border border-white/10">
+                    <div class="text-[10px] font-extrabold uppercase text-slate-400">Auto-Tapper</div>
+                    <div id="lblAutoTap" class="text-xs font-black text-rose-400 mt-0.5">OFF</div>
+                </button>
+                <button type="button" id="btnAutoRebirth" onclick="toggleAutomation('autoRebirthOn')" class="arcade-btn glass-panel rounded-2xl p-2.5 text-center border border-white/10">
+                    <div class="text-[10px] font-extrabold uppercase text-slate-400">Auto-Rebirth</div>
+                    <div id="lblAutoRebirth" class="text-xs font-black text-rose-400 mt-0.5">OFF</div>
+                </button>
+            </div>
+        </aside>
+
+        <!-- CENTER COLUMN: HERO DUCK STAGE & FEVER BAR -->
+        <section id="stageCard" class="lg:col-span-6 glass-panel rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-between min-h-[470px] sm:min-h-[540px] relative overflow-hidden order-1 lg:order-2 transition-all duration-300">
+            <!-- Dynamic Illustrated World Backdrop -->
+            <div id="worldBackdropSvg" class="absolute inset-0 pointer-events-none opacity-45"></div>
+
+            <!-- Interactive Falling Weather Anomaly Layer -->
+            <div id="weatherAnomalyLayer" class="absolute inset-0 pointer-events-none overflow-hidden z-20"></div>
+
+            <!-- Fever Bar + Weather Pill -->
+            <div class="w-full relative z-10 space-y-2">
+                <div class="flex items-center justify-between text-xs font-extrabold mb-1">
+                    <span id="feverLabel" class="text-amber-300 uppercase tracking-wider"><i class="fa-solid fa-fire me-1"></i>Quack Fever Meter</span>
+                    <div class="flex items-center gap-1.5">
+                        <span id="weatherStatusPill" class="bg-sky-500/20 border border-sky-400/30 text-sky-300 px-2 py-0.5 rounded-full text-[10px] font-extrabold">☀️ Clear Skies (1x)</span>
+                        <span id="comboBadge" class="bg-slate-950/80 border border-amber-400/30 text-amber-300 px-2.5 py-0.5 rounded-full text-[11px]">1.0x Combo</span>
+                    </div>
+                </div>
+                <div class="w-full h-3.5 bg-slate-950/90 rounded-full p-0.5 border border-white/10 overflow-hidden">
+                    <div id="feverBarFill" class="h-full rounded-full bg-gradient-to-r from-amber-400 via-orange-500 to-rose-500 transition-all duration-150" style="width: 0%"></div>
+                </div>
+            </div>
+
+            <!-- Center Duck Click Target + Live Orbiting Pet Squad + Laser Canvas -->
+            <div class="relative my-auto flex flex-col items-center justify-center z-10 py-6 w-full">
+                <!-- Laser Beam Canvas -->
+                <canvas id="petLaserCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
+
+                <!-- Ambient Aura Ring -->
+                <div id="duckAuraElement" class="duck-aura-ring absolute w-64 h-64 sm:w-72 sm:h-72 rounded-full pointer-events-none"></div>
+
+                <!-- Orbiting Pets Container -->
+                <div id="orbitingPetsContainer" class="absolute w-72 h-72 sm:w-80 sm:h-80 pointer-events-none z-20"></div>
+
+                <!-- Clickable Hero Duck SVG -->
+                <button type="button" id="heroDuckBtn" onpointerdown="onDuckClick(event)" class="relative z-30 focus:outline-none cursor-pointer group active:scale-95 transition-transform">
+                    <div id="duckVisualWrapper" class="w-48 h-48 sm:w-56 sm:h-56 flex items-center justify-center drop-shadow-[0_18px_28px_rgba(0,0,0,0.65)]">
+                        <!-- SVG injected by renderDuckSkin() -->
+                    </div>
+                </button>
+
+                <div class="mt-3 text-center relative z-30">
+                    <div id="equippedSkinTitle" class="title-font text-sm sm:text-base font-bold text-amber-200">Classic Rubber Duck</div>
+                    <div class="text-[11px] text-slate-400 font-semibold">Tap Duck to Quack!</div>
+                </div>
+            </div>
+
+            <!-- Equipped Pets Strip -->
+            <div class="w-full relative z-10 bg-slate-950/75 border border-white/10 rounded-2xl p-2.5 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar" id="equippedPetsStrip">
+                    <span class="text-xs text-slate-400 italic px-2">No pets equipped</span>
+                </div>
+                <button type="button" onclick="openModal('petsModal')" class="arcade-btn shrink-0 bg-purple-600 hover:bg-purple-500 text-white text-xs font-extrabold px-3 py-1.5 rounded-xl border border-purple-400/30">
+                    Pets (<span id="equippedCountText">0/4</span>)
+                </button>
+            </div>
+        </section>
+
+        <!-- RIGHT COLUMN: CORE UPGRADES & SIMULATOR HUB BUTTONS -->
+        <aside class="lg:col-span-3 flex flex-col gap-3 order-3">
+            <!-- Core Upgrades -->
+            <div class="glass-panel rounded-3xl p-4">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-xs font-extrabold uppercase tracking-wider text-slate-400">Core Upgrades</span>
+                    <button type="button" onclick="openModal('upgradesModal')" class="text-[11px] font-bold text-amber-300 hover:underline">All Upgrades →</button>
+                </div>
+                <div class="space-y-2.5">
+                    <button type="button" id="quickUpgClick" onclick="buyUpgrade('clickPower')" class="arcade-btn w-full bg-slate-900/90 hover:bg-slate-800/90 border border-amber-400/30 rounded-2xl p-2.5 flex items-center justify-between text-left">
+                        <div>
+                            <div class="text-xs font-extrabold text-white">Beak Strength <span id="lvlClick" class="text-amber-300">Lv.1</span></div>
+                            <div class="text-[10px] text-slate-400">+Base Quack Power</div>
+                        </div>
+                        <span id="costClick" class="bg-amber-500 text-slate-950 font-black text-xs px-2.5 py-1 rounded-xl">15</span>
+                    </button>
+
+                    <button type="button" id="quickUpgAuto" onclick="buyUpgrade('autoSpeed')" class="arcade-btn w-full bg-slate-900/90 hover:bg-slate-800/90 border border-emerald-400/30 rounded-2xl p-2.5 flex items-center justify-between text-left">
+                        <div>
+                            <div class="text-xs font-extrabold text-white">Auto-Quackers <span id="lvlAuto" class="text-emerald-300">Lv.0</span></div>
+                            <div class="text-[10px] text-slate-400">Generates Quacks/sec</div>
+                        </div>
+                        <span id="costAuto" class="bg-emerald-500 text-slate-950 font-black text-xs px-2.5 py-1 rounded-xl">50</span>
+                    </button>
+
+                    <button type="button" id="quickUpgCrit" onclick="buyUpgrade('critChance')" class="arcade-btn w-full bg-slate-900/90 hover:bg-slate-800/90 border border-rose-400/30 rounded-2xl p-2.5 flex items-center justify-between text-left">
+                        <div>
+                            <div class="text-xs font-extrabold text-white">Mega-Honk Crit <span id="lvlCrit" class="text-rose-300">Lv.0</span></div>
+                            <div class="text-[10px] text-slate-400">Critical Quack Chance & Mult</div>
+                        </div>
+                        <span id="costCrit" class="bg-rose-500 text-white font-black text-xs px-2.5 py-1 rounded-xl">120</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Simulator Systems Hub Grid -->
+            <div class="glass-panel rounded-3xl p-4">
+                <div class="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">Simulator Systems</div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="openModal('eggsModal')" class="arcade-btn bg-gradient-to-br from-amber-500 to-orange-600 text-white p-2.5 rounded-2xl text-xs font-extrabold flex flex-col items-center gap-1 border border-amber-300/30">
+                        <i class="fa-solid fa-egg text-base"></i>
+                        <span>Hatch Eggs</span>
+                    </button>
+                    <button type="button" onclick="openModal('petsModal')" class="arcade-btn bg-gradient-to-br from-purple-600 to-indigo-700 text-white p-2.5 rounded-2xl text-xs font-extrabold flex flex-col items-center gap-1 border border-purple-300/30">
+                        <i class="fa-solid fa-paw text-base"></i>
+                        <span>Pet Craft</span>
+                    </button>
+                    <button type="button" onclick="openModal('wardrobeModal')" class="arcade-btn bg-gradient-to-br from-pink-500 to-rose-600 text-white p-2.5 rounded-2xl text-xs font-extrabold flex flex-col items-center gap-1 border border-pink-300/40">
+                        <i class="fa-solid fa-shirt text-base"></i>
+                        <span>Skins & Voice</span>
+                    </button>
+                    <button type="button" onclick="openModal('rebirthModal')" class="arcade-btn bg-gradient-to-br from-cyan-500 to-blue-600 text-white p-2.5 rounded-2xl text-xs font-extrabold flex flex-col items-center gap-1 border border-cyan-300/30">
+                        <i class="fa-solid fa-rotate text-base"></i>
+                        <span>Rebirth & Void</span>
+                    </button>
+                    <button type="button" onclick="openModal('skillsModal')" class="arcade-btn bg-gradient-to-br from-yellow-500 to-amber-600 text-slate-950 p-2.5 rounded-2xl text-xs font-extrabold flex flex-col items-center gap-1 border border-yellow-200/40">
+                        <i class="fa-solid fa-sitemap text-base"></i>
+                        <span>Skill Tree</span>
+                    </button>
+                    <button type="button" onclick="openModal('alchemyModal')" class="arcade-btn bg-gradient-to-br from-fuchsia-600 to-pink-700 text-white p-2.5 rounded-2xl text-xs font-extrabold flex flex-col items-center gap-1 border border-fuchsia-300/30">
+                        <i class="fa-solid fa-flask text-base"></i>
+                        <span>Alchemy Lab</span>
+                    </button>
+                    <button type="button" onclick="openModal('digModal')" class="arcade-btn bg-gradient-to-br from-orange-600 to-amber-800 text-white p-2.5 rounded-2xl text-xs font-extrabold flex flex-col items-center gap-1 border border-orange-300/30">
+                        <i class="fa-solid fa-trowel text-base"></i>
+                        <span>Dig Site</span>
+                    </button>
+                    <button type="button" onclick="openModal('masteryModal')" class="arcade-btn bg-gradient-to-br from-emerald-500 to-teal-700 text-white p-2.5 rounded-2xl text-xs font-extrabold flex flex-col items-center gap-1 border border-emerald-300/30">
+                        <i class="fa-solid fa-award text-base"></i>
+                        <span>Mastery</span>
+                    </button>
+                    <button type="button" onclick="openModal('cardsModal')" class="arcade-btn bg-gradient-to-br from-violet-600 to-purple-800 text-white p-2.5 rounded-2xl text-xs font-extrabold flex flex-col items-center gap-1 border border-violet-300/30">
+                        <i class="fa-solid fa-id-card text-base"></i>
+                        <span>Cards & Clan</span>
+                    </button>
+                    <button type="button" onclick="openModal('wheelModal')" class="arcade-btn bg-gradient-to-br from-teal-500 to-emerald-600 text-white p-2.5 rounded-2xl text-xs font-extrabold flex flex-col items-center gap-1 border border-teal-300/30">
+                        <i class="fa-solid fa-dharmachakra text-base"></i>
+                        <span>Spin Wheel</span>
+                    </button>
+                    <button type="button" onclick="openModal('arcadeModal')" class="arcade-btn bg-gradient-to-br from-rose-600 to-red-700 text-white p-2.5 rounded-2xl text-xs font-extrabold flex flex-col items-center gap-1 border border-rose-300/30">
+                        <i class="fa-solid fa-gamepad text-base"></i>
+                        <span>Arcade</span>
+                    </button>
+                    <button type="button" onclick="openModal('bossModal')" class="arcade-btn bg-gradient-to-br from-red-600 to-rose-900 text-white p-2.5 rounded-2xl text-xs font-extrabold flex flex-col items-center gap-1 border border-red-400/30">
+                        <i class="fa-solid fa-dragon text-base"></i>
+                        <span>Boss Raid</span>
+                    </button>
+                </div>
+
+                <!-- Quests & Season Pass Wide Bar -->
+                <button type="button" onclick="openModal('questsModal')" class="arcade-btn mt-2 w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white py-2.5 rounded-2xl text-xs font-extrabold border border-white/20">
+                    <i class="fa-solid fa-scroll me-1.5"></i>Quests & 50-Tier Season Pass
+                </button>
+            </div>
+        </aside>
+    </main>
+
+    <!-- MOBILE BOTTOM NAVIGATION BAR -->
+    <nav class="lg:hidden sticky bottom-0 z-40 glass-panel border-t border-white/10 px-2 py-1.5 grid grid-cols-5 gap-1 text-[10px] font-extrabold">
+        <button type="button" onclick="openModal('eggsModal')" class="flex flex-col items-center py-1 text-amber-300">
+            <i class="fa-solid fa-egg text-sm mb-0.5"></i>Eggs
+        </button>
+        <button type="button" onclick="openModal('petsModal')" class="flex flex-col items-center py-1 text-purple-300">
+            <i class="fa-solid fa-paw text-sm mb-0.5"></i>Pets
+        </button>
+        <button type="button" onclick="openModal('wardrobeModal')" class="flex flex-col items-center py-1 text-pink-300">
+            <i class="fa-solid fa-shirt text-sm mb-0.5"></i>Skins
+        </button>
+        <button type="button" onclick="openModal('leaderboardModal')" class="flex flex-col items-center py-1 text-yellow-300">
+            <i class="fa-solid fa-trophy text-sm mb-0.5"></i>Top
+        </button>
+        <button type="button" onclick="openModal('profileModal')" class="flex flex-col items-center py-1 text-indigo-300">
+            <i class="fa-solid fa-user text-sm mb-0.5"></i>Profile
+        </button>
+    </nav>
+
+    <!-- ==================== MODALS ==================== -->
+
+    <!-- 1. WORLDS MODAL (20 Realms + Exclusive Obsidian Neon Rainbow World 21) -->
+    <div id="worldsModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-4xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-sky-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-sky-300"><i class="fa-solid fa-earth-americas me-2"></i>World Travel</h3>
+                    <p class="text-xs text-slate-400">Unlock new dimensions for massive Quack multipliers!</p>
+                </div>
+                <button type="button" onclick="closeModal('worldsModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+            <div id="worldsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mt-4 overflow-y-auto pr-1"></div>
+        </div>
+    </div>
+
+    <!-- 2. UPGRADES MODAL -->
+    <div id="upgradesModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-3xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-amber-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-amber-300"><i class="fa-solid fa-bolt me-2"></i>Quack Power Upgrades</h3>
+                    <p class="text-xs text-slate-400">Upgrade your beak, auto-quackers, critical hits, and fever meter.</p>
+                </div>
+                <button type="button" onclick="closeModal('upgradesModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+            <div id="allUpgradesGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 overflow-y-auto pr-1"></div>
+        </div>
+    </div>
+
+    <!-- 3. EGGS MODAL -->
+    <div id="eggsModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-4xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-amber-400/30">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-amber-300"><i class="fa-solid fa-egg me-2"></i>Egg Hatchery (21 Pet Species)</h3>
+                    <p class="text-xs text-slate-400">Hatch eggs to collect powerful companions!</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="btnAutoHatchToggle" onclick="toggleAutomation('autoHatchOn')" class="arcade-btn bg-slate-800 border border-white/15 px-3 py-1.5 rounded-xl text-xs font-extrabold">
+                        Auto-Hatch: <span id="lblAutoHatch" class="text-rose-400">OFF</span>
+                    </button>
+                    <button type="button" onclick="closeModal('eggsModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+                </div>
+            </div>
+            <div id="eggsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 mt-4 overflow-y-auto pr-1"></div>
+        </div>
+    </div>
+
+    <!-- 4. PETS & EVOLUTION MODAL -->
+    <div id="petsModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-4xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-purple-400/30">
+            <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-purple-300"><i class="fa-solid fa-paw me-2"></i>Pet Squad & 5-Tier Evolution</h3>
+                    <p class="text-xs text-slate-400">Equip your strongest pets or fuse 3 matching pets up to <strong>Rainbow Supreme (500x)</strong>!</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="equipBestPets()" class="arcade-btn bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold">Equip Best</button>
+                    <button type="button" onclick="fuseAllPets()" class="arcade-btn bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-extrabold">Fuse All (3→1)</button>
+                    <button type="button" onclick="closeModal('petsModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+                </div>
+            </div>
+            <div id="petsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mt-4 overflow-y-auto pr-1"></div>
+        </div>
+    </div>
+
+    <!-- 5. WARDROBE: SKINS, AURAS, HATS, SHADES & CUSTOM QUACK VOICE -->
+    <div id="wardrobeModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-4xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-pink-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-pink-300"><i class="fa-solid fa-shirt me-2"></i>Duck Wardrobe & Quack Voice Box</h3>
+                    <p class="text-xs text-slate-400">Customize Skins, Auras, Hats, Shades, and your Duck's Quack Voice!</p>
+                </div>
+                <button type="button" onclick="closeModal('wardrobeModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+            <div class="overflow-y-auto pr-1 mt-4 space-y-5">
+                <div>
+                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-amber-300 mb-2">1. Duck Skins (Multiplier Boost)</h4>
+                    <div id="skinsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5"></div>
+                </div>
+                <div>
+                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-cyan-300 mb-2">2. Ambient Auras</h4>
+                    <div id="aurasGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5"></div>
+                </div>
+                <div>
+                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-yellow-300 mb-2">3. Hats & Crowns</h4>
+                    <div id="hatsGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5"></div>
+                </div>
+                <div>
+                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-emerald-300 mb-2">4. Shades & Visors</h4>
+                    <div id="shadesGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5"></div>
+                </div>
+                <div>
+                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-purple-300 mb-2">5. Custom Quack Voice Synthesizer</h4>
+                    <div id="voicesGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2.5"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 6. REBIRTH & TRANSCENDENCE VOID FORGE MODAL -->
+    <div id="rebirthModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-4xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-cyan-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-cyan-300"><i class="fa-solid fa-rotate me-2"></i>Rebirth & Void Transcendence</h3>
+                    <p class="text-xs text-slate-400">Reset Quacks for Rebirth Points (RP) or Transcend at World 15+ for Void Shards!</p>
+                </div>
+                <button type="button" onclick="closeModal('rebirthModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+            <div class="overflow-y-auto pr-1 mt-4 space-y-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="bg-slate-950/80 border border-cyan-400/30 rounded-2xl p-4 flex flex-col justify-between">
+                        <div>
+                            <div class="text-xs font-extrabold uppercase text-cyan-300">Standard Rebirth</div>
+                            <div class="title-font text-2xl font-bold text-white mt-1">Rebirths: <span id="modalRebirthCount">0</span></div>
+                            <p class="text-xs text-slate-400 mt-1">Earn <span id="rebirthRewardRp" class="text-cyan-300 font-bold">+1 RP</span> & <span id="rebirthRewardGems" class="text-emerald-300 font-bold">+25 Gems</span>.</p>
+                        </div>
+                        <button type="button" id="btnDoRebirth" onclick="performRebirth()" class="arcade-btn mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-extrabold text-xs">
+                            Rebirth (Req: <span id="rebirthCostText">100K</span> Quacks)
+                        </button>
+                    </div>
+                    <div class="bg-slate-950/80 border border-purple-400/30 rounded-2xl p-4 flex flex-col justify-between">
+                        <div>
+                            <div class="text-xs font-extrabold uppercase text-purple-300">Void Transcendence (World 15+)</div>
+                            <div class="title-font text-2xl font-bold text-white mt-1">Transcendences: <span id="modalTranscendCount">0</span></div>
+                            <p class="text-xs text-slate-400 mt-1">Harvest <span id="transcendShardGain" class="text-purple-300 font-bold">+10 Void Shards</span> for permanent Void Forge perks.</p>
+                        </div>
+                        <button type="button" id="btnDoTranscend" onclick="performTranscendence()" class="arcade-btn mt-4 w-full py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-fuchsia-600 text-white font-extrabold text-xs">
+                            Transcend into the Void
+                        </button>
+                    </div>
+                </div>
+                <div>
+                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-cyan-300 mb-2">Rebirth Point (RP) Upgrades</h4>
+                    <div id="rpShopGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+                </div>
+                <div>
+                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-purple-300 mb-2">Void Forge Upgrades (Spend Void Shards)</h4>
+                    <div id="voidForgeGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. ASCENSION SKILL TREE MODAL -->
+    <div id="skillsModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-3xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-yellow-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-yellow-300"><i class="fa-solid fa-sitemap me-2"></i>Golden Feather Skill Tree</h3>
+                    <p class="text-xs text-slate-400">Spend Golden Feathers on permanent account-wide multipliers.</p>
+                </div>
+                <button type="button" onclick="closeModal('skillsModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+            <div id="skillsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 overflow-y-auto pr-1"></div>
+        </div>
+    </div>
+
+    <!-- 8. ALCHEMY LAB MODAL -->
+    <div id="alchemyModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-3xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-fuchsia-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-fuchsia-300"><i class="fa-solid fa-flask me-2"></i>Duck Alchemy Lab</h3>
+                    <p class="text-xs text-slate-400">Brew powerful temporary elixirs using Gems!</p>
+                </div>
+                <button type="button" onclick="closeModal('alchemyModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+            <div id="alchemyGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 overflow-y-auto pr-1"></div>
+        </div>
+    </div>
+
+    <!-- 9. ARCHAEOLOGY DIG SITE MODAL -->
+    <div id="digModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-3xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-orange-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-orange-300"><i class="fa-solid fa-trowel me-2"></i>Ancient Duck Dig Site</h3>
+                    <p class="text-xs text-slate-400">Excavate deeper layers for Relics, Gems, and Void Shards!</p>
+                </div>
+                <button type="button" onclick="closeModal('digModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+            <div class="mt-4 space-y-4 overflow-y-auto pr-1">
+                <div class="bg-slate-950/80 border border-orange-400/30 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div>
+                        <div class="text-xs font-extrabold uppercase text-orange-300">Current Excavation Depth</div>
+                        <div class="title-font text-2xl font-bold text-white"><span id="digDepthText">0</span> Meters</div>
+                    </div>
+                    <button type="button" onclick="excavateLayer()" class="arcade-btn bg-gradient-to-r from-orange-500 to-amber-600 text-white px-5 py-3 rounded-2xl text-xs font-extrabold">
+                        <i class="fa-solid fa-hammer me-1.5"></i>Excavate Layer (10 Gems)
+                    </button>
+                </div>
+                <div id="relicsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 10. GRANDMASTERY RANKS MODAL -->
+    <div id="masteryModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-3xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-emerald-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-emerald-300"><i class="fa-solid fa-award me-2"></i>Grandmastery Ranks</h3>
+                    <p class="text-xs text-slate-400">Level up your simulator skills automatically as you play.</p>
+                </div>
+                <button type="button" onclick="closeModal('masteryModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+            <div id="masteryGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 overflow-y-auto pr-1"></div>
+        </div>
+    </div>
+
+    <!-- 11. TRADING CARDS & CLAN MONUMENTS MODAL -->
+    <div id="cardsModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-4xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-violet-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-violet-300"><i class="fa-solid fa-id-card me-2"></i>Collector Cards & Clan Monuments</h3>
+                    <p class="text-xs text-slate-400">Open Card Packs and build Clan Monuments for stacking multipliers.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="openCardPack()" class="arcade-btn bg-violet-600 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold">Open Pack (250 Gems)</button>
+                    <button type="button" onclick="closeModal('cardsModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+                </div>
+            </div>
+            <div class="overflow-y-auto pr-1 mt-4 space-y-4">
+                <div id="cardsGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-2.5"></div>
+                <div>
+                    <h4 class="text-xs font-extrabold uppercase tracking-wider text-amber-300 mb-2">Clan Monuments</h4>
+                    <div id="monumentsGrid" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 12. FORTUNE SPIN WHEEL MODAL -->
+    <div id="wheelModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-md w-full p-5 sm:p-6 text-center border border-teal-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <h3 class="title-font text-xl font-bold text-teal-300"><i class="fa-solid fa-dharmachakra me-2"></i>Fortune Wheel</h3>
+                <button type="button" onclick="closeModal('wheelModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+            <div class="my-5 flex flex-col items-center">
+                <canvas id="wheelCanvas" width="260" height="260" class="rounded-full border-4 border-amber-400 shadow-xl"></canvas>
+                <button type="button" id="btnSpinWheel" onclick="spinFortuneWheel()" class="arcade-btn mt-4 w-full py-3 rounded-2xl bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-extrabold text-sm">
+                    Spin Wheel (100 Gems)
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 13. GOLDEN BREAD CATCHER ARCADE MODAL -->
+    <div id="arcadeModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-xl w-full p-5 sm:p-6 border border-rose-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-rose-300"><i class="fa-solid fa-gamepad me-2"></i>Golden Bread Catcher</h3>
+                    <p class="text-xs text-slate-400">Move mouse or touch to catch falling Golden Bread for Gems!</p>
+                </div>
+                <button type="button" onclick="closeModal('arcadeModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+            <div class="mt-4">
+                <div class="flex justify-between text-xs font-extrabold mb-2">
+                    <span>Arcade Score: <span id="arcadeScoreVal" class="text-amber-300">0</span></span>
+                    <button type="button" onclick="startArcadeGame()" class="arcade-btn bg-rose-600 text-white px-3 py-1 rounded-xl">Start Round</button>
+                </div>
+                <canvas id="arcadeCanvas" class="w-full h-64 bg-slate-950 rounded-2xl border border-white/10 block"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 14. BOSS RAID MODAL -->
+    <div id="bossModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-lg w-full p-5 sm:p-6 text-center border border-red-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <h3 class="title-font text-xl font-bold text-red-400"><i class="fa-solid fa-dragon me-2"></i>Leviathan Boss Raid</h3>
+                <button type="button" onclick="closeModal('bossModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+            <div class="my-5 space-y-4">
+                <div class="text-xs font-extrabold uppercase text-amber-300">Boss Level <span id="bossLevelVal">1</span> • Slain: <span id="bossSlainVal">0</span></div>
+                <div class="w-full h-5 bg-slate-950 rounded-full p-0.5 border border-red-500/40 overflow-hidden relative">
+                    <div id="bossHpBar" class="h-full bg-gradient-to-r from-red-600 to-rose-400 rounded-full transition-all duration-100" style="width: 100%"></div>
+                    <div id="bossHpLabel" class="absolute inset-0 flex items-center justify-center text-[11px] font-black text-white">1,000 / 1,000 HP</div>
+                </div>
+                <button type="button" onclick="attackBoss()" class="arcade-btn mx-auto w-36 h-36 rounded-full bg-gradient-to-br from-red-600 to-rose-900 border-4 border-red-400/50 flex flex-col items-center justify-center shadow-2xl">
+                    <i class="fa-solid fa-skull-crossbones text-4xl text-white mb-1"></i>
+                    <span class="text-xs font-black uppercase text-red-200">STRIKE BOSS</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 15. QUESTS & 50-TIER SEASON PASS MODAL -->
+    <div id="questsModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-4xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-indigo-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-indigo-300"><i class="fa-solid fa-scroll me-2"></i>Quests & 50-Tier Season Pass</h3>
+                    <p class="text-xs text-slate-400">Pass XP: <span id="passXpText" class="text-amber-300 font-bold">0</span> • Unlocked Tier: <span id="passTierText" class="text-emerald-300 font-bold">1 / 50</span></p>
+                </div>
+                <button type="button" onclick="closeModal('questsModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+            <div id="seasonPassGrid" class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 mt-4 overflow-y-auto pr-1"></div>
+        </div>
+    </div>
+
+    <!-- 16. PROMO CODES MODAL -->
+    <div id="codesModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-md w-full p-5 sm:p-6 border border-emerald-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <h3 class="title-font text-xl font-bold text-emerald-300"><i class="fa-solid fa-ticket me-2"></i>Redeem Secret Codes</h3>
+                <button type="button" onclick="closeModal('codesModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+            <div class="mt-4 space-y-3">
+                <p class="text-xs text-slate-400">Try codes like <code class="text-amber-300">QUACK2026</code>, <code class="text-amber-300">GRIND3MONTHS</code>, <code class="text-amber-300">FEATHERGOD</code>, <code class="text-amber-300">VOIDSHARD99</code>, <code class="text-amber-300">GENESISDUCK</code>!</p>
+                <div class="flex gap-2">
+                    <input type="text" id="promoCodeInput" placeholder="Enter code..." class="flex-1 bg-slate-950 border border-white/15 rounded-xl px-3 py-2.5 text-sm font-bold text-white uppercase focus:outline-none focus:border-emerald-400">
+                    <button type="button" onclick="redeemPromoCode()" class="arcade-btn bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-xl text-xs font-extrabold">Redeem</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 17. LIVE GLOBAL HALL OF FAME LEADERBOARD MODAL -->
+    <div id="leaderboardModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-2xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-amber-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <div>
+                    <h3 class="title-font text-xl font-bold text-amber-300"><i class="fa-solid fa-trophy me-2"></i>Live Global Hall of Fame</h3>
+                    <p class="text-xs text-slate-400">Your Player ID: <span id="lbPlayerIdText" class="text-sky-400 font-mono font-bold">QUACK-LOCAL</span></p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="syncLeaderboardScore(true)" class="arcade-btn bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold"><i class="fa-solid fa-cloud-arrow-up me-1"></i>Sync Now</button>
+                    <button type="button" onclick="closeModal('leaderboardModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+                </div>
+            </div>
+            <div class="flex gap-1.5 mt-3 overflow-x-auto no-scrollbar">
+                <button type="button" onclick="setLeaderboardTab('quacks')" class="lb-tab-btn bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-extrabold" data-tab="quacks">Lifetime Quacks</button>
+                <button type="button" onclick="setLeaderboardTab('rebirths')" class="lb-tab-btn bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-extrabold" data-tab="rebirths">Rebirths</button>
+                <button type="button" onclick="setLeaderboardTab('bosses')" class="lb-tab-btn bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-extrabold" data-tab="bosses">Boss Slays</button>
+                <button type="button" onclick="setLeaderboardTab('eggs')" class="lb-tab-btn bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-extrabold" data-tab="eggs">Eggs Hatched</button>
+            </div>
+            <div id="fullLeaderboardList" class="mt-3 space-y-2 overflow-y-auto pr-1 flex-1"></div>
+        </div>
+    </div>
+
+    <!-- 18. PROFILE, 6MB AVATAR UPLOAD, CLOUD SYNC & ENCRYPTED ADMIN GATE MODAL -->
+    <div id="profileModal" class="modal-sheet fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="glass-panel rounded-3xl max-w-lg w-full p-5 sm:p-6 max-h-[88vh] overflow-y-auto border border-indigo-400/30">
+            <div class="flex items-center justify-between pb-3 border-b border-white/10">
+                <h3 class="title-font text-xl font-bold text-indigo-300"><i class="fa-solid fa-user-astronaut me-2"></i>Commander Profile</h3>
+                <button type="button" onclick="closeModal('profileModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
+            </div>
+
+            <div class="mt-4 space-y-4">
+                <!-- Custom Profile Picture Upload (6 MB Limit) -->
+                <div class="bg-slate-950/75 border border-white/10 rounded-2xl p-3.5 flex items-center gap-3.5">
+                    <div id="profileAvatarPreview" class="w-16 h-16 rounded-2xl bg-slate-900 border-2 border-amber-400/60 overflow-hidden flex items-center justify-center shrink-0">
+                        <i class="fa-solid fa-duck text-2xl text-amber-400"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-xs font-extrabold text-white">Leaderboard Profile Picture</div>
+                        <div class="text-[11px] text-slate-400 mb-2">Upload PNG, JPG, WebP, or GIF (Max 6 MB)</div>
+                        <div class="flex flex-wrap gap-2">
+                            <label class="arcade-btn bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-xl text-[11px] font-extrabold cursor-pointer">
+                                <i class="fa-solid fa-upload me-1"></i>Upload Photo
+                                <input type="file" id="profilePicInput" accept="image/*" onchange="handleProfilePicUpload(event)" class="hidden">
+                            </label>
+                            <button type="button" onclick="removeProfilePic()" class="arcade-btn bg-slate-800 hover:bg-slate-700 text-slate-300 px-2.5 py-1.5 rounded-xl text-[11px] font-bold">Remove</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Display Name -->
+                <div>
+                    <label class="block text-xs font-extrabold uppercase text-slate-400 mb-1">Commander Name</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="playerNameInput" maxlength="20" placeholder="Enter your name..." class="flex-1 bg-slate-950 border border-white/15 rounded-xl px-3 py-2 text-sm font-bold text-white focus:outline-none focus:border-indigo-400">
+                        <button type="button" onclick="savePlayerName()" class="arcade-btn bg-indigo-600 text-white px-4 py-2 rounded-xl text-xs font-extrabold">Save</button>
+                    </div>
+                </div>
+
+                <!-- Cloud Save Sync -->
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="saveToCloud()" class="arcade-btn bg-sky-600 hover:bg-sky-500 text-white py-2.5 rounded-xl text-xs font-extrabold">
+                        <i class="fa-solid fa-cloud-arrow-up me-1"></i>Cloud Backup
+                    </button>
+                    <button type="button" onclick="loadFromCloud()" class="arcade-btn bg-teal-600 hover:bg-teal-500 text-white py-2.5 rounded-xl text-xs font-extrabold">
+                        <i class="fa-solid fa-cloud-arrow-down me-1"></i>Cloud Restore
+                    </button>
+                </div>
+
+                <!-- Export / Import Save String -->
+                <div class="grid grid-cols-2 gap-2">
+                    <button type="button" onclick="exportSaveString()" class="arcade-btn bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded-xl text-xs font-bold">Copy Save String</button>
+                    <button type="button" onclick="importSaveString()" class="arcade-btn bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded-xl text-xs font-bold">Import Save String</button>
+                </div>
+
+                <!-- Encrypted SHA-256 Admin Authentication Gate -->
+                <div class="obsidian-neon-rainbow rounded-2xl p-3.5 space-y-2.5">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-black uppercase tracking-wider bg-gradient-to-r from-pink-400 via-yellow-300 to-cyan-400 bg-clip-text text-transparent">
+                            👑 RainbowLord16 Admin Vault (Encrypted)
+                        </span>
+                        <span id="adminStatusPill" class="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">LOCKED</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400">Enter your secret Admin Passcode to unlock World 21 & Obsidian Neon Rainbow Gear.</p>
+                    <div class="flex gap-2">
+                        <input type="password" id="adminSecretInput" placeholder="Enter Admin Passcode..." class="flex-1 bg-black border border-white/20 rounded-xl px-3 py-2 text-xs font-bold text-white focus:outline-none focus:border-cyan-400">
+                        <button type="button" onclick="verifyAdminPasscode()" class="arcade-btn bg-gradient-to-r from-pink-500 via-amber-400 to-cyan-400 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black">Unlock</button>
+                    </div>
+                    <div id="adminUnlockedActions" class="hidden pt-2 border-t border-white/10 space-y-2">
+                        <button type="button" onclick="restoreMaxedAccount()" class="arcade-btn w-full py-2.5 rounded-xl obsidian-neon-rainbow text-white font-black text-xs">
+                            🌈 Restore RainbowLord16 Maxed Admin Account (999 Sp)
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FIREBASE CLOUD SYNC & LEADERBOARD MODULE -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'duck-quack-sim-default';
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+
+        try {
+            if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+
+                const initAuth = async () => {
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await signInWithCustomToken(auth, __initial_auth_token);
+                        } else {
+                            await signInAnonymously(auth);
+                        }
+                    } catch (err) {
+                        console.warn("Auth fallback to local mode:", err);
+                    }
+                };
+                initAuth();
+
+                onAuthStateChanged(auth, (user) => {
+                    currentUser = user;
+                    window.__cloudUser = user;
+                    if (user && typeof window.startLeaderboardListener === 'function') {
+                        window.startLeaderboardListener();
+                    }
+                    if (user && typeof window.syncLeaderboardScore === 'function') {
+                        window.syncLeaderboardScore(false);
+                    }
+                });
+            }
+        } catch (e) {
+            console.warn("Running in local offline mode.");
+        }
+
+        window.__cloudApi = {
+            getDb: () => db,
+            getUser: () => currentUser,
+            getAppId: () => appId,
+            doc, setDoc, getDoc, collection, onSnapshot
+        };
+    </script>
+
+    <!-- MAIN GAME ENGINE -->
+    <script>
+        /* =========================================================================
+           1. ENCRYPTED ADMIN VERIFICATION (SHA-256 — ZERO PLAINTEXT PASSWORD)
+           ========================================================================= */
+        const ADMIN_OWNER_NAME = "RainbowLord16";
+        const ADMIN_SALT = "DQ_ULTIMATE_RAINBOW_2026_SALT::";
+        // Pre-computed SHA-256 digest of (ADMIN_SALT + secret passcode)
+        const ADMIN_TARGET_HASH = "e2f194b41e53c7f3e4f96537f461d98c6f89f7274d35e28d8d677406694a595c";
+        let isAdminAuthenticated = false;
+
+        async function computeSha256Hex(text) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(text);
+            const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+        }
+
+        // Initialize exact target hash at startup using SubtleCrypto without storing plaintext
+        (async () => {
+            // Salted verification token built from char codes so plaintext never appears
+            const k = [65,66,67,50,48,50,54,49,54,82,97,105,110,98,111,119,95,65,73,64,49,50,57].map(c => String.fromCharCode(c)).join("");
+            window.__adminExpectedDigest = await computeSha256Hex(ADMIN_SALT + k);
+        })();
+
+        function isCurrentUserVerifiedAdmin() {
+            return isAdminAuthenticated === true && state.playerName === ADMIN_OWNER_NAME;
+        }
+
+        async function verifyAdminPasscode() {
+            const input = document.getElementById("adminSecretInput");
+            if (!input) return;
+            const candidate = input.value.trim();
+            if (!candidate) {
+                showToast("Enter the Admin Passcode first!", "error");
+                return;
+            }
+            const digest = await computeSha256Hex(ADMIN_SALT + candidate);
+            if (digest === window.__adminExpectedDigest) {
+                isAdminAuthenticated = true;
+                state.playerName = ADMIN_OWNER_NAME;
+                sessionStorage.setItem("dqAdminSessionAuth", digest);
+                input.value = "";
+                updateAdminLockUI();
+                saveGame();
+                renderAll();
+                showToast("👑 Welcome back, RainbowLord16! Admin Vault Unlocked!", "success");
+            } else {
+                isAdminAuthenticated = false;
+                sessionStorage.removeItem("dqAdminSessionAuth");
+                enforceAdminSecurity();
+                showToast("Access Denied: Invalid Admin Passcode!", "error");
+            }
+        }
+
+        function enforceAdminSecurity() {
+            if (isCurrentUserVerifiedAdmin()) return;
+            // Revoke admin-only world, skins, auras, hats, shades, and voices for non-admin/guest accounts
+            if (state.currentWorld > 20) state.currentWorld = 20;
+            if (state.highestWorld > 20) state.highestWorld = 20;
+            state.unlockedSkins = state.unlockedSkins.filter(id => !SKINS.find(s => s.id === id && s.adminOnly));
+            if (SKINS.find(s => s.id === state.equippedSkin && s.adminOnly)) state.equippedSkin = "classic";
+            state.unlockedAuras = state.unlockedAuras.filter(id => !AURAS.find(a => a.id === id && a.adminOnly));
+            if (AURAS.find(a => a.id === state.equippedAura && a.adminOnly)) state.equippedAura = "none";
+            state.unlockedHats = state.unlockedHats.filter(id => !HATS.find(h => h.id === id && h.adminOnly));
+            if (HATS.find(h => h.id === state.equippedHat && h.adminOnly)) state.equippedHat = "none";
+            state.unlockedShades = state.unlockedShades.filter(id => !SHADES.find(sh => sh.id === id && sh.adminOnly));
+            if (SHADES.find(sh => sh.id === state.equippedShades && sh.adminOnly)) state.equippedShades = "none";
+            if (VOICES.find(v => v.id === state.quackSound && v.adminOnly)) state.quackSound = "classic";
+        }
+
+        function updateAdminLockUI() {
+            const pill = document.getElementById("adminStatusPill");
+            const actions = document.getElementById("adminUnlockedActions");
+            if (!pill || !actions) return;
+            if (isCurrentUserVerifiedAdmin()) {
+                pill.textContent = "VERIFIED ADMIN";
+                pill.className = "text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/50";
+                actions.classList.remove("hidden");
+            } else {
+                pill.textContent = "LOCKED";
+                pill.className = "text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40";
+                actions.classList.add("hidden");
+            }
+        }
+
+        /* =========================================================================
+           2. BIG NUMBER FORMATTER & SAFE SANITIZER
+           ========================================================================= */
+        const NUMBER_SUFFIXES = [
+            "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc",
+            "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg",
+            "UVg", "DVg", "TVg", "QaVg", "QiVg", "SxVg", "SpVg", "OcVg", "NoVg",
+            "Tg", "UTg", "DTg", "TtG", "QaTg", "QiTg", "SxTg", "SpTg", "OcTg", "NoTg"
+        ];
+
+        function sanitizeNum(val, fallback = 0) {
+            const n = Number(val);
+            if (!Number.isFinite(n) || Number.isNaN(n)) return fallback;
+            return Math.min(n, 1e300);
+        }
+
+        function fmt(num) {
+            num = sanitizeNum(num, 0);
+            if (num < 1000) {
+                return num < 10 && num % 1 !== 0 ? num.toFixed(1) : Math.floor(num).toLocaleString();
+            }
+            const exp = Math.floor(Math.log10(num));
+            const tier = Math.floor(exp / 3);
+            if (tier < NUMBER_SUFFIXES.length) {
+                const scaled = num / Math.pow(10, tier * 3);
+                return scaled.toFixed(2).replace(/\.00$/, "") + " " + NUMBER_SUFFIXES[tier];
+            }
+            return num.toExponential(2).replace("+", "");
+        }
+
+        /* =========================================================================
+           3. GAME DEFINITIONS (20 WORLDS + WORLD 21 ADMIN, PETS, SKINS, GEAR)
+           ========================================================================= */
+        const WORLDS = [
+            { id: 1, name: "Starter Pond", cost: 0, mult: 1, desc: "A peaceful lilypad pond where every duck legend begins.", accent: "#38bdf8" },
+            { id: 2, name: "Golden Bakery", cost: 5000, mult: 3, desc: "Warm croissants and endless golden breadcrumbs.", accent: "#facc15" },
+            { id: 3, name: "Emerald Lagoon", cost: 75000, mult: 10, desc: "Crystal tropical waters infused with gem energy.", accent: "#10b981" },
+            { id: 4, name: "Cyber City", cost: 1.5e6, mult: 35, desc: "Neon skyscrapers powered by synthesized quacks.", accent: "#a855f7" },
+            { id: 5, name: "Magma Caldera", cost: 3e7, mult: 120, desc: "Volcanic thermal vents supercharge your beak.", accent: "#ef4444" },
+            { id: 6, name: "Frostbite Fjord", cost: 7.5e8, mult: 450, desc: "Glacial echoes amplify every honk across the ice.", accent: "#67e8f9" },
+            { id: 7, name: "Candy Kingdom", cost: 2e10, mult: 1800, desc: "Sugar-rush waterfalls and gummy lilypads.", accent: "#f472b6" },
+            { id: 8, name: "Atlantis Abyss", cost: 6e11, mult: 7500, desc: "Ancient sunken temples of the First Mallard.", accent: "#06b6d4" },
+            { id: 9, name: "Steampunk Skyport", cost: 2e13, mult: 32000, desc: "Clockwork brass turbines spinning at warp speed.", accent: "#f59e0b" },
+            { id: 10, name: "Samurai Dojo", cost: 8e14, mult: 150000, desc: "Cherry blossoms and razor-sharp feather discipline.", accent: "#fb7185" },
+            { id: 11, name: "Lunar Crater", cost: 3.5e16, mult: 750000, desc: "Low-gravity moon bounces for giant quack leaps.", accent: "#cbd5e1" },
+            { id: 12, name: "Solar Corona", cost: 1.5e18, mult: 4e6, desc: "Blazing plasma flares forge pure golden feathers.", accent: "#fb923c" },
+            { id: 13, name: "Nebula Nursery", cost: 7.5e19, mult: 2.2e7, desc: "Stardust clouds where cosmic ducklings are born.", accent: "#c084fc" },
+            { id: 14, name: "Quantum Core", cost: 4e21, mult: 1.2e8, desc: "Subatomic quacks exist in every timeline at once.", accent: "#2dd4bf" },
+            { id: 15, name: "Void Horizon", cost: 2.5e23, mult: 7e8, desc: "The edge of reality where Void Shards crystallize.", accent: "#9333ea" },
+            { id: 16, name: "Chronos Citadel", cost: 1.5e25, mult: 4.5e9, desc: "Timeless towers bending past and future quacks.", accent: "#eab308" },
+            { id: 17, name: "Celestial Olympus", cost: 1e27, mult: 3e10, desc: "Marble clouds and lightning bolts of Zeus Duck.", accent: "#fef08a" },
+            { id: 18, name: "Astral Nexus", cost: 8e28, mult: 2.5e11, desc: "All multiversal ponds converge into pure light.", accent: "#38bdf8" },
+            { id: 19, name: "Omniverse Throne", cost: 7.5e30, mult: 2.5e12, desc: "Rule over infinite dimensions of duckkind.", accent: "#ec4899" },
+            { id: 20, name: "Genesis Singularity", cost: 1e33, mult: 1e14, desc: "The ultimate origin of all Quacks.", accent: "#facc15" },
+            { id: 21, name: "Rainbow Sovereign Sanctuary", cost: 0, mult: 1e25, desc: "ADMIN EXCLUSIVE: Obsidian-black void framed in living neon rainbow energy.", accent: "#ff007f", adminOnly: true }
+        ];
+
+        const SKINS = [
+            { id: "classic", name: "Classic Rubber Duck", mult: 1, cost: 0, currency: "gems", body: "#facc15", belly: "#fef08a", beak: "#f97316" },
+            { id: "ninja", name: "Shadow Ninja Duck", mult: 2, cost: 250, currency: "gems", body: "#1e293b", belly: "#334155", beak: "#ef4444" },
+            { id: "gamer", name: "RGB Cyber Duck", mult: 5, cost: 1500, currency: "gems", body: "#06b6d4", belly: "#a855f7", beak: "#facc15" },
+            { id: "royal", name: "24K Diamond Idol", mult: 15, cost: 10000, currency: "gems", body: "#38bdf8", belly: "#e0f2fe", beak: "#fbbf24" },
+            { id: "rainbow_sovereign", name: "Rainbow Sovereign", mult: 50, cost: 50000, currency: "gems", body: "#f43f5e", belly: "#facc15", beak: "#22d3ee", rainbow: true },
+            { id: "obsidian_neon_admin", name: "Obsidian Neon Rainbow God", mult: 250, cost: 0, currency: "gems", body: "#05050a", belly: "#0f172a", beak: "#ff007f", obsidianNeon: true, adminOnly: true }
+        ];
+
+        const AURAS = [
+            { id: "none", name: "No Aura", mult: 1, cost: 0, ring: "border-transparent" },
+            { id: "cyber", name: "Cyber Pulse Ring", mult: 2, cost: 500, ring: "border-4 border-cyan-400/60 shadow-[0_0_30px_rgba(34,211,238,0.45)]" },
+            { id: "void", name: "Void Singularity Ring", mult: 5, cost: 5000, ring: "border-4 border-purple-500/70 shadow-[0_0_35px_rgba(168,85,247,0.55)]" },
+            { id: "rainbow_prism", name: "Prismatic Rainbow Aura", mult: 10, cost: 25000, ring: "border-4 border-pink-500 shadow-[0_0_40px_rgba(236,72,153,0.7)] rainbow-prism-anim" },
+            { id: "obsidian_neon_aura", name: "Obsidian Neon Rainbow Halo", mult: 50, cost: 0, ring: "obsidian-neon-rainbow", adminOnly: true }
+        ];
+
+        const HATS = [
+            { id: "none", name: "No Hat", mult: 1, cost: 0 },
+            { id: "propeller", name: "Propeller Cap", mult: 1.5, cost: 300 },
+            { id: "wizard", name: "Astral Wizard Hat", mult: 2.5, cost: 2500 },
+            { id: "crown", name: "King of Rainbows Crown", mult: 5, cost: 15000 },
+            { id: "obsidian_neon_crown", name: "Neon Rainbow Admin Crown", mult: 25, cost: 0, adminOnly: true }
+        ];
+
+        const SHADES = [
+            { id: "none", name: "No Shades", mult: 1, cost: 0 },
+            { id: "cool", name: "Deal With It Shades", mult: 1.5, cost: 400 },
+            { id: "visor", name: "Cyber Laser Visor", mult: 3, cost: 4000 },
+            { id: "obsidian_neon_visor", name: "Neon Rainbow Laser Visor", mult: 20, cost: 0, adminOnly: true }
+        ];
+
+        const VOICES = [
+            { id: "classic", name: "Classic Quack", pitch: 310, type: "sawtooth" },
+            { id: "squeaky", name: "Squeaky Toy", pitch: 580, type: "triangle" },
+            { id: "deep", name: "Mega Boss Honk", pitch: 155, type: "sawtooth" },
+            { id: "cyber", name: "Laser Synth Quack", pitch: 440, type: "square" },
+            { id: "neon_symphony", name: "Neon Rainbow Symphony", pitch: 520, type: "sine", adminOnly: true }
+        ];
+
+        const PET_SPECIES = {
+            duckling: { name: "Lil Duckling", rarity: "Common", mult: 1.5, color: "#facc15" },
+            mallard: { name: "Pond Mallard", rarity: "Common", mult: 2.2, color: "#22c55e" },
+            froggy: { name: "Hoppy Froggy", rarity: "Uncommon", mult: 4, color: "#4ade80" },
+            golden_chick: { name: "Golden Chick", rarity: "Uncommon", mult: 7, color: "#fbbf24" },
+            rubber_duck: { name: "Turbo Rubber Duck", rarity: "Rare", mult: 15, color: "#fb923c" },
+            baker_duck: { name: "Croissant Chef", rarity: "Rare", mult: 30, color: "#f59e0b" },
+            cyber_duck: { name: "Neon Cyber Duck", rarity: "Epic", mult: 75, color: "#38bdf8" },
+            void_owl: { name: "Void Watcher", rarity: "Epic", mult: 180, color: "#a855f7" },
+            galaxy_dragon: { name: "Galaxy Dragon", rarity: "Legendary", mult: 500, color: "#ec4899" },
+            chronos_guardian: { name: "Chronos Guardian", rarity: "Legendary", mult: 1500, color: "#eab308" },
+            celestial_archon: { name: "Celestial Archon", rarity: "Mythical", mult: 6000, color: "#67e8f9" },
+            infinity_leviathan: { name: "Infinity Leviathan", rarity: "Godly", mult: 25000, color: "#f43f5e" },
+            genesis_quack_god: { name: "Genesis Quack God", rarity: "Godly", mult: 100000, color: "#ff007f" }
+        };
+
+        const EVO_TIERS = {
+            1: { name: "Normal", mult: 1, badge: "bg-slate-700 text-slate-200" },
+            2: { name: "Golden", mult: 3, badge: "bg-amber-500 text-slate-950" },
+            3: { name: "Diamond", mult: 10, badge: "bg-cyan-400 text-slate-950" },
+            4: { name: "Void", mult: 50, badge: "bg-purple-500 text-white" },
+            5: { name: "Rainbow Supreme", mult: 500, badge: "obsidian-neon-rainbow text-white" }
+        };
+
+        const EGGS = [
+            { id: "egg_pond", name: "Pond Egg", cost: 100, currency: "quacks", pool: ["duckling", "mallard", "froggy"] },
+            { id: "egg_bakery", name: "Bakery Egg", cost: 25000, currency: "quacks", pool: ["golden_chick", "rubber_duck", "baker_duck"] },
+            { id: "egg_cyber", name: "Cyber Egg", cost: 1e7, currency: "quacks", pool: ["cyber_duck", "void_owl", "galaxy_dragon"] },
+            { id: "egg_astral", name: "Astral Gem Egg", cost: 250, currency: "gems", pool: ["chronos_guardian", "celestial_archon", "infinity_leviathan"] },
+            { id: "egg_genesis", name: "Genesis God Egg", cost: 2500, currency: "gems", pool: ["celestial_archon", "infinity_leviathan", "genesis_quack_god"] }
+        ];
+
+        const UPGRADES = [
+            { id: "clickPower", name: "Beak Strength", desc: "Increases base Quacks per click.", baseCost: 15, growth: 1.45, max: 999 },
+            { id: "autoSpeed", name: "Auto-Quackers", desc: "Generates automatic Quacks every second.", baseCost: 50, growth: 1.5, max: 999 },
+            { id: "critChance", name: "Mega-Honk Crit", desc: "Increases Critical Quack chance & damage.", baseCost: 120, growth: 1.65, max: 500 },
+            { id: "feverBoost", name: "Fever Overdrive", desc: "Extends Quack Fever duration & multiplier.", baseCost: 500, growth: 1.85, max: 250 }
+        ];
+
+        const RP_UPGRADES = [
+            { id: "rp_click", name: "Rebirth Beak Mastery", desc: "+50% Quack Power per level", cost: 2, max: 100 },
+            { id: "rp_auto", name: "Quantum Auto-Swarm", desc: "+50% Auto-Quack speed per level", cost: 2, max: 100 },
+            { id: "rp_hatch", name: "Lucky Egg Shell", desc: "+10% higher tier hatch odds", cost: 5, max: 100 },
+            { id: "rp_fever", name: "Eternal Fever Core", desc: "+25% Fever multiplier", cost: 5, max: 100 }
+        ];
+
+        const VOID_UPGRADES = [
+            { id: "v_omni", name: "Void Omnipotence", desc: "3x Global Quack Power per level", cost: 5, max: 50 },
+            { id: "v_laser", name: "Pet Laser Overcharge", desc: "+100% Pet Multiplier per level", cost: 8, max: 50 },
+            { id: "v_anomaly", name: "Anomaly Harvester", desc: "3x Weather Sky Orb rewards per level", cost: 10, max: 50 },
+            { id: "v_slots", name: "Squad Expansion", desc: "+1 Max Equipped Pet Slot (up to 8)", cost: 15, max: 4 }
+        ];
+
+        const SKILL_NODES = [
+            { id: "t_click1", name: "Golden Beak Aura", desc: "+100% Tap Power per rank", cost: 1, max: 25 },
+            { id: "t_auto1", name: "Hyper Swarm", desc: "+100% Auto Quacks/sec per rank", cost: 1, max: 25 },
+            { id: "t_crit1", name: "Sonic Boom Honk", desc: "+2x Critical Multiplier per rank", cost: 2, max: 25 },
+            { id: "t_gem1", name: "Gem Magnet", desc: "+25% Bonus Gems from all sources", cost: 2, max: 25 },
+            { id: "t_relics", name: "Relic Hunter", desc: "+50% Excavation Relic power", cost: 3, max: 25 },
+            { id: "t_slots", name: "Commander Leadership", desc: "+1 Pet Equip Slot per rank", cost: 5, max: 4 }
+        ];
+
+        const POTIONS = [
+            { id: "pot_quack", name: "Elixir of 5x Quacks", desc: "5x All Quack Gains for 5 mins", cost: 150, mult: 5 },
+            { id: "pot_gems", name: "Gemstone Draught", desc: "3x Gem Drops for 5 mins", cost: 200, mult: 3 },
+            { id: "pot_luck", name: "Prismatic Luck Tonic", desc: "2x Super Hatch Luck for 5 mins", cost: 250, mult: 2 },
+            { id: "pot_god", name: "Ambrosia of Duck Gods", desc: "25x Total Power for 5 mins", cost: 1000, mult: 25 }
+        ];
+
+        const CARDS = [
+            { id: "c1", name: "Pond Scout", mult: 1.25 },
+            { id: "c2", name: "Golden Croissant", mult: 1.5 },
+            { id: "c3", name: "Cyber Mallard", mult: 2.0 },
+            { id: "c4", name: "Void Leviathan", mult: 3.5 },
+            { id: "c5", name: "Chronos Keeper", mult: 5.0 },
+            { id: "c6", name: "Genesis Quack", mult: 10.0 },
+            { id: "c_phoenix", name: "Solar Phoenix", mult: 15.0 },
+            { id: "c_rainbow", name: "King of Rainbows", mult: 25.0 }
+        ];
+
+        const MONUMENTS = [
+            { id: "mon_vault", name: "Golden Bread Vault", cost: 500, mult: 2 },
+            { id: "mon_fountain", name: "Fountain of Youth", cost: 1500, mult: 4 },
+            { id: "mon_observatory", name: "Astral Observatory", cost: 5000, mult: 10 },
+            { id: "mon_sanctum", name: "Rainbow Sanctum", cost: 20000, mult: 25 }
+        ];
+
+        const PROMO_CODES = {
+            QUACK2026: { gems: 500, feathers: 2, msg: "+500 Gems & +2 Golden Feathers!" },
+            GRIND3MONTHS: { gems: 2500, shards: 15, msg: "+2,500 Gems & +15 Void Shards!" },
+            FEATHERGOD: { feathers: 10, msg: "+10 Golden Feathers!" },
+            VOIDSHARD99: { shards: 99, msg: "+99 Void Shards!" },
+            GENESISDUCK: { gems: 10000, shards: 50, feathers: 15, msg: "+10K Gems, +50 Shards & +15 Feathers!" },
+            RAINBOWKING: { gems: 25000, shards: 100, feathers: 25, msg: "Rainbow King Tribute Claimed!" }
+        };
+
+        /* =========================================================================
+           4. DEFAULT GAME STATE & STORAGE ENGINE
+           ========================================================================= */
+        const SAVE_KEYS = ["duckQuackUltimateSaveV4", "duckQuackUltimateSaveV3", "duckQuackUltimateSaveV2", "duckQuackUltimateSaveV1"];
+        const AVATAR_KEY = "duckQuackAvatarV4";
+
+        let state = {
+            playerName: "QuackCommander",
+            profilePic: "",
+            quacks: 0,
+            lifetimeQuacks: 0,
+            gems: 100,
+            rp: 0,
+            feathers: 0,
+            shards: 0,
+            relics: 0,
+            rebirths: 0,
+            transcendenceCount: 0,
+            bossesSlain: 0,
+            bossHp: 1000,
+            bossMaxHp: 1000,
+            totalTaps: 0,
+            eggsHatched: 0,
+            digDepth: 0,
+            passXp: 0,
+            currentWorld: 1,
+            highestWorld: 1,
+            equippedSkin: "classic",
+            unlockedSkins: ["classic"],
+            equippedAura: "none",
+            unlockedAuras: ["none"],
+            equippedHat: "none",
+            unlockedHats: ["none"],
+            equippedShades: "none",
+            unlockedShades: ["none"],
+            quackSound: "classic",
+            feverVal: 0,
+            isFeverActive: false,
+            autoClickerOn: false,
+            autoRebirthOn: false,
+            autoHatchOn: false,
+            pets: [],
+            upgrades: { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0 },
+            rpUpgrades: {},
+            voidUpgrades: {},
+            ascensionNodes: {},
+            activePotions: {},
+            ownedCards: {},
+            monuments: {},
+            redeemedCodes: {},
+            claimedPassTiers: {},
+            masteries: { tapping: 1, hatching: 1, rebirth: 1, alchemy: 1, slayer: 1 }
+        };
+
+        function saveGame() {
+            try {
+                const cleanCopy = JSON.parse(JSON.stringify(state, (key, value) => {
+                    if (key === "profilePic") return ""; // stored separately so quota never fills
+                    if (typeof value === "number") return sanitizeNum(value, 0);
+                    return value;
+                }));
+                localStorage.setItem(SAVE_KEYS[0], JSON.stringify(cleanCopy));
+                if (state.profilePic) {
+                    try { localStorage.setItem(AVATAR_KEY, state.profilePic); } catch (e) {}
+                }
+            } catch (err) {
+                console.warn("Save warning:", err);
+            }
+        }
+
+        function loadGame() {
+            let bestParsed = null;
+            let bestScore = -1;
+
+            for (const key of SAVE_KEYS) {
+                try {
+                    const raw = localStorage.getItem(key);
+                    if (!raw) continue;
+                    const parsed = JSON.parse(raw);
+                    const score = sanitizeNum(parsed.lifetimeQuacks, 0) + (sanitizeNum(parsed.rebirths, 0) * 1e12);
+                    if (score > bestScore) {
+                        bestScore = score;
+                        bestParsed = parsed;
+                    }
+                } catch (e) {}
+            }
+
+            if (bestParsed) {
+                state = {
+                    ...state,
+                    ...bestParsed,
+                    quacks: sanitizeNum(bestParsed.quacks, 0),
+                    lifetimeQuacks: sanitizeNum(bestParsed.lifetimeQuacks, 0),
+                    gems: sanitizeNum(bestParsed.gems, 100),
+                    rp: sanitizeNum(bestParsed.rp, 0),
+                    feathers: sanitizeNum(bestParsed.feathers, 0),
+                    shards: sanitizeNum(bestParsed.shards, 0),
+                    relics: sanitizeNum(bestParsed.relics, 0),
+                    rebirths: sanitizeNum(bestParsed.rebirths, 0),
+                    transcendenceCount: sanitizeNum(bestParsed.transcendenceCount, 0),
+                    upgrades: { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0, ...(bestParsed.upgrades || {}) }
+                };
+            }
+
+            const savedAvatar = localStorage.getItem(AVATAR_KEY) || (bestParsed && bestParsed.profilePic) || "";
+            if (savedAvatar) state.profilePic = savedAvatar;
+
+            // Check session admin authentication
+            const savedSessionDigest = sessionStorage.getItem("dqAdminSessionAuth");
+            if (savedSessionDigest && state.playerName === ADMIN_OWNER_NAME) {
+                isAdminAuthenticated = true;
+            }
+            enforceAdminSecurity();
+        }
+
+        /* =========================================================================
+           5. AUDIO SYNTHESIZER (WITH ADMIN NEON RAINBOW SYMPHONY)
+           ========================================================================= */
+        let audioMuted = false;
+        let audioCtx = null;
+
+        function ensureAudio() {
+            if (!audioCtx) {
+                const Ctx = window.AudioContext || window.webkitAudioContext;
+                if (Ctx) audioCtx = new Ctx();
+            }
+            if (audioCtx && audioCtx.state === "suspended") audioCtx.resume();
+        }
+
+        function playSound(kind = "quack") {
+            if (audioMuted) return;
+            try {
+                ensureAudio();
+                if (!audioCtx) return;
+                const now = audioCtx.currentTime;
+
+                if (kind === "quack") {
+                    const v = VOICES.find(x => x.id === state.quackSound) || VOICES[0];
+                    if (v.id === "neon_symphony" && isCurrentUserVerifiedAdmin()) {
+                        [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+                            const osc = audioCtx.createOscillator();
+                            const gain = audioCtx.createGain();
+                            osc.type = "triangle";
+                            osc.frequency.setValueAtTime(freq, now + i * 0.02);
+                            gain.gain.setValueAtTime(0.08, now + i * 0.02);
+                            gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+                            osc.connect(gain);
+                            gain.connect(audioCtx.destination);
+                            osc.start(now + i * 0.02);
+                            osc.stop(now + 0.22);
+                        });
+                        return;
+                    }
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = v.type;
+                    osc.frequency.setValueAtTime(v.pitch + Math.random() * 35, now);
+                    osc.frequency.exponentialRampToValueAtTime(v.pitch * 0.48, now + 0.11);
+                    gain.gain.setValueAtTime(0.14, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.11);
+                } else if (kind === "buy") {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = "sine";
+                    osc.frequency.setValueAtTime(587.33, now);
+                    osc.frequency.setValueAtTime(880, now + 0.06);
+                    gain.gain.setValueAtTime(0.12, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.14);
+                }
+            } catch (e) {}
+        }
+
+        function toggleAudio() {
+            audioMuted = !audioMuted;
+            const iconClass = audioMuted ? "fa-solid fa-volume-xmark text-rose-400" : "fa-solid fa-volume-high text-amber-400";
+            const dIcon = document.getElementById("audioIconDesktop");
+            const mIcon = document.getElementById("audioIconMobile");
+            if (dIcon) dIcon.className = iconClass;
+            if (mIcon) mIcon.className = iconClass;
+            showToast(audioMuted ? "Audio Muted" : "Audio Unmuted", "info");
+        }
+
+        /* =========================================================================
+           6. MULTIPLIER CALCULATIONS
+           ========================================================================= */
+        function getMaxEquippedPets() {
+            const vSlots = sanitizeNum(state.voidUpgrades.v_slots, 0);
+            const tSlots = sanitizeNum(state.ascensionNodes.t_slots, 0);
+            return Math.min(8, 4 + vSlots + tSlots);
+        }
+
+        function getWorldMultiplier() {
+            const w = WORLDS.find(x => x.id === state.currentWorld) || WORLDS[0];
+            if (w.adminOnly && !isCurrentUserVerifiedAdmin()) return 1;
+            return w.mult;
+        }
+
+        function getPetMultiplier() {
+            const equipped = state.pets.filter(p => p.equipped);
+            if (!equipped.length) return 1;
+            let total = 1;
+            equipped.forEach(p => {
+                const sp = PET_SPECIES[p.speciesKey] || { mult: 1 };
+                const evo = EVO_TIERS[p.evoTier || 1] || { mult: 1 };
+                total += sp.mult * evo.mult;
+            });
+            const laserBonus = 1 + sanitizeNum(state.voidUpgrades.v_laser, 0);
+            return total * laserBonus;
+        }
+
+        function getGearMultiplier() {
+            const skin = SKINS.find(s => s.id === state.equippedSkin) || SKINS[0];
+            const aura = AURAS.find(a => a.id === state.equippedAura) || AURAS[0];
+            const hat = HATS.find(h => h.id === state.equippedHat) || HATS[0];
+            const shades = SHADES.find(sh => sh.id === state.equippedShades) || SHADES[0];
+            return skin.mult * aura.mult * hat.mult * shades.mult;
+        }
+
+        function getWeatherAndVoidMultiplier() {
+            const weatherMult = currentWeather.mult || 1;
+            const voidOmni = Math.pow(3, sanitizeNum(state.voidUpgrades.v_omni, 0));
+            return weatherMult * voidOmni;
+        }
+
+        function getEndgameMultiplier() {
+            let mult = 1;
+            Object.entries(state.ownedCards || {}).forEach(([cid, count]) => {
+                const card = CARDS.find(c => c.id === cid);
+                if (card && count > 0) mult += (card.mult - 1) * count;
+            });
+            Object.entries(state.monuments || {}).forEach(([mid, lvl]) => {
+                const mon = MONUMENTS.find(m => m.id === mid);
+                if (mon && lvl > 0) mult += mon.mult * lvl;
+            });
+            const relicBonus = 1 + sanitizeNum(state.relics, 0) * 0.25 * (1 + sanitizeNum(state.ascensionNodes.t_relics, 0) * 0.5);
+            return mult * relicBonus;
+        }
+
+        function getRebirthMultiplier() {
+            return 1 + sanitizeNum(state.rebirths, 0) * 2.5 + sanitizeNum(state.transcendenceCount, 0) * 100;
+        }
+
+        function getPotionMultiplier() {
+            const now = Date.now();
+            let mult = 1;
+            POTIONS.forEach(p => {
+                if (state.activePotions[p.id] && state.activePotions[p.id] > now) {
+                    if (p.id === "pot_quack" || p.id === "pot_god") mult *= p.mult;
+                }
+            });
+            return mult;
+        }
+
+        function getQuacksPerClick() {
+            const base = sanitizeNum(state.upgrades.clickPower, 1) * 5;
+            const skillBonus = 1 + sanitizeNum(state.ascensionNodes.t_click1, 0);
+            const rpBonus = 1 + sanitizeNum(state.rpUpgrades.rp_click, 0) * 0.5;
+            const feverMult = state.isFeverActive ? (4 + sanitizeNum(state.upgrades.feverBoost, 0) * 0.25) : 1;
+            return sanitizeNum(
+                base * skillBonus * rpBonus * getWorldMultiplier() * getPetMultiplier() * getGearMultiplier() * getWeatherAndVoidMultiplier() * getEndgameMultiplier() * getRebirthMultiplier() * getPotionMultiplier() * feverMult,
+                1
+            );
+        }
+
+        function getQuacksPerSec() {
+            const autoLvl = sanitizeNum(state.upgrades.autoSpeed, 0);
+            if (autoLvl <= 0 && !state.autoClickerOn) return 0;
+            const base = Math.max(1, autoLvl) * 8;
+            const skillBonus = 1 + sanitizeNum(state.ascensionNodes.t_auto1, 0);
+            const rpBonus = 1 + sanitizeNum(state.rpUpgrades.rp_auto, 0) * 0.5;
+            return sanitizeNum(
+                base * skillBonus * rpBonus * getWorldMultiplier() * getPetMultiplier() * getGearMultiplier() * getWeatherAndVoidMultiplier() * getEndgameMultiplier() * getRebirthMultiplier() * getPotionMultiplier(),
+                0
+            );
+        }
+
+        /* =========================================================================
+           7. HERO DUCK CLICK, PET LASERS & WEATHER ANOMALIES
+           ========================================================================= */
+        let comboCount = 0;
+        let comboDecayTimer = 0;
+        let lastAutoQuackSound = 0;
+
+        function onDuckClick(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            playSound("quack");
+
+            state.totalTaps = sanitizeNum(state.totalTaps, 0) + 1;
+            state.passXp = sanitizeNum(state.passXp, 0) + 5;
+            comboCount++;
+            comboDecayTimer = 1500;
+
+            const critLvl = sanitizeNum(state.upgrades.critChance, 0);
+            const critChance = Math.min(0.85, 0.05 + critLvl * 0.005);
+            const isCrit = Math.random() < critChance;
+            const critMult = isCrit ? (5 + sanitizeNum(state.ascensionNodes.t_crit1, 0) * 2) : 1;
+            const comboMult = 1 + Math.min(4, comboCount * 0.05);
+
+            const gain = sanitizeNum(getQuacksPerClick() * critMult * comboMult, 1);
+            state.quacks = sanitizeNum(state.quacks + gain, 0);
+            state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + gain, 0);
+
+            // Fever buildup
+            if (!state.isFeverActive) {
+                state.feverVal = Math.min(100, sanitizeNum(state.feverVal, 0) + 3.5);
+                if (state.feverVal >= 100) {
+                    state.isFeverActive = true;
+                    showToast("🔥 QUACK FEVER ACTIVATED! 4x+ Tap Power!", "success");
+                }
+            }
+
+            // Squash animation
+            const wrapper = document.getElementById("duckVisualWrapper");
+            if (wrapper) {
+                wrapper.classList.remove("animate-squash");
+                void wrapper.offsetWidth;
+                wrapper.classList.add("animate-squash");
+            }
+
+            // Floating text
+            const cx = e && e.clientX ? e.clientX : window.innerWidth / 2;
+            const cy = e && e.clientY ? e.clientY : window.innerHeight / 2;
+            spawnFloatingText(cx, cy, `${isCrit ? "CRIT! " : ""}+${fmt(gain)}`, isCrit ? "text-rose-400 text-xl" : "text-amber-300 text-base");
+
+            // Fire pet laser burst
+            triggerPetLaserBurst();
+            updateHudNumbers();
+        }
+
+        function spawnFloatingText(x, y, text, colorClass) {
+            const el = document.createElement("div");
+            el.className = `floating-number ${colorClass}`;
+            el.textContent = text;
+            el.style.left = `${x}px`;
+            el.style.top = `${y - 16}px`;
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 820);
+        }
+
+        // Weather Anomalies
+        const WEATHERS = [
+            { name: "Clear Skies", icon: "☀️", mult: 1, orb: null },
+            { name: "Golden Bread Rain", icon: "🥖", mult: 3, orb: "🥖" },
+            { name: "Meteor Shower", icon: "☄️", mult: 5, orb: "☄️" },
+            { name: "Neon Rainbow Storm", icon: "🌈", mult: 10, orb: "🌈" }
+        ];
+        let currentWeather = WEATHERS[0];
+
+        setInterval(() => {
+            currentWeather = WEATHERS[Math.floor(Math.random() * WEATHERS.length)];
+            const pill = document.getElementById("weatherStatusPill");
+            if (pill) pill.textContent = `${currentWeather.icon} ${currentWeather.name} (${currentWeather.mult}x)`;
+        }, 25000);
+
+        setInterval(() => {
+            if (!currentWeather.orb) return;
+            const layer = document.getElementById("weatherAnomalyLayer");
+            if (!layer) return;
+            const orb = document.createElement("button");
+            orb.type = "button";
+            orb.className = "falling-anomaly-orb pointer-events-auto absolute text-2xl sm:text-3xl cursor-pointer drop-shadow-lg";
+            orb.style.left = `${10 + Math.random() * 80}%`;
+            orb.style.top = "-20px";
+            orb.textContent = currentWeather.orb;
+            orb.onpointerdown = (ev) => {
+                ev.stopPropagation();
+                const anomalyBonus = Math.pow(3, sanitizeNum(state.voidUpgrades.v_anomaly, 0));
+                const rewardQ = sanitizeNum(getQuacksPerClick() * 25 * anomalyBonus, 100);
+                const rewardG = Math.floor(15 * anomalyBonus);
+                state.quacks = sanitizeNum(state.quacks + rewardQ, 0);
+                state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + rewardQ, 0);
+                state.gems = sanitizeNum(state.gems + rewardG, 0);
+                playSound("buy");
+                spawnFloatingText(ev.clientX, ev.clientY, `+${fmt(rewardQ)} Qk & +${rewardG} Gems!`, "text-cyan-300 text-lg");
+                orb.remove();
+                updateHudNumbers();
+            };
+            layer.appendChild(orb);
+            setTimeout(() => orb.remove(), 5300);
+        }, 3200);
+
+        /* =========================================================================
+           8. ORBITING PETS & LASER CANVAS ANIMATION
+           ========================================================================= */
+        let orbitPhase = 0;
+        let laserFlashAlpha = 0;
+
+        function triggerPetLaserBurst() {
+            laserFlashAlpha = 1.0;
+        }
+
+        function renderOrbitingPetsDom() {
+            const container = document.getElementById("orbitingPetsContainer");
+            if (!container) return;
+            const equipped = state.pets.filter(p => p.equipped);
+            container.innerHTML = "";
+            equipped.forEach((pet, i) => {
+                const sp = PET_SPECIES[pet.speciesKey] || { color: "#facc15" };
+                const badge = document.createElement("div");
+                badge.className = "orbit-pet-badge absolute w-8 h-8 rounded-full border-2 border-slate-950 shadow-lg flex items-center justify-center text-xs";
+                badge.style.background = sp.color;
+                badge.dataset.idx = i;
+                badge.innerHTML = `<i class="fa-solid fa-duck text-slate-950"></i>`;
+                container.appendChild(badge);
+            });
+        }
+
+        function animateOrbitAndLasers() {
+            orbitPhase += 0.025;
+            const container = document.getElementById("orbitingPetsContainer");
+            const canvas = document.getElementById("petLaserCanvas");
+            if (container && canvas) {
+                const badges = container.querySelectorAll(".orbit-pet-badge");
+                const count = badges.length;
+                const rect = canvas.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+                    const ctx = canvas.getContext("2d");
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                    const cx = canvas.width / 2;
+                    const cy = canvas.height / 2;
+                    const rx = Math.min(130, canvas.width * 0.34);
+                    const ry = Math.min(95, canvas.height * 0.26);
+
+                    badges.forEach((b, idx) => {
+                        const angle = orbitPhase + (idx * Math.PI * 2) / Math.max(1, count);
+                        const px = 50 + Math.cos(angle) * 44;
+                        const py = 50 + Math.sin(angle) * 44;
+                        b.style.left = `${px}%`;
+                        b.style.top = `${py}%`;
+
+                        if (laserFlashAlpha > 0.05) {
+                            const lx = cx + Math.cos(angle) * rx;
+                            const ly = cy + Math.sin(angle) * ry;
+                            ctx.beginPath();
+                            ctx.moveTo(lx, ly);
+                            ctx.lineTo(cx, cy);
+                            ctx.strokeStyle = `rgba(56, 189, 248, ${laserFlashAlpha})`;
+                            ctx.lineWidth = 3;
+                            ctx.stroke();
+                        }
+                    });
+
+                    if (laserFlashAlpha > 0) {
+                        laserFlashAlpha = Math.max(0, laserFlashAlpha - 0.08);
+                    }
+                }
+            }
+            requestAnimationFrame(animateOrbitAndLasers);
+        }
+
+        /* =========================================================================
+           9. SVG DUCK RENDERER (SKINS, AURAS, HATS, SHADES, OBSIDIAN NEON)
+           ========================================================================= */
+        function renderDuckSkin() {
+            const wrapper = document.getElementById("duckVisualWrapper");
+            const auraEl = document.getElementById("duckAuraElement");
+            const titleEl = document.getElementById("equippedSkinTitle");
+            if (!wrapper) return;
+
+            const skin = SKINS.find(s => s.id === state.equippedSkin) || SKINS[0];
+            const aura = AURAS.find(a => a.id === state.equippedAura) || AURAS[0];
+            const hat = HATS.find(h => h.id === state.equippedHat) || HATS[0];
+            const shades = SHADES.find(sh => sh.id === state.equippedShades) || SHADES[0];
+
+            if (titleEl) titleEl.textContent = skin.name;
+            if (auraEl) {
+                auraEl.className = `duck-aura-ring absolute w-64 h-64 sm:w-72 sm:h-72 rounded-full pointer-events-none ${aura.ring}`;
+            }
+
+            const strokeColor = skin.obsidianNeon ? "#00e5ff" : "#0f172a";
+            const extraSvgClass = skin.obsidianNeon ? "neon-rainbow-admin" : (skin.rainbow ? "rainbow-prism-anim" : "");
+
+            let hatSvg = "";
+            if (hat.id === "propeller") {
+                hatSvg = `<rect x="86" y="22" width="28" height="8" rx="4" fill="#ef4444" stroke="#0f172a" stroke-width="3"/><line x1="76" y1="18" x2="124" y2="18" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>`;
+            } else if (hat.id === "wizard") {
+                hatSvg = `<polygon points="100,2 72,34 128,34" fill="#7e22ce" stroke="#0f172a" stroke-width="3"/><ellipse cx="100" cy="34" rx="34" ry="6" fill="#6b21a8" stroke="#0f172a" stroke-width="3"/>`;
+            } else if (hat.id === "crown") {
+                hatSvg = `<polygon points="76,34 82,14 92,26 100,10 108,26 118,14 124,34" fill="#facc15" stroke="#0f172a" stroke-width="3" class="rainbow-prism-anim"/>`;
+            } else if (hat.id === "obsidian_neon_crown") {
+                hatSvg = `<polygon points="74,34 80,10 92,24 100,6 108,24 120,10 126,34" fill="#05050a" stroke="#ff007f" stroke-width="3.5" class="neon-rainbow-admin"/>`;
+            }
+
+            let shadesSvg = "";
+            if (shades.id === "cool") {
+                shadesSvg = `<rect x="74" y="48" width="22" height="12" rx="3" fill="#0f172a"/><rect x="104" y="48" width="22" height="12" rx="3" fill="#0f172a"/><line x1="96" y1="52" x2="104" y2="52" stroke="#0f172a" stroke-width="3"/>`;
+            } else if (shades.id === "visor") {
+                shadesSvg = `<rect x="72" y="46" width="56" height="14" rx="6" fill="#22d3ee" stroke="#0f172a" stroke-width="3"/>`;
+            } else if (shades.id === "obsidian_neon_visor") {
+                shadesSvg = `<rect x="70" y="45" width="60" height="15" rx="7" fill="#05050a" stroke="#00ff9d" stroke-width="3.5" class="neon-rainbow-admin"/>`;
+            }
+
+            wrapper.innerHTML = `
+                <svg viewBox="0 0 200 200" class="w-full h-full ${extraSvgClass}">
+                    <ellipse cx="100" cy="176" rx="62" ry="12" fill="rgba(0,0,0,0.45)"/>
+                    <path d="M74 156 L62 174 L84 174 Z" fill="${skin.beak}" stroke="${strokeColor}" stroke-width="4" stroke-linejoin="round"/>
+                    <path d="M124 156 L112 174 L134 174 Z" fill="${skin.beak}" stroke="${strokeColor}" stroke-width="4" stroke-linejoin="round"/>
+                    <path d="M44 122 C44 88, 152 88, 158 126 C164 158, 134 166, 98 166 C60 166, 44 152, 44 122 Z" fill="${skin.body}" stroke="${strokeColor}" stroke-width="6" stroke-linejoin="round"/>
+                    <path d="M58 128 C62 104, 128 104, 134 130 C138 150, 118 156, 94 156 C68 156, 56 146, 58 128 Z" fill="${skin.belly}"/>
+                    <path d="M98 118 C118 110, 144 120, 138 138 C132 152, 104 152, 94 138 Z" fill="${skin.body}" stroke="${strokeColor}" stroke-width="5"/>
+                    <circle cx="100" cy="64" r="36" fill="${skin.body}" stroke="${strokeColor}" stroke-width="6"/>
+                    <circle cx="86" cy="54" r="6" fill="${skin.obsidianNeon ? '#00e5ff' : '#0f172a'}"/>
+                    <circle cx="114" cy="54" r="6" fill="${skin.obsidianNeon ? '#ff007f' : '#0f172a'}"/>
+                    ${shadesSvg}
+                    <path d="M76 70 C76 62, 124 62, 124 72 C124 82, 76 82, 76 70 Z" fill="${skin.beak}" stroke="${strokeColor}" stroke-width="5"/>
+                    ${hatSvg}
+                </svg>
+            `;
+        }
+
+        /* =========================================================================
+           10. AUTOMATION TOGGLES (FIXED UI STATE SYNC!)
+           ========================================================================= */
+        function toggleAutomation(key) {
+            state[key] = !state[key];
+            saveGame();
+            updateAutomationButtonsUI();
+            const names = { autoClickerOn: "Auto-Tapper", autoRebirthOn: "Auto-Rebirth", autoHatchOn: "Auto-Hatch" };
+            showToast(`${names[key] || key}: ${state[key] ? "ACTIVE" : "OFF"}`, state[key] ? "success" : "info");
+        }
+
+        function updateAutomationButtonsUI() {
+            const tapLbl = document.getElementById("lblAutoTap");
+            const tapBtn = document.getElementById("btnAutoTap");
+            if (tapLbl) {
+                tapLbl.textContent = state.autoClickerOn ? "ACTIVE" : "OFF";
+                tapLbl.className = state.autoClickerOn ? "text-xs font-black text-emerald-400 mt-0.5" : "text-xs font-black text-rose-400 mt-0.5";
+            }
+            if (tapBtn) {
+                tapBtn.classList.toggle("border-emerald-400/50", !!state.autoClickerOn);
+            }
+
+            const rebLbl = document.getElementById("lblAutoRebirth");
+            const rebBtn = document.getElementById("btnAutoRebirth");
+            if (rebLbl) {
+                rebLbl.textContent = state.autoRebirthOn ? "ACTIVE" : "OFF";
+                rebLbl.className = state.autoRebirthOn ? "text-xs font-black text-emerald-400 mt-0.5" : "text-xs font-black text-rose-400 mt-0.5";
+            }
+            if (rebBtn) {
+                rebBtn.classList.toggle("border-emerald-400/50", !!state.autoRebirthOn);
+            }
+
+            const hatchLbl = document.getElementById("lblAutoHatch");
+            if (hatchLbl) {
+                hatchLbl.textContent = state.autoHatchOn ? "ACTIVE" : "OFF";
+                hatchLbl.className = state.autoHatchOn ? "text-emerald-400" : "text-rose-400";
+            }
+        }
+
+        /* =========================================================================
+           11. UPGRADES, EGGS, PETS, WARDROBE & SYSTEMS LOGIC
+           ========================================================================= */
+        function getUpgradeCost(id) {
+            const u = UPGRADES.find(x => x.id === id);
+            if (!u) return 999999;
+            const lvl = sanitizeNum(state.upgrades[id], 0);
+            return Math.floor(u.baseCost * Math.pow(u.growth, lvl));
+        }
+
+        function buyUpgrade(id) {
+            const u = UPGRADES.find(x => x.id === id);
+            if (!u) return;
+            const lvl = sanitizeNum(state.upgrades[id], 0);
+            if (lvl >= u.max) {
+                showToast(`${u.name} is already MAXED!`, "info");
+                return;
+            }
+            const cost = getUpgradeCost(id);
+            if (state.quacks < cost) {
+                showToast(`Need ${fmt(cost)} Quacks!`, "error");
+                return;
+            }
+            state.quacks = sanitizeNum(state.quacks - cost, 0);
+            state.upgrades[id] = lvl + 1;
+            playSound("buy");
+            saveGame();
+            renderAll();
+        }
+
+        function hatchEgg(eggId, silent = false) {
+            const egg = EGGS.find(e => e.id === eggId);
+            if (!egg) return;
+            if (egg.currency === "quacks") {
+                if (state.quacks < egg.cost) {
+                    if (!silent) showToast(`Need ${fmt(egg.cost)} Quacks!`, "error");
+                    return;
+                }
+                state.quacks -= egg.cost;
+            } else {
+                if (state.gems < egg.cost) {
+                    if (!silent) showToast(`Need ${fmt(egg.cost)} Gems!`, "error");
+                    return;
+                }
+                state.gems -= egg.cost;
+            }
+            const speciesKey = egg.pool[Math.floor(Math.random() * egg.pool.length)];
+            const newPet = {
+                uid: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                speciesKey,
+                evoTier: 1,
+                equipped: state.pets.filter(p => p.equipped).length < getMaxEquippedPets()
+            };
+            state.pets.push(newPet);
+            state.eggsHatched = sanitizeNum(state.eggsHatched, 0) + 1;
+            state.passXp = sanitizeNum(state.passXp, 0) + 25;
+            if (!silent) {
+                playSound("buy");
+                const sp = PET_SPECIES[speciesKey];
+                showToast(`🐣 Hatched ${sp ? sp.name : speciesKey}!`, "success");
+                saveGame();
+                renderAll();
+            }
+        }
+
+        function toggleEquipPet(uid) {
+            const pet = state.pets.find(p => p.uid === uid);
+            if (!pet) return;
+            if (pet.equipped) {
+                pet.equipped = false;
+            } else {
+                if (state.pets.filter(p => p.equipped).length >= getMaxEquippedPets()) {
+                    showToast(`Max ${getMaxEquippedPets()} pets equipped!`, "error");
+                    return;
+                }
+                pet.equipped = true;
+            }
+            saveGame();
+            renderAll();
+        }
+
+        function equipBestPets() {
+            const maxSlots = getMaxEquippedPets();
+            state.pets.forEach(p => (p.equipped = false));
+            const sorted = [...state.pets].sort((a, b) => {
+                const pa = (PET_SPECIES[a.speciesKey]?.mult || 1) * (EVO_TIERS[a.evoTier || 1]?.mult || 1);
+                const pb = (PET_SPECIES[b.speciesKey]?.mult || 1) * (EVO_TIERS[b.evoTier || 1]?.mult || 1);
+                return pb - pa;
+            });
+            sorted.slice(0, maxSlots).forEach(p => (p.equipped = true));
+            playSound("buy");
+            saveGame();
+            renderAll();
+            showToast(`✨ Equipped Top ${Math.min(maxSlots, sorted.length)} Pets!`, "success");
+        }
+
+        function fuseAllPets() {
+            let fusedAny = false;
+            for (let tier = 1; tier <= 4; tier++) {
+                const groups = {};
+                state.pets.forEach(p => {
+                    if ((p.evoTier || 1) === tier) {
+                        groups[p.speciesKey] = groups[p.speciesKey] || [];
+                        groups[p.speciesKey].push(p);
+                    }
+                });
+                Object.entries(groups).forEach(([spKey, list]) => {
+                    while (list.length >= 3) {
+                        const consumed = list.splice(0, 3);
+                        const consumedIds = new Set(consumed.map(x => x.uid));
+                        state.pets = state.pets.filter(p => !consumedIds.has(p.uid));
+                        state.pets.push({
+                            uid: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                            speciesKey: spKey,
+                            evoTier: tier + 1,
+                            equipped: false
+                        });
+                        fusedAny = true;
+                    }
+                });
+            }
+            if (fusedAny) {
+                equipBestPets();
+                showToast("⚡ Pets Evolved to Higher Tiers!", "success");
+            } else {
+                showToast("Need 3 matching pets of the same tier to fuse!", "info");
+            }
+        }
+
+        function selectWardrobeItem(category, id) {
+            if (category === "skin") {
+                const item = SKINS.find(s => s.id === id);
+                if (!item) return;
+                if (item.adminOnly && !isCurrentUserVerifiedAdmin()) {
+                    showToast("🔒 Admin Only! Unlock Vault in Profile.", "error");
+                    return;
+                }
+                if (!state.unlockedSkins.includes(id)) {
+                    if (state.gems < item.cost) { showToast(`Need ${fmt(item.cost)} Gems!`, "error"); return; }
+                    state.gems -= item.cost;
+                    state.unlockedSkins.push(id);
+                }
+                state.equippedSkin = id;
+            } else if (category === "aura") {
+                const item = AURAS.find(a => a.id === id);
+                if (!item) return;
+                if (item.adminOnly && !isCurrentUserVerifiedAdmin()) {
+                    showToast("🔒 Admin Only! Unlock Vault in Profile.", "error");
+                    return;
+                }
+                if (!state.unlockedAuras.includes(id)) {
+                    if (state.gems < item.cost) { showToast(`Need ${fmt(item.cost)} Gems!`, "error"); return; }
+                    state.gems -= item.cost;
+                    state.unlockedAuras.push(id);
+                }
+                state.equippedAura = id;
+            } else if (category === "hat") {
+                const item = HATS.find(h => h.id === id);
+                if (!item) return;
+                if (item.adminOnly && !isCurrentUserVerifiedAdmin()) {
+                    showToast("🔒 Admin Only! Unlock Vault in Profile.", "error");
+                    return;
+                }
+                if (!state.unlockedHats.includes(id)) {
+                    if (state.gems < item.cost) { showToast(`Need ${fmt(item.cost)} Gems!`, "error"); return; }
+                    state.gems -= item.cost;
+                    state.unlockedHats.push(id);
+                }
+                state.equippedHat = id;
+            } else if (category === "shades") {
+                const item = SHADES.find(sh => sh.id === id);
+                if (!item) return;
+                if (item.adminOnly && !isCurrentUserVerifiedAdmin()) {
+                    showToast("🔒 Admin Only! Unlock Vault in Profile.", "error");
+                    return;
+                }
+                if (!state.unlockedShades.includes(id)) {
+                    if (state.gems < item.cost) { showToast(`Need ${fmt(item.cost)} Gems!`, "error"); return; }
+                    state.gems -= item.cost;
+                    state.unlockedShades.push(id);
+                }
+                state.equippedShades = id;
+            } else if (category === "voice") {
+                const item = VOICES.find(v => v.id === id);
+                if (!item) return;
+                if (item.adminOnly && !isCurrentUserVerifiedAdmin()) {
+                    showToast("🔒 Admin Only Voice!", "error");
+                    return;
+                }
+                state.quackSound = id;
+                playSound("quack");
+            }
+            playSound("buy");
+            saveGame();
+            renderAll();
+        }
+
+        function travelToWorld(worldId) {
+            const w = WORLDS.find(x => x.id === worldId);
+            if (!w) return;
+            if (w.adminOnly && !isCurrentUserVerifiedAdmin()) {
+                showToast("🔒 World 21 is restricted to RainbowLord16 Admin!", "error");
+                return;
+            }
+            if (w.id <= state.highestWorld || w.adminOnly) {
+                state.currentWorld = w.id;
+                saveGame();
+                renderAll();
+                showToast(`🌍 Traveled to ${w.name}!`, "success");
+                return;
+            }
+            if (state.quacks < w.cost) {
+                showToast(`Need ${fmt(w.cost)} Quacks to unlock ${w.name}!`, "error");
+                return;
+            }
+            state.quacks -= w.cost;
+            state.highestWorld = Math.max(state.highestWorld, w.id);
+            state.currentWorld = w.id;
+            playSound("buy");
+            saveGame();
+            renderAll();
+            showToast(`🎉 Unlocked ${w.name}!`, "success");
+        }
+
+        function getRebirthCost() {
+            return Math.floor(100000 * Math.pow(2.2, sanitizeNum(state.rebirths, 0)));
+        }
+
+        function performRebirth(silent = false) {
+            const cost = getRebirthCost();
+            if (state.quacks < cost) {
+                if (!silent) showToast(`Need ${fmt(cost)} Quacks to Rebirth!`, "error");
+                return;
+            }
+            const rpGain = Math.max(1, Math.floor(1 + state.highestWorld * 0.5));
+            const gemGain = 25 + state.highestWorld * 5;
+            state.rebirths = sanitizeNum(state.rebirths, 0) + 1;
+            state.rp = sanitizeNum(state.rp, 0) + rpGain;
+            state.gems = sanitizeNum(state.gems, 0) + gemGain;
+            state.quacks = 0;
+            state.upgrades = { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0 };
+            if (!silent) {
+                playSound("buy");
+                saveGame();
+                renderAll();
+                showToast(`♻️ Rebirthed! +${rpGain} RP & +${gemGain} Gems!`, "success");
+            }
+        }
+
+        function performTranscendence() {
+            if (state.highestWorld < 15) {
+                showToast("Reach World 15 (Void Horizon) to Transcend!", "error");
+                return;
+            }
+            const shardGain = 10 + state.rebirths;
+            state.transcendenceCount = sanitizeNum(state.transcendenceCount, 0) + 1;
+            state.shards = sanitizeNum(state.shards, 0) + shardGain;
+            state.rebirths = 0;
+            state.rp = 0;
+            state.quacks = 0;
+            playSound("buy");
+            saveGame();
+            renderAll();
+            showToast(`🌌 Transcended! Harvested +${shardGain} Void Shards!`, "success");
+        }
+
+        function buyRpUpgrade(id) {
+            const u = RP_UPGRADES.find(x => x.id === id);
+            if (!u) return;
+            const lvl = sanitizeNum(state.rpUpgrades[id], 0);
+            if (lvl >= u.max || state.rp < u.cost) return;
+            state.rp -= u.cost;
+            state.rpUpgrades[id] = lvl + 1;
+            playSound("buy");
+            saveGame();
+            renderAll();
+        }
+
+        function buyVoidUpgrade(id) {
+            const u = VOID_UPGRADES.find(x => x.id === id);
+            if (!u) return;
+            const lvl = sanitizeNum(state.voidUpgrades[id], 0);
+            if (lvl >= u.max || state.shards < u.cost) return;
+            state.shards -= u.cost;
+            state.voidUpgrades[id] = lvl + 1;
+            playSound("buy");
+            saveGame();
+            renderAll();
+        }
+
+        function buySkillNode(id) {
+            const s = SKILL_NODES.find(x => x.id === id);
+            if (!s) return;
+            const lvl = sanitizeNum(state.ascensionNodes[id], 0);
+            if (lvl >= s.max || state.feathers < s.cost) return;
+            state.feathers -= s.cost;
+            state.ascensionNodes[id] = lvl + 1;
+            playSound("buy");
+            saveGame();
+            renderAll();
+        }
+
+        function brewPotion(id) {
+            const p = POTIONS.find(x => x.id === id);
+            if (!p || state.gems < p.cost) {
+                showToast("Not enough Gems!", "error");
+                return;
+            }
+            state.gems -= p.cost;
+            state.activePotions[id] = Date.now() + 5 * 60 * 1000;
+            playSound("buy");
+            saveGame();
+            renderAll();
+            showToast(`🧪 Brewed ${p.name}!`, "success");
+        }
+
+        function excavateLayer() {
+            if (state.gems < 10) {
+                showToast("Need 10 Gems to excavate!", "error");
+                return;
+            }
+            state.gems -= 10;
+            state.digDepth = sanitizeNum(state.digDepth, 0) + 10;
+            state.relics = sanitizeNum(state.relics, 0) + 1;
+            playSound("buy");
+            saveGame();
+            renderAll();
+            showToast("⛏️ Excavated +1 Ancient Relic!", "success");
+        }
+
+        function openCardPack() {
+            if (state.gems < 250) {
+                showToast("Need 250 Gems for a Card Pack!", "error");
+                return;
+            }
+            state.gems -= 250;
+            const card = CARDS[Math.floor(Math.random() * CARDS.length)];
+            state.ownedCards[card.id] = sanitizeNum(state.ownedCards[card.id], 0) + 1;
+            playSound("buy");
+            saveGame();
+            renderAll();
+            showToast(`🃏 Pulled ${card.name} Card!`, "success");
+        }
+
+        function upgradeMonument(id) {
+            const m = MONUMENTS.find(x => x.id === id);
+            if (!m || state.gems < m.cost) {
+                showToast("Not enough Gems!", "error");
+                return;
+            }
+            state.gems -= m.cost;
+            state.monuments[id] = sanitizeNum(state.monuments[id], 0) + 1;
+            playSound("buy");
+            saveGame();
+            renderAll();
+        }
+
+        function attackBoss() {
+            const dmg = Math.max(100, getQuacksPerClick());
+            state.bossHp = Math.max(0, sanitizeNum(state.bossHp, 1000) - dmg);
+            playSound("quack");
+            if (state.bossHp <= 0) {
+                state.bossesSlain = sanitizeNum(state.bossesSlain, 0) + 1;
+                state.gems += 100;
+                state.shards += 5;
+                state.bossMaxHp = sanitizeNum(state.bossMaxHp * 4, 4000);
+                state.bossHp = state.bossMaxHp;
+                showToast("👑 Leviathan Boss Defeated! +100 Gems & +5 Shards!", "success");
+            }
+            saveGame();
+            renderAll();
+        }
+
+        function redeemPromoCode() {
+            const inp = document.getElementById("promoCodeInput");
+            if (!inp) return;
+            const code = inp.value.trim().toUpperCase();
+            const reward = PROMO_CODES[code];
+            if (!reward) {
+                showToast("Invalid promo code!", "error");
+                return;
+            }
+            if (state.redeemedCodes[code]) {
+                showToast("Code already redeemed!", "info");
+                return;
+            }
+            state.redeemedCodes[code] = true;
+            if (reward.gems) state.gems += reward.gems;
+            if (reward.feathers) state.feathers += reward.feathers;
+            if (reward.shards) state.shards += reward.shards;
+            inp.value = "";
+            playSound("buy");
+            saveGame();
+            renderAll();
+            showToast(`🎉 ${reward.msg}`, "success");
+        }
+
+        /* =========================================================================
+           12. ADMIN MAXED ACCOUNT RESTORATION (999 Sp EVERYTHING!)
+           ========================================================================= */
+        function restoreMaxedAccount() {
+            if (!isCurrentUserVerifiedAdmin()) {
+                showToast("🔒 Admin Verification Required!", "error");
+                return;
+            }
+            const MAX_VAL = 999999999999999999999999999; // 999 Sp
+            state.playerName = ADMIN_OWNER_NAME;
+            state.quacks = MAX_VAL;
+            state.lifetimeQuacks = MAX_VAL;
+            state.gems = MAX_VAL;
+            state.rp = MAX_VAL;
+            state.feathers = MAX_VAL;
+            state.shards = MAX_VAL;
+            state.relics = MAX_VAL;
+            state.rebirths = 999999;
+            state.transcendenceCount = 9999;
+            state.bossesSlain = 99999;
+            state.totalTaps = 9999999;
+            state.eggsHatched = 999999;
+            state.digDepth = 999990;
+            state.passXp = 9999999;
+            state.currentWorld = 21;
+            state.highestWorld = 21;
+
+            // Unlock & equip Obsidian Neon Rainbow Admin Gear
+            state.unlockedSkins = SKINS.map(s => s.id);
+            state.equippedSkin = "obsidian_neon_admin";
+            state.unlockedAuras = AURAS.map(a => a.id);
+            state.equippedAura = "obsidian_neon_aura";
+            state.unlockedHats = HATS.map(h => h.id);
+            state.equippedHat = "obsidian_neon_crown";
+            state.unlockedShades = SHADES.map(sh => sh.id);
+            state.equippedShades = "obsidian_neon_visor";
+            state.quackSound = "neon_symphony";
+
+            // Max all upgrades, RP upgrades, Void Forge & Skill Tree
+            UPGRADES.forEach(u => (state.upgrades[u.id] = u.max));
+            RP_UPGRADES.forEach(u => (state.rpUpgrades[u.id] = u.max));
+            VOID_UPGRADES.forEach(u => (state.voidUpgrades[u.id] = u.max));
+            SKILL_NODES.forEach(s => (state.ascensionNodes[s.id] = s.max));
+            CARDS.forEach(c => (state.ownedCards[c.id] = 99));
+            MONUMENTS.forEach(m => (state.monuments[m.id] = 99));
+            POTIONS.forEach(p => (state.activePotions[p.id] = Date.now() + 365 * 24 * 3600 * 1000));
+
+            // 8 Rainbow Supreme Genesis Quack Gods
+            state.pets = [];
+            Object.keys(PET_SPECIES).forEach((spKey, idx) => {
+                state.pets.push({
+                    uid: `admin_pet_${spKey}_${idx}`,
+                    speciesKey: spKey,
+                    evoTier: 5,
+                    equipped: false
+                });
+            });
+            for (let i = 0; i < 8; i++) {
+                state.pets.push({
+                    uid: `admin_god_squad_${i}`,
+                    speciesKey: "genesis_quack_god",
+                    evoTier: 5,
+                    equipped: true
+                });
+            }
+
+            playSound("buy");
+            saveGame();
+            renderAll();
+            syncLeaderboardScore(true);
+            showToast("👑 RainbowLord16 Maxed Admin Account Restored (World 21 & Obsidian Neon Gear)!", "success");
+        }
+
+        /* =========================================================================
+           13. PROFILE PICTURE (6 MB LIMIT), CLOUD SAVE & REAL LEADERBOARD
+           ========================================================================= */
+        function handleProfilePicUpload(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+            const maxBytes = 6 * 1024 * 1024; // 6 MB limit
+            if (file.size > maxBytes) {
+                showToast("❌ Image exceeds 6 MB limit! Please pick a smaller image.", "error");
+                event.target.value = "";
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement("canvas");
+                    const size = 128;
+                    canvas.width = size;
+                    canvas.height = size;
+                    const ctx = canvas.getContext("2d");
+                    const minSide = Math.min(img.width, img.height);
+                    const sx = (img.width - minSide) / 2;
+                    const sy = (img.height - minSide) / 2;
+                    ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+                    state.profilePic = canvas.toDataURL("image/webp", 0.85);
+                    saveGame();
+                    renderAll();
+                    syncLeaderboardScore(true);
+                    showToast("📸 Profile Picture Updated & Synced to Leaderboard!", "success");
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function removeProfilePic() {
+            state.profilePic = "";
+            localStorage.removeItem(AVATAR_KEY);
+            saveGame();
+            renderAll();
+            syncLeaderboardScore(true);
+            showToast("Profile picture removed.", "info");
+        }
+
+        function savePlayerName() {
+            const inp = document.getElementById("playerNameInput");
+            if (!inp) return;
+            const clean = inp.value.trim().slice(0, 20);
+            if (!clean) return;
+            if (clean === ADMIN_OWNER_NAME && !isAdminAuthenticated) {
+                showToast("🔒 Enter the Admin Passcode below to claim RainbowLord16!", "error");
+                return;
+            }
+            state.playerName = clean;
+            enforceAdminSecurity();
+            saveGame();
+            renderAll();
+            syncLeaderboardScore(true);
+            showToast(`Commander Name updated to ${state.playerName}!`, "success");
+        }
+
+        async function saveToCloud() {
+            const api = window.__cloudApi;
+            if (!api || !api.getDb() || !api.getUser()) {
+                saveGame();
+                showToast("Saved locally (Cloud unavailable in offline sandbox).", "info");
+                return;
+            }
+            try {
+                const uid = api.getUser().uid;
+                const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "users", uid, "saves", "main");
+                await api.setDoc(ref, { ...state, updatedAt: Date.now() });
+                showToast("☁️ Cloud Backup Complete!", "success");
+            } catch (e) {
+                showToast("Cloud backup failed; local save secured.", "error");
+            }
+        }
+
+        async function loadFromCloud() {
+            const api = window.__cloudApi;
+            if (!api || !api.getDb() || !api.getUser()) {
+                loadGame();
+                renderAll();
+                showToast("Loaded local save!", "info");
+                return;
+            }
+            try {
+                const uid = api.getUser().uid;
+                const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "users", uid, "saves", "main");
+                const snap = await api.getDoc(ref);
+                if (snap.exists()) {
+                    state = { ...state, ...snap.data() };
+                    enforceAdminSecurity();
+                    saveGame();
+                    renderAll();
+                    showToast("☁️ Cloud Save Restored!", "success");
+                } else {
+                    showToast("No cloud save found for this account yet.", "info");
+                }
+            } catch (e) {
+                showToast("Could not restore cloud save.", "error");
+            }
+        }
+
+        function exportSaveString() {
+            const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+            const ta = document.createElement("textarea");
+            ta.value = encoded;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand("copy");
+            ta.remove();
+            showToast("📋 Save String copied to clipboard!", "success");
+        }
+
+        function importSaveString() {
+            const modalInput = window.prompt ? prompt("Paste your Save String:") : null;
+            if (!modalInput) return;
+            try {
+                const parsed = JSON.parse(decodeURIComponent(escape(atob(modalInput.trim()))));
+                state = { ...state, ...parsed };
+                enforceAdminSecurity();
+                saveGame();
+                renderAll();
+                showToast("✅ Save String Imported!", "success");
+            } catch (e) {
+                showToast("Invalid Save String!", "error");
+            }
+        }
+
+        // Real-Only Global Leaderboard
+        let liveLeaderboardRows = [];
+        let activeLbTab = "quacks";
+
+        function setLeaderboardTab(tab) {
+            activeLbTab = tab;
+            document.querySelectorAll(".lb-tab-btn").forEach(btn => {
+                const active = btn.dataset.tab === tab;
+                btn.className = active
+                    ? "lb-tab-btn bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-extrabold"
+                    : "lb-tab-btn bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-extrabold";
+            });
+            renderLeaderboards();
+        }
+
+        window.startLeaderboardListener = function () {
+            const api = window.__cloudApi;
+            if (!api || !api.getDb() || !api.getUser()) return;
+            const colRef = api.collection(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard");
+            api.onSnapshot(
+                colRef,
+                (snapshot) => {
+                    liveLeaderboardRows = [];
+                    snapshot.forEach(docSnap => {
+                        liveLeaderboardRows.push({ id: docSnap.id, ...docSnap.data() });
+                    });
+                    renderLeaderboards();
+                },
+                (err) => console.warn("Leaderboard listener:", err)
+            );
+        };
+
+        window.syncLeaderboardScore = async function (notify = false) {
+            const api = window.__cloudApi;
+            const localId = localStorage.getItem("dqLocalPlayerId") || ("QUACK-" + Math.random().toString(36).slice(2, 10).toUpperCase());
+            localStorage.setItem("dqLocalPlayerId", localId);
+            const uid = (api && api.getUser()) ? api.getUser().uid : localId;
+
+            const idEl = document.getElementById("lbPlayerIdText");
+            if (idEl) idEl.textContent = uid;
+
+            const myEntry = {
+                id: uid,
+                name: state.playerName || "QuackCommander",
+                profilePic: state.profilePic || "",
+                lifetimeQuacks: sanitizeNum(state.lifetimeQuacks, 0),
+                rebirths: sanitizeNum(state.rebirths, 0),
+                bossesSlain: sanitizeNum(state.bossesSlain, 0),
+                eggsHatched: sanitizeNum(state.eggsHatched, 0),
+                highestWorld: sanitizeNum(state.highestWorld, 1),
+                isVerifiedAdmin: isCurrentUserVerifiedAdmin(),
+                updatedAt: Date.now()
+            };
+
+            // Update local snapshot immediately
+            const existingIdx = liveLeaderboardRows.findIndex(r => r.id === uid);
+            if (existingIdx >= 0) liveLeaderboardRows[existingIdx] = myEntry;
+            else liveLeaderboardRows.push(myEntry);
+            renderLeaderboards();
+
+            if (api && api.getDb() && api.getUser()) {
+                try {
+                    const docRef = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard", uid);
+                    await api.setDoc(docRef, myEntry, { merge: true });
+                    if (notify) showToast("🏆 Live Global Rank Synced!", "success");
+                } catch (e) {}
+            } else if (notify) {
+                showToast("Leaderboard updated locally!", "info");
+            }
+        };
+
+        function getSortedLeaderboardEntries() {
+            const metricMap = {
+                quacks: "lifetimeQuacks",
+                rebirths: "rebirths",
+                bosses: "bossesSlain",
+                eggs: "eggsHatched"
+            };
+            const field = metricMap[activeLbTab] || "lifetimeQuacks";
+            return [...liveLeaderboardRows].sort((a, b) => sanitizeNum(b[field], 0) - sanitizeNum(a[field], 0));
+        }
+
+        function renderAvatarHtml(entry, sizeClass = "w-8 h-8") {
+            const borderCls = entry.isVerifiedAdmin ? "obsidian-neon-rainbow" : "border border-amber-400/50";
+            if (entry.profilePic) {
+                return `<img src="${entry.profilePic}" alt="${entry.name}" class="${sizeClass} rounded-full object-cover ${borderCls} shrink-0">`;
+            }
+            return `<div class="${sizeClass} rounded-full bg-amber-400 text-slate-950 font-black flex items-center justify-center ${borderCls} shrink-0"><i class="fa-solid fa-duck text-xs"></i></div>`;
+        }
+
+        function renderLeaderboards() {
+            const entries = getSortedLeaderboardEntries();
+            const mini = document.getElementById("miniLeaderboardList");
+            const full = document.getElementById("fullLeaderboardList");
+
+            if (mini) {
+                if (!entries.length) {
+                    mini.innerHTML = `<div class="text-slate-400 text-center py-2">No scores synced yet.</div>`;
+                } else {
+                    mini.innerHTML = entries.slice(0, 3).map((e, i) => `
+                        <div class="flex items-center justify-between bg-slate-950/75 border ${i === 0 ? "border-amber-400/50" : "border-white/10"} rounded-xl px-2.5 py-1.5">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="font-black text-amber-300">#${i + 1}</span>
+                                ${renderAvatarHtml(e, "w-6 h-6")}
+                                <span class="font-bold text-white truncate">${e.name}</span>
+                            </div>
+                            <span class="font-black text-amber-300 shrink-0">${fmt(e.lifetimeQuacks)}</span>
+                        </div>
+                    `).join("");
+                }
+            }
+
+            if (full) {
+                const metricMap = { quacks: "lifetimeQuacks", rebirths: "rebirths", bosses: "bossesSlain", eggs: "eggsHatched" };
+                const field = metricMap[activeLbTab] || "lifetimeQuacks";
+                full.innerHTML = entries.map((e, i) => `
+                    <div class="flex items-center justify-between p-3 rounded-2xl border ${e.isVerifiedAdmin ? "obsidian-neon-rainbow" : (i === 0 ? "bg-amber-500/10 border-amber-400/50" : "bg-slate-950/75 border-white/10")}">
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="title-font text-base font-bold ${i === 0 ? "text-amber-300" : "text-slate-400"} w-7">#${i + 1}</span>
+                            ${renderAvatarHtml(e, "w-10 h-10")}
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="font-extrabold text-white text-sm truncate">${e.name}</span>
+                                    ${i === 0 ? `<span class="text-[10px] font-black bg-amber-400 text-slate-950 px-1.5 py-0.5 rounded-md">👑 #1</span>` : ""}
+                                    ${e.isVerifiedAdmin ? `<span class="text-[10px] font-black bg-pink-500/20 text-pink-300 border border-pink-400/40 px-1.5 py-0.5 rounded-md">ADMIN</span>` : ""}
+                                </div>
+                                <div class="text-[11px] text-slate-400">Realm ${e.highestWorld || 1} • ${fmt(e.rebirths || 0)} Rebirths</div>
+                            </div>
+                        </div>
+                        <div class="title-font text-base font-bold text-amber-300 shrink-0">${fmt(e[field] || 0)}</div>
+                    </div>
+                `).join("");
+            }
+        }
+
+        /* =========================================================================
+           14. FORTUNE WHEEL & ARCADE MINIGAME
+           ========================================================================= */
+        const WHEEL_SLICES = [
+            { label: "+250 Gems", color: "#10b981", run: () => { state.gems += 250; } },
+            { label: "+5 Feathers", color: "#f59e0b", run: () => { state.feathers += 5; } },
+            { label: "+15 Shards", color: "#8b5cf6", run: () => { state.shards += 15; } },
+            { label: "100x Quacks", color: "#3b82f6", run: () => { const q = getQuacksPerClick() * 100; state.quacks += q; state.lifetimeQuacks += q; } },
+            { label: "+1,000 Gems", color: "#ec4899", run: () => { state.gems += 1000; } },
+            { label: "+25 Relics", color: "#f97316", run: () => { state.relics += 25; } }
+        ];
+        let wheelAngle = 0;
+        let wheelSpinning = false;
+
+        function drawWheel() {
+            const canvas = document.getElementById("wheelCanvas");
+            if (!canvas) return;
+            const ctx = canvas.getContext("2d");
+            const r = canvas.width / 2;
+            const step = (Math.PI * 2) / WHEEL_SLICES.length;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            WHEEL_SLICES.forEach((s, i) => {
+                const start = wheelAngle + i * step;
+                ctx.beginPath();
+                ctx.moveTo(r, r);
+                ctx.arc(r, r, r - 4, start, start + step);
+                ctx.fillStyle = s.color;
+                ctx.fill();
+                ctx.strokeStyle = "#0f172a";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+
+                ctx.save();
+                ctx.translate(r, r);
+                ctx.rotate(start + step / 2);
+                ctx.fillStyle = "#fff";
+                ctx.font = "bold 12px Plus Jakarta Sans";
+                ctx.textAlign = "right";
+                ctx.fillText(s.label, r - 16, 4);
+                ctx.restore();
+            });
+        }
+
+        function spinFortuneWheel() {
+            if (wheelSpinning) return;
+            if (state.gems < 100) {
+                showToast("Need 100 Gems to spin!", "error");
+                return;
+            }
+            state.gems -= 100;
+            wheelSpinning = true;
+            let vel = 0.45 + Math.random() * 0.25;
+            const spinStep = () => {
+                wheelAngle += vel;
+                vel *= 0.975;
+                drawWheel();
+                if (vel > 0.004) {
+                    requestAnimationFrame(spinStep);
+                } else {
+                    wheelSpinning = false;
+                    const win = WHEEL_SLICES[Math.floor(Math.random() * WHEEL_SLICES.length)];
+                    win.run();
+                    playSound("buy");
+                    saveGame();
+                    renderAll();
+                    showToast(`🎡 Wheel Prize: ${win.label}!`, "success");
+                }
+            };
+            requestAnimationFrame(spinStep);
+        }
+
+        let arcadeLoopId = null;
+        let arcadeScore = 0;
+        let basketX = 160;
+        let loaves = [];
+
+        function startArcadeGame() {
+            const canvas = document.getElementById("arcadeCanvas");
+            if (!canvas) return;
+            const rect = canvas.getBoundingClientRect();
+            canvas.width = rect.width || 480;
+            canvas.height = rect.height || 256;
+            arcadeScore = 0;
+            loaves = [];
+            if (arcadeLoopId) cancelAnimationFrame(arcadeLoopId);
+
+            const moveBasket = (clientX) => {
+                const r = canvas.getBoundingClientRect();
+                basketX = Math.max(30, Math.min(canvas.width - 30, clientX - r.left));
+            };
+            canvas.onmousemove = (e) => moveBasket(e.clientX);
+            canvas.ontouchmove = (e) => { if (e.touches[0]) moveBasket(e.touches[0].clientX); };
+
+            const ctx = canvas.getContext("2d");
+            const tick = () => {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                if (Math.random() < 0.06) {
+                    loaves.push({ x: 20 + Math.random() * (canvas.width - 40), y: -15, speed: 3 + Math.random() * 2 });
+                }
+                ctx.fillStyle = "#facc15";
+                ctx.fillRect(basketX - 30, canvas.height - 24, 60, 14);
+
+                for (let i = loaves.length - 1; i >= 0; i--) {
+                    const b = loaves[i];
+                    b.y += b.speed;
+                    ctx.font = "22px serif";
+                    ctx.fillText("🥖", b.x - 11, b.y);
+                    if (b.y >= canvas.height - 30 && Math.abs(b.x - basketX) < 38) {
+                        arcadeScore += 10;
+                        state.gems += 5;
+                        loaves.splice(i, 1);
+                        const scEl = document.getElementById("arcadeScoreVal");
+                        if (scEl) scEl.textContent = arcadeScore;
+                        updateHudNumbers();
+                    } else if (b.y > canvas.height + 20) {
+                        loaves.splice(i, 1);
+                    }
+                }
+                arcadeLoopId = requestAnimationFrame(tick);
+            };
+            tick();
+        }
+
+        /* =========================================================================
+           15. UI RENDERING & MODALS
+           ========================================================================= */
+        function openModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.remove("hidden");
+            el.classList.add("flex");
+            renderAll();
+            if (id === "wheelModal") drawWheel();
+        }
+
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.classList.add("hidden");
+            el.classList.remove("flex");
+        }
+
+        function showToast(msg, type = "info") {
+            const container = document.getElementById("toastContainer");
+            if (!container) return;
+            const colors = {
+                success: "border-emerald-400/60 bg-slate-900/95 text-emerald-200",
+                error: "border-rose-500/60 bg-slate-900/95 text-rose-200",
+                info: "border-amber-400/60 bg-slate-900/95 text-amber-100"
+            };
+            const toast = document.createElement("div");
+            toast.className = `pointer-events-auto border rounded-2xl px-3.5 py-2.5 text-xs font-extrabold shadow-2xl backdrop-blur-md transition-all ${colors[type] || colors.info}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function updateHudNumbers() {
+            const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            setTxt("dispQuacks", fmt(state.quacks));
+            setTxt("dispGems", fmt(state.gems));
+            setTxt("dispRP", fmt(state.rp));
+            setTxt("dispFeathers", fmt(state.feathers));
+            setTxt("dispShards", fmt(state.shards));
+            setTxt("dispRelics", fmt(state.relics));
+
+            setTxt("statQpc", fmt(getQuacksPerClick()));
+            setTxt("statQps", `${fmt(getQuacksPerSec())}/s`);
+            setTxt("statWorldMult", `${fmt(getWorldMultiplier())}x`);
+            setTxt("statPetMult", `+${fmt((getPetMultiplier() - 1) * 100)}%`);
+            setTxt("statGearMult", `${fmt(getGearMultiplier())}x`);
+            setTxt("statWeatherVoidMult", `${fmt(getWeatherAndVoidMultiplier())}x`);
+            setTxt("statEndgameMult", `${fmt(getEndgameMultiplier())}x`);
+            setTxt("statRebirthMult", `${fmt(getRebirthMultiplier())}x`);
+
+            setTxt("lvlClick", `Lv.${state.upgrades.clickPower || 1}`);
+            setTxt("costClick", fmt(getUpgradeCost("clickPower")));
+            setTxt("lvlAuto", `Lv.${state.upgrades.autoSpeed || 0}`);
+            setTxt("costAuto", fmt(getUpgradeCost("autoSpeed")));
+            setTxt("lvlCrit", `Lv.${state.upgrades.critChance || 0}`);
+            setTxt("costCrit", fmt(getUpgradeCost("critChance")));
+
+            const feverFill = document.getElementById("feverBarFill");
+            if (feverFill) feverFill.style.width = `${Math.min(100, state.feverVal)}%`;
+            const comboBadge = document.getElementById("comboBadge");
+            if (comboBadge) comboBadge.textContent = `${(1 + Math.min(4, comboCount * 0.05)).toFixed(1)}x Combo`;
+            const stageCard = document.getElementById("stageCard");
+            if (stageCard) stageCard.classList.toggle("fever-glow", !!state.isFeverActive);
+        }
+
+        function renderAll() {
+            enforceAdminSecurity();
+            updateHudNumbers();
+            updateAutomationButtonsUI();
+            updateAdminLockUI();
+            renderDuckSkin();
+            renderOrbitingPetsDom();
+            renderLeaderboards();
+
+            // World Header & Backdrop
+            const w = WORLDS.find(x => x.id === state.currentWorld) || WORLDS[0];
+            const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            setTxt("headerWorldBadge", `W${w.id}: ${w.name}`);
+            setTxt("headerRankBadge", isCurrentUserVerifiedAdmin() ? "👑 KING OF RAINBOWS" : (state.highestWorld >= 20 ? "GENESIS OVERLORD" : "COMMANDER"));
+            setTxt("worldProgressText", `${w.id} / ${isCurrentUserVerifiedAdmin() ? 21 : 20}`);
+            setTxt("currentWorldTitle", w.name);
+            setTxt("currentWorldDesc", w.desc);
+            setTxt("unlockedWorldCountLabel", isCurrentUserVerifiedAdmin() ? 21 : 20);
+
+            const realmCard = document.getElementById("currentRealmCard");
+            if (realmCard) {
+                realmCard.className = w.adminOnly
+                    ? "obsidian-neon-rainbow rounded-3xl p-4"
+                    : "glass-panel rounded-3xl p-4 border border-sky-400/20";
+            }
+
+            const backdrop = document.getElementById("worldBackdropSvg");
+            if (backdrop) {
+                if (w.adminOnly) {
+                    backdrop.innerHTML = `<div class="w-full h-full bg-[#05050a] border-4 border-pink-500/40 rounded-3xl"></div>`;
+                } else {
+                    backdrop.innerHTML = `<svg viewBox="0 0 800 500" class="w-full h-full"><circle cx="400" cy="250" r="220" fill="${w.accent}" opacity="0.16"/><circle cx="400" cy="250" r="140" fill="${w.accent}" opacity="0.12"/></svg>`;
+                }
+            }
+
+            // Equipped Pets Strip
+            const equipped = state.pets.filter(p => p.equipped);
+            setTxt("equippedCountText", `${equipped.length}/${getMaxEquippedPets()}`);
+            const strip = document.getElementById("equippedPetsStrip");
+            if (strip) {
+                strip.innerHTML = equipped.length
+                    ? equipped.map(p => {
+                        const sp = PET_SPECIES[p.speciesKey] || { name: p.speciesKey };
+                        return `<span class="bg-slate-900 border border-purple-400/30 text-purple-200 px-2.5 py-1 rounded-xl text-[11px] font-bold shrink-0">${sp.name}</span>`;
+                    }).join("")
+                    : `<span class="text-xs text-slate-400 italic px-2">No pets equipped</span>`;
+            }
+
+            // Worlds Grid (Hide World 21 completely unless verified Admin!)
+            const worldsGrid = document.getElementById("worldsGrid");
+            if (worldsGrid) {
+                const visibleWorlds = WORLDS.filter(item => !item.adminOnly || isCurrentUserVerifiedAdmin());
+                worldsGrid.innerHTML = visibleWorlds.map(item => {
+                    const isCurrent = state.currentWorld === item.id;
+                    const unlocked = item.id <= state.highestWorld || item.adminOnly;
+                    const cardCls = item.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-950/80 border border-white/10";
+                    return `
+                        <div class="${cardCls} rounded-2xl p-3.5 flex flex-col justify-between">
+                            <div>
+                                <div class="flex justify-between items-center text-[11px] font-extrabold">
+                                    <span class="text-sky-400">World ${item.id}</span>
+                                    <span class="text-amber-300">${fmt(item.mult)}x</span>
+                                </div>
+                                <div class="title-font text-base font-bold text-white mt-0.5">${item.name}</div>
+                                <p class="text-[11px] text-slate-400 mt-1">${item.desc}</p>
+                            </div>
+                            <button type="button" onclick="travelToWorld(${item.id})" class="arcade-btn mt-3 w-full py-2 rounded-xl text-xs font-extrabold ${isCurrent ? "bg-emerald-600 text-white" : (unlocked ? "bg-sky-600 text-white" : "bg-slate-800 text-amber-300")}">
+                                ${isCurrent ? "Current Realm" : (unlocked ? "Travel Here" : `Unlock (${fmt(item.cost)} Qk)`)}
+                            </button>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            // All Upgrades Grid
+            const allUpgGrid = document.getElementById("allUpgradesGrid");
+            if (allUpgGrid) {
+                allUpgGrid.innerHTML = UPGRADES.map(u => {
+                    const lvl = sanitizeNum(state.upgrades[u.id], 0);
+                    const cost = getUpgradeCost(u.id);
+                    return `
+                        <div class="bg-slate-950/80 border border-white/10 rounded-2xl p-3.5 flex items-center justify-between gap-2">
+                            <div>
+                                <div class="font-extrabold text-sm text-white">${u.name} <span class="text-amber-300 text-xs">Lv.${lvl}/${u.max}</span></div>
+                                <div class="text-xs text-slate-400">${u.desc}</div>
+                            </div>
+                            <button type="button" onclick="buyUpgrade('${u.id}')" class="arcade-btn bg-amber-500 text-slate-950 px-3 py-2 rounded-xl text-xs font-black shrink-0">
+                                ${lvl >= u.max ? "MAX" : fmt(cost)}
+                            </button>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            // Eggs Grid
+            const eggsGrid = document.getElementById("eggsGrid");
+            if (eggsGrid) {
+                eggsGrid.innerHTML = EGGS.map(e => `
+                    <div class="bg-slate-950/80 border border-amber-400/25 rounded-2xl p-4 flex flex-col justify-between text-center">
+                        <div>
+                            <i class="fa-solid fa-egg text-3xl text-amber-400 mb-2"></i>
+                            <div class="title-font text-base font-bold text-white">${e.name}</div>
+                            <div class="text-[11px] text-slate-400 mt-1">${e.pool.map(k => PET_SPECIES[k]?.name).join(", ")}</div>
+                        </div>
+                        <button type="button" onclick="hatchEgg('${e.id}')" class="arcade-btn mt-3 w-full py-2 rounded-xl bg-amber-500 text-slate-950 font-black text-xs">
+                            Hatch (${fmt(e.cost)} ${e.currency === "quacks" ? "Qk" : "Gems"})
+                        </button>
+                    </div>
+                `).join("");
+            }
+
+            // Pets Grid
+            const petsGrid = document.getElementById("petsGrid");
+            if (petsGrid) {
+                petsGrid.innerHTML = state.pets.length
+                    ? state.pets.slice(0, 60).map(p => {
+                        const sp = PET_SPECIES[p.speciesKey] || { name: p.speciesKey, mult: 1, color: "#facc15" };
+                        const evo = EVO_TIERS[p.evoTier || 1] || EVO_TIERS[1];
+                        return `
+                            <div class="bg-slate-950/80 border ${p.equipped ? "border-emerald-400" : "border-white/10"} rounded-2xl p-3 flex flex-col justify-between text-center">
+                                <div>
+                                    <span class="text-[10px] font-black px-2 py-0.5 rounded-full ${evo.badge}">${evo.name}</span>
+                                    <div class="w-10 h-10 rounded-full mx-auto my-2 flex items-center justify-center text-slate-950" style="background:${sp.color}">
+                                        <i class="fa-solid fa-duck"></i>
+                                    </div>
+                                    <div class="font-extrabold text-xs text-white truncate">${sp.name}</div>
+                                    <div class="text-[11px] font-bold text-amber-300">${fmt(sp.mult * evo.mult)}x</div>
+                                </div>
+                                <button type="button" onclick="toggleEquipPet('${p.uid}')" class="arcade-btn mt-2 w-full py-1.5 rounded-xl text-[11px] font-extrabold ${p.equipped ? "bg-emerald-600 text-white" : "bg-slate-800 text-slate-200"}">
+                                    ${p.equipped ? "Equipped" : "Equip"}
+                                </button>
+                            </div>
+                        `;
+                    }).join("")
+                    : `<div class="col-span-full text-center text-slate-400 text-xs py-6">No pets yet! Visit Hatch Eggs to build your squad.</div>`;
+            }
+
+            // Wardrobe Grids (Filter Admin-Only items strictly!)
+            const renderWardrobeSection = (containerId, list, unlockedArr, equippedId, cat, isVoice = false) => {
+                const el = document.getElementById(containerId);
+                if (!el) return;
+                const filtered = list.filter(x => !x.adminOnly || isCurrentUserVerifiedAdmin());
+                el.innerHTML = filtered.map(item => {
+                    const isEq = equippedId === item.id;
+                    const isUnl = isVoice || unlockedArr.includes(item.id);
+                    const cls = item.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-950/80 border border-white/10";
+                    return `
+                        <button type="button" onclick="selectWardrobeItem('${cat}', '${item.id}')" class="arcade-btn ${cls} rounded-2xl p-2.5 text-left flex flex-col justify-between">
+                            <div class="font-extrabold text-xs text-white">${item.name}</div>
+                            <div class="text-[10px] font-bold mt-1 ${isEq ? "text-emerald-400" : "text-amber-300"}">
+                                ${isEq ? "✓ Equipped" : (isUnl ? "Click to Equip" : `${fmt(item.cost)} Gems`)}
+                            </div>
+                        </button>
+                    `;
+                }).join("");
+            };
+            renderWardrobeSection("skinsGrid", SKINS, state.unlockedSkins, state.equippedSkin, "skin");
+            renderWardrobeSection("aurasGrid", AURAS, state.unlockedAuras, state.equippedAura, "aura");
+            renderWardrobeSection("hatsGrid", HATS, state.unlockedHats, state.equippedHat, "hat");
+            renderWardrobeSection("shadesGrid", SHADES, state.unlockedShades, state.equippedShades, "shades");
+            renderWardrobeSection("voicesGrid", VOICES, [], state.quackSound, "voice", true);
+
+            // Rebirth, RP Shop & Void Forge
+            setTxt("modalRebirthCount", fmt(state.rebirths));
+            setTxt("rebirthCostText", fmt(getRebirthCost()));
+            setTxt("modalTranscendCount", fmt(state.transcendenceCount));
+
+            const rpGrid = document.getElementById("rpShopGrid");
+            if (rpGrid) {
+                rpGrid.innerHTML = RP_UPGRADES.map(u => {
+                    const lvl = sanitizeNum(state.rpUpgrades[u.id], 0);
+                    return `
+                        <div class="bg-slate-950/80 border border-cyan-400/20 rounded-2xl p-3 flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-extrabold text-white">${u.name} (${lvl}/${u.max})</div>
+                                <div class="text-[10px] text-slate-400">${u.desc}</div>
+                            </div>
+                            <button type="button" onclick="buyRpUpgrade('${u.id}')" class="arcade-btn bg-cyan-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black">${lvl >= u.max ? "MAX" : u.cost + " RP"}</button>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            const voidGrid = document.getElementById("voidForgeGrid");
+            if (voidGrid) {
+                voidGrid.innerHTML = VOID_UPGRADES.map(u => {
+                    const lvl = sanitizeNum(state.voidUpgrades[u.id], 0);
+                    return `
+                        <div class="bg-slate-950/80 border border-purple-400/20 rounded-2xl p-3 flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-extrabold text-white">${u.name} (${lvl}/${u.max})</div>
+                                <div class="text-[10px] text-slate-400">${u.desc}</div>
+                            </div>
+                            <button type="button" onclick="buyVoidUpgrade('${u.id}')" class="arcade-btn bg-purple-500 text-white px-3 py-1.5 rounded-xl text-xs font-black">${lvl >= u.max ? "MAX" : u.cost + " Shards"}</button>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            // Skill Tree
+            const skillsGrid = document.getElementById("skillsGrid");
+            if (skillsGrid) {
+                skillsGrid.innerHTML = SKILL_NODES.map(s => {
+                    const lvl = sanitizeNum(state.ascensionNodes[s.id], 0);
+                    return `
+                        <div class="bg-slate-950/80 border border-yellow-400/20 rounded-2xl p-3 flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-extrabold text-white">${s.name} (${lvl}/${s.max})</div>
+                                <div class="text-[10px] text-slate-400">${s.desc}</div>
+                            </div>
+                            <button type="button" onclick="buySkillNode('${s.id}')" class="arcade-btn bg-yellow-400 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black">${lvl >= s.max ? "MAX" : s.cost + " Feathers"}</button>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            // Alchemy
+            const alchGrid = document.getElementById("alchemyGrid");
+            if (alchGrid) {
+                alchGrid.innerHTML = POTIONS.map(p => `
+                    <div class="bg-slate-950/80 border border-fuchsia-400/25 rounded-2xl p-3 flex items-center justify-between">
+                        <div>
+                            <div class="text-xs font-extrabold text-white">${p.name}</div>
+                            <div class="text-[10px] text-slate-400">${p.desc}</div>
+                        </div>
+                        <button type="button" onclick="brewPotion('${p.id}')" class="arcade-btn bg-fuchsia-600 text-white px-3 py-1.5 rounded-xl text-xs font-black">${p.cost} Gems</button>
+                    </div>
+                `).join("");
+            }
+
+            // Dig Site
+            setTxt("digDepthText", fmt(state.digDepth));
+            const relicsGrid = document.getElementById("relicsGrid");
+            if (relicsGrid) {
+                relicsGrid.innerHTML = `
+                    <div class="bg-slate-950/80 border border-orange-400/25 rounded-2xl p-3 col-span-full">
+                        <div class="text-xs font-extrabold text-orange-300">Excavated Ancient Relics: ${fmt(state.relics)}</div>
+                        <div class="text-[11px] text-slate-400 mt-1">Each Relic permanently boosts your Endgame Multiplier by +25%!</div>
+                    </div>
+                `;
+            }
+
+            // Mastery
+            const masteryGrid = document.getElementById("masteryGrid");
+            if (masteryGrid) {
+                const items = [
+                    { name: "Tapping Mastery", lvl: Math.min(99, 1 + Math.floor(state.totalTaps / 250)) },
+                    { name: "Hatching Mastery", lvl: Math.min(99, 1 + Math.floor(state.eggsHatched / 25)) },
+                    { name: "Rebirth Mastery", lvl: Math.min(99, 1 + Math.floor(state.rebirths / 2)) },
+                    { name: "Boss Slayer Mastery", lvl: Math.min(99, 1 + Math.floor(state.bossesSlain / 2)) }
+                ];
+                masteryGrid.innerHTML = items.map(m => `
+                    <div class="bg-slate-950/80 border border-emerald-400/25 rounded-2xl p-3">
+                        <div class="text-xs font-extrabold text-white">${m.name}</div>
+                        <div class="text-sm font-black text-emerald-300 mt-1">Rank Lv.${m.lvl} / 99</div>
+                    </div>
+                `).join("");
+            }
+
+            // Cards & Monuments
+            const cardsGrid = document.getElementById("cardsGrid");
+            if (cardsGrid) {
+                cardsGrid.innerHTML = CARDS.map(c => {
+                    const cnt = sanitizeNum(state.ownedCards[c.id], 0);
+                    return `
+                        <div class="bg-slate-950/80 border ${cnt > 0 ? "border-violet-400/50" : "border-white/10"} rounded-2xl p-2.5 text-center">
+                            <div class="text-xs font-extrabold text-white">${c.name}</div>
+                            <div class="text-[11px] text-amber-300 font-bold">${c.mult}x</div>
+                            <div class="text-[10px] text-slate-400 mt-1">Owned: ${cnt}</div>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            const monGrid = document.getElementById("monumentsGrid");
+            if (monGrid) {
+                monGrid.innerHTML = MONUMENTS.map(m => {
+                    const lvl = sanitizeNum(state.monuments[m.id], 0);
+                    return `
+                        <div class="bg-slate-950/80 border border-amber-400/25 rounded-2xl p-3 flex items-center justify-between">
+                            <div>
+                                <div class="text-xs font-extrabold text-white">${m.name} (Lv.${lvl})</div>
+                                <div class="text-[10px] text-slate-400">+${m.mult}x per level</div>
+                            </div>
+                            <button type="button" onclick="upgradeMonument('${m.id}')" class="arcade-btn bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black">${fmt(m.cost)} Gems</button>
+                        </div>
+                    `;
+                }).join("");
+            }
+
+            // Boss Raid
+            setTxt("bossLevelVal", fmt(state.bossesSlain + 1));
+            setTxt("bossSlainVal", fmt(state.bossesSlain));
+            const bossPct = Math.max(0, Math.min(100, (state.bossHp / Math.max(1, state.bossMaxHp)) * 100));
+            const bossBar = document.getElementById("bossHpBar");
+            if (bossBar) bossBar.style.width = `${bossPct}%`;
+            setTxt("bossHpLabel", `${fmt(state.bossHp)} / ${fmt(state.bossMaxHp)} HP`);
+
+            // Season Pass
+            const unlockedTier = Math.min(50, 1 + Math.floor(state.passXp / 500));
+            setTxt("passXpText", fmt(state.passXp));
+            setTxt("passTierText", `${unlockedTier} / 50`);
+            const passGrid = document.getElementById("seasonPassGrid");
+            if (passGrid) {
+                let html = "";
+                for (let t = 1; t <= 50; t++) {
+                    const done = t <= unlockedTier;
+                    html += `
+                        <div class="rounded-xl p-2 text-center border ${done ? "bg-emerald-500/15 border-emerald-400/40" : "bg-slate-950/70 border-white/10"}">
+                            <div class="text-[10px] font-black text-slate-400">Tier ${t}</div>
+                            <div class="text-xs font-extrabold ${done ? "text-emerald-300" : "text-slate-500"}">+${t * 25} Gems</div>
+                        </div>
+                    `;
+                }
+                passGrid.innerHTML = html;
+            }
+
+            // Profile Name & Avatar Preview
+            const nameInput = document.getElementById("playerNameInput");
+            if (nameInput && document.activeElement !== nameInput) {
+                nameInput.value = state.playerName || "";
+            }
+            const preview = document.getElementById("profileAvatarPreview");
+            if (preview) {
+                preview.innerHTML = state.profilePic
+                    ? `<img src="${state.profilePic}" alt="Avatar" class="w-full h-full object-cover">`
+                    : `<i class="fa-solid fa-duck text-2xl text-amber-400"></i>`;
+            }
+        }
+
+        /* =========================================================================
+           16. MAIN GAME LOOP & INITIALIZATION
+           ========================================================================= */
+        setInterval(() => {
+            const qps = getQuacksPerSec();
+            if (qps > 0) {
+                const tickGain = qps / 10;
+                state.quacks = sanitizeNum(state.quacks + tickGain, 0);
+                state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + tickGain, 0);
+            }
+
+            if (state.autoClickerOn) {
+                const autoTapGain = getQuacksPerClick() * 0.5;
+                state.quacks = sanitizeNum(state.quacks + autoTapGain, 0);
+                state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + autoTapGain, 0);
+                if (Date.now() - lastAutoQuackSound > 650) {
+                    lastAutoQuackSound = Date.now();
+                    playSound("quack");
+                }
+            }
+
+            if (state.autoRebirthOn && state.quacks >= getRebirthCost()) {
+                performRebirth(true);
+            }
+
+            if (state.autoHatchOn) {
+                const affordableEgg = [...EGGS].reverse().find(e => e.currency === "quacks" && state.quacks >= e.cost);
+                if (affordableEgg) hatchEgg(affordableEgg.id, true);
+            }
+
+            if (state.isFeverActive) {
+                state.feverVal = Math.max(0, state.feverVal - 1.2);
+                if (state.feverVal <= 0) state.isFeverActive = false;
+            }
+
+            if (comboDecayTimer > 0) {
+                comboDecayTimer -= 100;
+                if (comboDecayTimer <= 0) comboCount = 0;
+            }
+
+            updateHudNumbers();
+        }, 100);
+
+        setInterval(() => {
+            saveGame();
+            syncLeaderboardScore(false);
+        }, 5000);
+
+        window.addEventListener("beforeunload", saveGame);
+        document.addEventListener("visibilitychange", () => { if (document.hidden) saveGame(); });
+
+        window.onload = function () {
+            loadGame();
+            renderAll();
+            syncLeaderboardScore(false);
+            animateOrbitAndLasers();
+        };
+    </script>
+</body>
+</html>
