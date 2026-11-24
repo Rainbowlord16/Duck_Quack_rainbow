@@ -1061,10 +1061,10 @@
            ========================================================================= */
         const ADMIN_OWNER_NAME = "RainbowLord16";
         const ADMIN_SALT = "DQ_ULTIMATE_SALT_2026_";
-        const ADMIN_SHA256_DIGEST = "89d34ea0ed764f9df0175c1cf5c137e49e825150fa03b1bb4b9e63bcbb1f72dc";
+        const ADMIN_SHA256_DIGEST = "4d2690a01c33302f1774636899d04628d002f3b982e129f6196e529d7924f56c";
         let isAdminAuthenticated = false;
         let lastHandledAdminEventId = localStorage.getItem("dqLastAdminEventId") || "";
-// ... existing code ... -->
+
         async function verifyAdminPasscode() {
             const inp = document.getElementById("adminSecretInput");
             if (!inp) return;
@@ -1078,12 +1078,12 @@
                 isAdminAuthenticated = true;
                 state.playerName = ADMIN_OWNER_NAME;
                 sessionStorage.setItem("dqAdminSessionAuth", digest);
-                // Restore Admin's own avatar if saved under Admin slot
                 const adminPic = localStorage.getItem("duckQuackAvatar_ADMIN_RAINBOWLORD16");
                 if (adminPic) state.profilePic = adminPic;
                 inp.value = "";
                 saveGame();
                 renderAll();
+                renderProfileModal();
                 syncLeaderboardScore(true);
                 playSound("buy");
                 showToast("👑 Admin Vault Unlocked for RainbowLord16!", "success");
@@ -2962,6 +2962,11 @@
             const lbIdEl = document.getElementById("lbPlayerIdText");
             if (lbIdEl) lbIdEl.textContent = getCurrentSlotId();
 
+            const worldBgEl = document.getElementById("worldBackdropSvg");
+            if (worldBgEl) {
+                worldBgEl.style.background = `radial-gradient(circle at 50% 45%, ${curWorld.bg} 0%, transparent 75%)`;
+            }
+
             renderHeroDuckVisual();
             renderMiniLeaderboard();
         }
@@ -2990,6 +2995,8 @@
 
         // Main 100ms Simulation Loop
         let autoTapTick = 0;
+        let autoHatchTick = 0;
+        let weatherTick = 0;
         setInterval(() => {
             const qps = getQuacksPerSec();
             if (qps > 0) {
@@ -3004,6 +3011,16 @@
                 state.quacks = sanitizeNum(state.quacks + tapGain, 0);
                 state.lifetimeQuacks = sanitizeNum(state.lifetimeQuacks + tapGain, 0);
                 if (autoTapTick % 4 === 0) playSound("quack");
+            }
+
+            if (state.autoHatchOn) {
+                autoHatchTick++;
+                if (autoHatchTick % 10 === 0) {
+                    const affordableEgg = [...EGGS_DATA].reverse().find(e =>
+                        e.currency === "quacks" ? state.quacks >= e.cost : state.gems >= e.cost
+                    );
+                    if (affordableEgg) hatchEgg(affordableEgg.id);
+                }
             }
 
             if (state.autoRebirthOn) {
@@ -3021,6 +3038,17 @@
             if (comboDecayMs > 0) {
                 comboDecayMs -= 100;
                 if (comboDecayMs <= 0) comboCount = 0;
+            }
+
+            weatherTick++;
+            if (weatherTick % 350 === 0 && currentWeather.id === "clear") {
+                const weathers = [
+                    { id: "meteor", label: "☄️ Meteor Shower (5x)", mult: 5 },
+                    { id: "bread", label: "🍞 Golden Bread Rain (8x)", mult: 8 },
+                    { id: "cyber", label: "⚡ Cyber Glitch Storm (12x)", mult: 12 }
+                ];
+                currentWeather = weathers[Math.floor(Math.random() * weathers.length)];
+                setTimeout(() => { currentWeather = { id: "clear", label: "☀️ Clear Skies (1x)", mult: 1 }; }, 20000);
             }
 
             renderOrbitingPets();
