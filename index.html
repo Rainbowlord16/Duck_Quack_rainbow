@@ -449,8 +449,8 @@
                         <span>Promo Codes</span>
                     </button>
                     <button onclick="openModal('piano')" class="col-span-2 flex items-center justify-center gap-2 px-2.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 via-pink-500/20 to-cyan-500/20 hover:from-amber-500/30 hover:to-cyan-500/30 border border-amber-400/45 text-xs font-extrabold text-amber-200 transition">
-                        <svg viewBox="0 0 24 24" class="w-4 h-4 text-amber-300 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="7" y1="4" x2="7" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/><line x1="17" y1="4" x2="17" y2="20"/><rect x="5.5" y="4" width="3" height="9" fill="currentColor"/><rect x="10.5" y="4" width="3" height="9" fill="currentColor"/><rect x="15.5" y="4" width="3" height="9" fill="currentColor"/></svg>
-                        <span>Duck Quack Piano Studio</span>
+                        <svg viewBox="0 0 24 24" class="w-4 h-4 text-amber-300 shrink-0" fill="currentColor"><circle cx="12" cy="13" r="7"/><circle cx="14.5" cy="11" r="1.3" fill="#0f172a"/><path d="M17.5 13 L22 14.5 L17.5 16 Z" fill="#f97316"/></svg>
+                        <span>Duck Quack Choir</span>
                     </button>
                 </div>
             </div>
@@ -503,33 +503,145 @@
     <!-- MAIN GAME ENGINE -->
     <script>
         /* =========================================================================
-           0. ZERO-LOGIN MULTI-DEVICE CLOUD RELAY (TABLET <-> MAC SYNC)
+           DUCK QUACK CHOIR ENGINE (COLORFUL SINGING DUCKS IN A ROW)
            ========================================================================= */
-        const GUN_PEERS = [
-            "https://gun-manhattan.up.railway.app/gun",
-            "https://peer.wallie.io/gun",
-            "https://gundb-relay-mlccl.ondigitalocean.app/gun",
-            "https://relay.129.153.59.37.nip.io/gun"
+        const DUCK_CHOIR_MEMBERS = [
+            { id: "yellow", name: "Sunny Yellow", note: "C4", freq: 261.63, key: "1", body: "#facc15", wing: "#ca8a04", glow: "rgba(250,204,21,0.5)" },
+            { id: "blue", name: "Ocean Blue", note: "D4", freq: 293.66, key: "2", body: "#38bdf8", wing: "#0284c7", glow: "rgba(56,189,248,0.5)" },
+            { id: "pink", name: "Bubblegum Pink", note: "E4", freq: 329.63, key: "3", body: "#f472b6", wing: "#db2777", glow: "rgba(244,114,182,0.5)" },
+            { id: "green", name: "Emerald Green", note: "F4", freq: 349.23, key: "4", body: "#4ade80", wing: "#16a34a", glow: "rgba(74,222,128,0.5)" },
+            { id: "orange", name: "Tangerine", note: "G4", freq: 392.00, key: "5", body: "#fb923c", wing: "#ea580c", glow: "rgba(251,146,60,0.5)" },
+            { id: "purple", name: "Cosmic Purple", note: "A4", freq: 440.00, key: "6", body: "#c084fc", wing: "#9333ea", glow: "rgba(192,132,252,0.5)" },
+            { id: "cyan", name: "Electric Cyan", note: "B4", freq: 493.88, key: "7", body: "#22d3ee", wing: "#0891b2", glow: "rgba(34,211,238,0.5)" },
+            { id: "gold", name: "High Gold", note: "C5", freq: 523.25, key: "8", body: "#fde047", wing: "#f59e0b", glow: "rgba(253,224,71,0.65)" }
         ];
-        const gunInstance = (typeof Gun !== "undefined") ? Gun({ peers: GUN_PEERS, localStorage: false }) : null;
-        const gunGameRoom = gunInstance ? gunInstance.get("rainbowlord16_duck_quack_v6") : null;
-        const gunLeaderboardNode = gunGameRoom ? gunGameRoom.get("leaderboard") : null;
-        const gunAdminEventNode = gunGameRoom ? gunGameRoom.get("admin_latest_event") : null;
 
-        // Reliable HTTP Cloud Registry Fallback (ensures Tablet & Mac always see each other)
-        const HTTP_CLOUD_ROSTER_URL = "https://kvdb.io/A2x9RainbowLord16DuckQuackV6/roster";
-        const HTTP_CLOUD_EVENT_URL = "https://kvdb.io/A2x9RainbowLord16DuckQuackV6/latest_event";
+        function singChoirDuck(duckId) {
+            const duck = DUCK_CHOIR_MEMBERS.find(d => d.id === duckId);
+            if (!duck) return;
+
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === "suspended") audioCtx.resume();
+                const now = audioCtx.currentTime;
+
+                const osc1 = audioCtx.createOscillator();
+                const osc2 = audioCtx.createOscillator();
+                const filter = audioCtx.createBiquadFilter();
+                const gain = audioCtx.createGain();
+
+                osc1.type = "sawtooth";
+                osc2.type = "triangle";
+                osc1.frequency.setValueAtTime(duck.freq * 1.12, now);
+                osc1.frequency.exponentialRampToValueAtTime(duck.freq * 0.96, now + 0.08);
+                osc2.frequency.setValueAtTime(duck.freq, now);
+
+                filter.type = "bandpass";
+                filter.frequency.setValueAtTime(duck.freq * 2.6, now);
+                filter.frequency.exponentialRampToValueAtTime(duck.freq * 1.5, now + 0.28);
+                filter.Q.setValueAtTime(3.6, now);
+
+                gain.gain.setValueAtTime(0.001, now);
+                gain.gain.linearRampToValueAtTime(0.26, now + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
+
+                osc1.connect(filter);
+                osc2.connect(filter);
+                filter.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc1.start(now);
+                osc2.start(now);
+                osc1.stop(now + 0.38);
+                osc2.stop(now + 0.38);
+            } catch (e) {}
+
+            const bonus = Math.max(5, Math.floor(getClickPower() * 0.5));
+            state.quacks += bonus;
+            state.lifetimeQuacks += bonus;
+            renderHudAndStats();
+
+            const card = document.querySelector(`[data-choir-duck="${duck.id}"]`);
+            if (card) {
+                card.classList.remove("duck-quacking");
+                void card.offsetWidth;
+                card.classList.add("duck-quacking");
+                const closedBeak = card.querySelector(".choir-beak-closed");
+                const openBeak = card.querySelector(".choir-beak-open");
+                if (closedBeak && openBeak) {
+                    closedBeak.style.display = "none";
+                    openBeak.style.display = "inline";
+                    clearTimeout(card.__singTimer);
+                    card.__singTimer = setTimeout(() => {
+                        closedBeak.style.display = "inline";
+                        openBeak.style.display = "none";
+                    }, 220);
+                }
+            }
+        }
+
+        function playDuckChoirSong(songId) {
+            const songs = {
+                anthem: [
+                    ["yellow", 0], ["pink", 220], ["orange", 440], ["gold", 660],
+                    ["cyan", 920], ["orange", 1140], ["purple", 1360], ["orange", 1580],
+                    ["pink", 1840], ["blue", 2060], ["yellow", 2280]
+                ],
+                scale: [
+                    ["yellow", 0], ["blue", 180], ["pink", 360], ["green", 540],
+                    ["orange", 720], ["purple", 900], ["cyan", 1080], ["gold", 1260],
+                    ["cyan", 1480], ["purple", 1660], ["orange", 1840], ["green", 2020],
+                    ["pink", 2200], ["blue", 2380], ["yellow", 2560]
+                ],
+                twinkle: [
+                    ["yellow", 0], ["yellow", 250], ["orange", 500], ["orange", 750],
+                    ["purple", 1000], ["purple", 1250], ["orange", 1500],
+                    ["green", 1880], ["green", 2130], ["pink", 2380], ["pink", 2630],
+                    ["blue", 2880], ["blue", 3130], ["yellow", 3380]
+                ]
+            };
+            const seq = songs[songId] || songs.anthem;
+            seq.forEach(([duckId, delay]) => {
+                setTimeout(() => singChoirDuck(duckId), delay);
+            });
+            showToast("The Duck Choir is singing!", "success");
+        }
+
+        /* =========================================================================
+           ZERO-LOGIN MULTI-DEVICE CLOUD SYNC (GUNJS + HTTP CLOUD ROSTER)
+           ========================================================================= */
+        const HTTP_CLOUD_ROSTER_URL = "https://kvdb.io/A9x7PqR2mL8nK4wZ6vB1/dq_roster_v1";
+        const HTTP_CLOUD_EVENT_URL = "https://kvdb.io/A9x7PqR2mL8nK4wZ6vB1/dq_admin_evt_v1";
         let liveHttpEntries = {};
+
+        let gunInstance = null;
+        let gunLeaderboardNode = null;
+        let gunAdminEventNode = null;
+        try {
+            if (typeof Gun !== "undefined") {
+                gunInstance = Gun({
+                    peers: [
+                        "https://gun-manhattan.up.railway.app/gun",
+                        "https://peer.wallie.io/gun",
+                        "https://gundb-relay-mlccl.ondigitalocean.app/gun"
+                    ]
+                });
+                gunLeaderboardNode = gunInstance.get("duck_quack_rainbowlord16_v2").get("leaderboard");
+                gunAdminEventNode = gunInstance.get("duck_quack_rainbowlord16_v2").get("admin_event");
+            }
+        } catch (e) {}
 
         async function pushHttpCloudRoster(entry) {
             try {
-                liveHttpEntries[entry.accountSlotId] = entry;
-                const getRes = await fetch(HTTP_CLOUD_ROSTER_URL, { cache: "no-store" });
-                let merged = {};
-                if (getRes.ok) {
-                    const existing = await getRes.json();
-                    if (existing && typeof existing === "object") merged = existing;
-                }
+                let merged = { ...liveHttpEntries };
+                try {
+                    const curRes = await fetch(HTTP_CLOUD_ROSTER_URL, { cache: "no-store" });
+                    if (curRes.ok) {
+                        const remote = await curRes.json();
+                        if (remote && typeof remote === "object") merged = { ...remote, ...merged };
+                    }
+                } catch (e) {}
+
                 merged[entry.accountSlotId] = entry;
                 const sortedKeys = Object.keys(merged)
                     .sort((a, b) => (merged[b].updatedAt || 0) - (merged[a].updatedAt || 0))
@@ -906,20 +1018,33 @@
                     nGain.connect(audioCtx.destination);
                     whiteNoise.start(now);
                 } else {
-                    // Multi-layered dissonant horror shriek
-                    [195, 207, 622, 932, 1380].forEach((freq, idx) => {
+                    // Terrifying layered dissonant horror scream + sub-bass slam + static burst
+                    const sub = audioCtx.createOscillator();
+                    const subGain = audioCtx.createGain();
+                    sub.type = "sine";
+                    sub.frequency.setValueAtTime(110, now);
+                    sub.frequency.exponentialRampToValueAtTime(28, now + 0.9);
+                    subGain.gain.setValueAtTime(0.55, now);
+                    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
+                    sub.connect(subGain);
+                    subGain.connect(audioCtx.destination);
+                    sub.start(now);
+                    sub.stop(now + 1.0);
+
+                    const basePitch = 175 + Math.random() * 90;
+                    [basePitch, basePitch * 1.06, basePitch * 2.83, basePitch * 4.19, basePitch * 6.37].forEach((freq, idx) => {
                         const osc = audioCtx.createOscillator();
                         const gain = audioCtx.createGain();
                         osc.type = idx % 2 === 0 ? "sawtooth" : "square";
-                        osc.frequency.setValueAtTime(freq, now);
-                        osc.frequency.linearRampToValueAtTime(freq * 1.35, now + 0.18);
-                        osc.frequency.exponentialRampToValueAtTime(freq * 0.55, now + 1.1);
-                        gain.gain.setValueAtTime(0.24, now);
-                        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.15);
+                        osc.frequency.setValueAtTime(freq * 0.85, now);
+                        osc.frequency.linearRampToValueAtTime(freq * 1.48, now + 0.14);
+                        osc.frequency.exponentialRampToValueAtTime(freq * 0.45, now + 1.25);
+                        gain.gain.setValueAtTime(0.26, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
                         osc.connect(gain);
                         gain.connect(audioCtx.destination);
                         osc.start(now);
-                        osc.stop(now + 1.2);
+                        osc.stop(now + 1.35);
                     });
                 }
             } catch (e) {}
@@ -1173,10 +1298,10 @@
             if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT")) return;
             if (activeModalId === "piano") {
                 const pressed = e.key.toUpperCase();
-                const match = DUCK_PIANO_KEYS.find(k => k.key === pressed);
+                const match = DUCK_CHOIR_MEMBERS.find(d => d.key === pressed);
                 if (match && !e.repeat) {
                     e.preventDefault();
-                    playDuckPianoNote(match.freq, match.note);
+                    singChoirDuck(match.id);
                     return;
                 }
             }
@@ -1925,53 +2050,79 @@
                 const sub = document.getElementById("adminCutsceneSubtitle");
                 const closeBtn = document.getElementById("adminCutsceneCloseBtn");
                 if (ov && art && title && sub) {
-                    ov.style.background = "radial-gradient(circle, #450a0a 0%, #000000 85%)";
+                    const nightmares = [
+                        {
+                            tag: "ENTITY_01 // HOLLOW SKULL",
+                            heading: "DON'T BLINK",
+                            bg: "radial-gradient(circle, #450a0a 0%, #000000 82%)",
+                            svg: `<svg viewBox="0 0 320 320" class="w-[86vw] max-w-[460px] h-auto drop-shadow-[0_0_55px_rgba(239,68,68,1)]">
+                                <path d="M55,110 C50,35 270,35 265,110 C275,180 245,260 160,305 C75,260 45,180 55,110 Z" fill="#d6d3d1" stroke="#09090b" stroke-width="6"/>
+                                <ellipse cx="108" cy="122" rx="40" ry="32" fill="#000000"/>
+                                <ellipse cx="212" cy="122" rx="40" ry="32" fill="#000000"/>
+                                <circle cx="108" cy="122" r="22" fill="#fecaca"/><circle cx="108" cy="122" r="5" fill="#000000"/>
+                                <circle cx="212" cy="122" r="22" fill="#fecaca"/><circle cx="212" cy="122" r="5" fill="#000000"/>
+                                <path d="M72,95 L92,108 L82,120 M248,95 L228,108 L238,120 M160,48 L154,84 L166,108" stroke="#7f1d1d" stroke-width="4" fill="none"/>
+                                <path d="M148,168 L160,144 L172,168 L160,176 Z" fill="#000000"/>
+                                <path d="M84,195 C115,178 205,178 236,195 C248,250 215,296 160,300 C105,296 72,250 84,195 Z" fill="#000000" stroke="#7f1d1d" stroke-width="4"/>
+                                <polygon points="102,192 110,232 118,191" fill="#f5f5f4"/><polygon points="126,189 134,238 142,188" fill="#f5f5f4"/>
+                                <polygon points="152,187 160,242 168,187" fill="#f5f5f4"/><polygon points="178,188 186,238 194,189" fill="#f5f5f4"/>
+                                <polygon points="202,191 210,232 218,192" fill="#f5f5f4"/>
+                                <polygon points="116,288 124,248 132,290" fill="#f5f5f4"/><polygon points="152,292 160,246 168,292" fill="#f5f5f4"/><polygon points="188,288 196,248 204,286" fill="#f5f5f4"/>
+                            </svg>`
+                        },
+                        {
+                            tag: "ENTITY_02 // ABYSSAL CRAWLER",
+                            heading: "BEHIND YOU",
+                            bg: "radial-gradient(circle, #1e1b4b 0%, #000000 84%)",
+                            svg: `<svg viewBox="0 0 320 320" class="w-[86vw] max-w-[460px] h-auto drop-shadow-[0_0_55px_rgba(168,85,247,1)]">
+                                <path d="M10,40 L95,125 M310,40 L225,125 M5,160 L90,165 M315,160 L230,165 M25,285 L105,205 M295,285 L215,205" stroke="#09090b" stroke-width="14" stroke-linecap="round"/>
+                                <ellipse cx="160" cy="162" rx="88" ry="104" fill="#18181b" stroke="#000000" stroke-width="6"/>
+                                <circle cx="118" cy="118" r="24" fill="#ef4444"/><circle cx="118" cy="118" r="6" fill="#000"/>
+                                <circle cx="202" cy="118" r="24" fill="#ef4444"/><circle cx="202" cy="118" r="6" fill="#000"/>
+                                <circle cx="96" cy="154" r="14" fill="#ef4444"/><circle cx="96" cy="154" r="4" fill="#000"/>
+                                <circle cx="224" cy="154" r="14" fill="#ef4444"/><circle cx="224" cy="154" r="4" fill="#000"/>
+                                <circle cx="142" cy="96" r="11" fill="#fde047"/><circle cx="178" cy="96" r="11" fill="#fde047"/>
+                                <path d="M106,204 Q160,262 214,204 Q160,224 106,204 Z" fill="#7f1d1d"/>
+                                <polygon points="122,206 130,242 138,208" fill="#ffffff"/><polygon points="182,208 190,242 198,206" fill="#ffffff"/>
+                            </svg>`
+                        },
+                        {
+                            tag: "ENTITY_03 // CORRUPTED MALLARD.EXE",
+                            heading: "Q U A C K . E X E",
+                            bg: "radial-gradient(circle, #7f1d1d 0%, #000000 80%)",
+                            svg: `<svg viewBox="0 0 320 320" class="w-[86vw] max-w-[460px] h-auto drop-shadow-[0_0_55px_rgba(220,38,38,1)]">
+                                <circle cx="160" cy="156" r="115" fill="#292524" stroke="#991b1b" stroke-width="6"/>
+                                <ellipse cx="115" cy="122" rx="32" ry="36" fill="#000000"/>
+                                <ellipse cx="205" cy="122" rx="32" ry="36" fill="#000000"/>
+                                <circle cx="115" cy="126" r="10" fill="#ff0000"/>
+                                <circle cx="205" cy="126" r="10" fill="#ff0000"/>
+                                <path d="M115,158 L108,215 M205,158 L212,215" stroke="#991b1b" stroke-width="7" stroke-linecap="round"/>
+                                <path d="M74,186 C125,164 195,164 246,186 L225,275 C185,295 135,295 95,275 Z" fill="#450a0a" stroke="#000000" stroke-width="5"/>
+                                <polygon points="96,186 106,225 116,186" fill="#e7e5e4"/><polygon points="132,182 142,228 152,182" fill="#e7e5e4"/>
+                                <polygon points="168,182 178,228 188,182" fill="#e7e5e4"/><polygon points="204,186 214,225 224,186" fill="#e7e5e4"/>
+                                <polygon points="116,272 126,232 136,274" fill="#e7e5e4"/><polygon points="184,274 194,232 204,272" fill="#e7e5e4"/>
+                            </svg>`
+                        },
+                        {
+                            tag: "ENTITY_04 // THE PALE WATCHER",
+                            heading: "FOUND YOU",
+                            bg: "radial-gradient(circle, #090d16 0%, #000000 90%)",
+                            svg: `<svg viewBox="0 0 320 320" class="w-[86vw] max-w-[460px] h-auto drop-shadow-[0_0_55px_rgba(255,255,255,0.75)]">
+                                <ellipse cx="160" cy="160" rx="82" ry="132" fill="#e5e5e5" stroke="#000000" stroke-width="6"/>
+                                <ellipse cx="122" cy="124" rx="22" ry="34" fill="#000000"/>
+                                <ellipse cx="198" cy="124" rx="22" ry="34" fill="#000000"/>
+                                <circle cx="122" cy="124" r="4" fill="#ffffff"/>
+                                <circle cx="198" cy="124" r="4" fill="#ffffff"/>
+                                <ellipse cx="160" cy="226" rx="34" ry="58" fill="#000000"/>
+                            </svg>`
+                        }
+                    ];
+                    const chosen = nightmares[Math.floor(Math.random() * nightmares.length)];
+                    ov.style.background = chosen.bg;
                     if (closeBtn) closeBtn.classList.add("hidden");
-                    art.innerHTML = `
-                    <div class="jumpscare-strobe relative flex items-center justify-center">
-                        <svg viewBox="0 0 320 320" class="w-[82vw] max-w-[440px] h-auto drop-shadow-[0_0_45px_rgba(239,68,68,0.95)]">
-                            <defs>
-                                <radialGradient id="horrorSkin" cx="50%" cy="45%" r="55%">
-                                    <stop offset="0%" stop-color="#d6d3d1"/>
-                                    <stop offset="55%" stop-color="#57534e"/>
-                                    <stop offset="100%" stop-color="#0c0a09"/>
-                                </radialGradient>
-                                <radialGradient id="bloodEye" cx="50%" cy="50%" r="50%">
-                                    <stop offset="0%" stop-color="#ffffff"/>
-                                    <stop offset="65%" stop-color="#fecaca"/>
-                                    <stop offset="100%" stop-color="#991b1b"/>
-                                </radialGradient>
-                            </defs>
-                            <!-- Gaunt Sunken Skull-Face -->
-                            <path d="M55,110 C50,35 270,35 265,110 C275,180 245,260 160,305 C75,260 45,180 55,110 Z" fill="url(#horrorSkin)" stroke="#09090b" stroke-width="6"/>
-                            <!-- Deep Hollow Eye Sockets -->
-                            <ellipse cx="108" cy="122" rx="38" ry="30" fill="#09090b"/>
-                            <ellipse cx="212" cy="122" rx="38" ry="30" fill="#09090b"/>
-                            <!-- Hyper-Dilated Bloodshot Realistic Eyes -->
-                            <circle cx="108" cy="122" r="22" fill="url(#bloodEye)"/>
-                            <circle cx="108" cy="122" r="6" fill="#000000"/>
-                            <circle cx="104" cy="117" r="2.2" fill="#ffffff"/>
-                            <circle cx="212" cy="122" r="22" fill="url(#bloodEye)"/>
-                            <circle cx="212" cy="122" r="6" fill="#000000"/>
-                            <circle cx="208" cy="117" r="2.2" fill="#ffffff"/>
-                            <!-- Veins & Cracks -->
-                            <path d="M72,95 L92,108 L82,120 M248,95 L228,108 L238,120 M160,48 L154,84 L166,108" stroke="#7f1d1d" stroke-width="3" fill="none"/>
-                            <!-- Hollow Nasal Cavity -->
-                            <path d="M148,168 L160,144 L172,168 L160,176 Z" fill="#09090b"/>
-                            <!-- Screaming Distended Jaw with Needle Fangs -->
-                            <path d="M88,195 C115,180 205,180 232,195 C245,245 215,292 160,295 C105,292 75,245 88,195 Z" fill="#09090b" stroke="#450a0a" stroke-width="4"/>
-                            <polygon points="102,192 110,226 118,191" fill="#e7e5e4"/>
-                            <polygon points="124,189 132,232 140,188" fill="#e7e5e4"/>
-                            <polygon points="148,187 156,236 164,187" fill="#e7e5e4"/>
-                            <polygon points="172,188 180,232 188,189" fill="#e7e5e4"/>
-                            <polygon points="196,191 204,226 212,192" fill="#e7e5e4"/>
-                            <polygon points="112,282 120,246 128,285" fill="#e7e5e4"/>
-                            <polygon points="142,288 150,244 158,289" fill="#e7e5e4"/>
-                            <polygon points="172,286 180,246 188,283" fill="#e7e5e4"/>
-                        </svg>
-                    </div>`;
-                    if (badge) badge.textContent = "SIGNAL HIJACKED";
-                    title.textContent = "IT SEES YOU";
+                    art.innerHTML = `<div class="jumpscare-strobe relative flex items-center justify-center">${chosen.svg}</div>`;
+                    if (badge) badge.textContent = chosen.tag;
+                    title.textContent = chosen.heading;
                     sub.textContent = "";
                     ov.classList.remove("hidden");
                     setTimeout(() => {
@@ -1979,7 +2130,7 @@
                         if (closeBtn) closeBtn.classList.remove("hidden");
                         document.body.classList.remove("screen-shaking");
                         closeAdminCutscene();
-                    }, 2100);
+                    }, 2250);
                 }
             } else if (type === "FLIP") {
                 document.body.style.transition = "transform 0.6s ease";
@@ -2569,38 +2720,41 @@
                         </div>`;
                     }).join("")}</div>`;
             } else if (id === "piano") {
-                const whiteKeys = DUCK_PIANO_KEYS.filter(k => !k.black);
-                const blackKeys = DUCK_PIANO_KEYS.filter(k => k.black);
-                titleEl.textContent = "Duck Quack Piano Studio (Play Keys or Keyboard A-L)";
+                titleEl.textContent = "Duck Quack Choir (Tap Each Colored Duck or Keys 1-8)";
                 bodyEl.innerHTML = `
                     <div class="space-y-4">
                         <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-950/85 border border-slate-800 p-3 rounded-2xl">
-                            <div class="text-xs text-slate-300">Tap any piano key (or press keys <span class="text-amber-300 font-bold">A S D F G H J K L</span>) to quack musical notes &amp; earn bonus Quacks!</div>
+                            <div class="text-xs text-slate-300">Tap any colored duck in the row (or press <span class="text-amber-300 font-bold">1–8</span>) to make it open its beak and sing its own musical quack!</div>
                             <div class="flex flex-wrap gap-1.5">
-                                <button onclick="playDuckPianoSong('anthem')" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold">Play Duck Anthem</button>
-                                <button onclick="playDuckPianoSong('megalo')" class="px-3 py-1.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-extrabold">Megalovania Quack</button>
-                                <button onclick="playDuckPianoSong('twinkle')" class="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-extrabold">Twinkle Duck</button>
+                                <button onclick="playDuckChoirSong('anthem')" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold">Sing Duck Anthem</button>
+                                <button onclick="playDuckChoirSong('scale')" class="px-3 py-1.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-extrabold">Rainbow Scale</button>
+                                <button onclick="playDuckChoirSong('twinkle')" class="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-extrabold">Twinkle Duck</button>
                             </div>
                         </div>
-                        <div class="overflow-x-auto pb-2">
-                            <div class="min-w-[540px] bg-slate-950 p-4 rounded-3xl border border-slate-800 shadow-inner">
-                                <div class="grid grid-cols-10 gap-1.5 mb-2">
-                                    ${whiteKeys.map(k => `
-                                        <button data-piano-note="${k.note}" onpointerdown="playDuckPianoNote(${k.freq}, '${k.note}')" class="h-36 rounded-b-2xl rounded-t-md bg-gradient-to-b from-white to-slate-200 hover:from-amber-100 hover:to-amber-200 active:scale-95 border-2 border-slate-400 flex flex-col items-center justify-end pb-2.5 text-slate-900 shadow-lg transition">
-                                            <span class="text-xs font-extrabold">${k.note}</span>
-                                            <span class="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-300 text-slate-700 mt-1">${k.key}</span>
-                                        </button>
-                                    `).join("")}
-                                </div>
-                                <div class="grid grid-cols-7 gap-2 pt-1">
-                                    ${blackKeys.map(k => `
-                                        <button data-piano-note="${k.note}" onpointerdown="playDuckPianoNote(${k.freq}, '${k.note}')" class="py-3 rounded-xl bg-gradient-to-b from-slate-800 to-slate-950 hover:from-fuchsia-900 hover:to-slate-900 active:scale-95 border border-slate-600 text-center text-white shadow-md transition">
-                                            <div class="text-xs font-extrabold text-amber-300">${k.note}</div>
-                                            <div class="text-[10px] text-slate-400">Key: ${k.key}</div>
-                                        </button>
-                                    `).join("")}
-                                </div>
-                            </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 bg-slate-950/90 p-4 rounded-3xl border border-slate-800">
+                            ${DUCK_CHOIR_MEMBERS.map(d => `
+                                <button data-choir-duck="${d.id}" onpointerdown="singChoirDuck('${d.id}')" style="box-shadow: 0 8px 20px -8px ${d.glow};" class="group rounded-2xl bg-slate-900/95 hover:bg-slate-800 border border-slate-700/90 p-3 flex flex-col items-center justify-between gap-2 transition cursor-pointer">
+                                    <span class="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-700 text-[10px] font-extrabold text-slate-300">Key ${d.key} &bull; ${d.note}</span>
+                                    <svg viewBox="0 0 120 120" class="w-20 h-20">
+                                        <ellipse cx="60" cy="108" rx="34" ry="7" fill="rgba(0,0,0,0.4)"/>
+                                        <path d="M22,74 C14,66 15,58 26,64 C30,52 46,50 62,52 C82,55 92,68 90,84 C88,100 70,104 54,103 C34,102 22,90 22,74 Z" fill="${d.body}" stroke="#0f172a" stroke-width="3"/>
+                                        <path d="M38,74 C48,66 66,68 70,80 C64,88 46,90 36,82 Z" fill="${d.wing}" stroke="#0f172a" stroke-width="2.5"/>
+                                        <circle cx="64" cy="38" r="21" fill="${d.body}" stroke="#0f172a" stroke-width="3"/>
+                                        <circle cx="57" cy="35" r="3.2" fill="#0f172a"/>
+                                        <circle cx="56" cy="34" r="1.2" fill="#ffffff"/>
+                                        <circle cx="73" cy="35" r="3.2" fill="#0f172a"/>
+                                        <circle cx="72" cy="34" r="1.2" fill="#ffffff"/>
+                                        <g class="choir-beak-closed">
+                                            <path d="M56,43 C66,40 84,42 85,47 C86,52 66,53 56,49 Z" fill="#f97316" stroke="#0f172a" stroke-width="2.5"/>
+                                        </g>
+                                        <g class="choir-beak-open" style="display:none;">
+                                            <path d="M56,41 C66,36 84,39 85,44 C75,47 64,47 56,45 Z" fill="#f97316" stroke="#0f172a" stroke-width="2.5"/>
+                                            <path d="M58,46 C66,46 76,46 82,49 C78,56 64,56 57,51 Z" fill="#991b1b" stroke="#0f172a" stroke-width="2.5"/>
+                                        </g>
+                                    </svg>
+                                    <div class="text-xs font-extrabold text-white text-center leading-tight">${d.name}</div>
+                                </button>
+                            `).join("")}
                         </div>
                     </div>`;
             } else if (id === "quests") {
