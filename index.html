@@ -139,6 +139,20 @@
             50% { transform: translateY(14px) rotate(8deg); }
         }
         .zero-g-duck { animation: zeroGFloat 2.4s ease-in-out infinite; }
+        @keyframes blackHoleSpin {
+            0% { transform: scale(1) rotate(0deg); filter: hue-rotate(0deg) contrast(1.4); }
+            50% { transform: scale(0.72) rotate(180deg); filter: hue-rotate(180deg) contrast(2); }
+            100% { transform: scale(1) rotate(360deg); filter: hue-rotate(360deg) contrast(1.4); }
+        }
+        .blackhole-vortex { animation: blackHoleSpin 2.5s linear infinite; }
+        @keyframes glitchFlicker {
+            0%, 100% { transform: skewX(0deg); filter: hue-rotate(0deg) saturate(2); }
+            20% { transform: skewX(-12deg) translateX(8px); filter: invert(1); }
+            40% { transform: skewX(14deg) translateX(-10px); filter: hue-rotate(140deg) contrast(2.2); }
+            60% { transform: skewX(-8deg); filter: saturate(4); }
+            80% { transform: skewX(10deg) translateX(6px); filter: invert(0.85); }
+        }
+        .cyber-glitch-mode { animation: glitchFlicker 0.22s infinite; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: rgba(15, 23, 42, 0.6); border-radius: 9999px; }
         ::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.55); border-radius: 9999px; }
@@ -503,17 +517,21 @@
     <!-- MAIN GAME ENGINE -->
     <script>
         /* =========================================================================
-           DUCK QUACK CHOIR ENGINE (COLORFUL SINGING DUCKS IN A ROW)
+           DUCK QUACK CHOIR ENGINE (12 COLORFUL SINGING DUCKS IN A ROW)
            ========================================================================= */
         const DUCK_CHOIR_MEMBERS = [
             { id: "yellow", name: "Sunny Yellow", note: "C4", freq: 261.63, key: "1", body: "#facc15", wing: "#ca8a04", glow: "rgba(250,204,21,0.5)" },
-            { id: "blue", name: "Ocean Blue", note: "D4", freq: 293.66, key: "2", body: "#38bdf8", wing: "#0284c7", glow: "rgba(56,189,248,0.5)" },
-            { id: "pink", name: "Bubblegum Pink", note: "E4", freq: 329.63, key: "3", body: "#f472b6", wing: "#db2777", glow: "rgba(244,114,182,0.5)" },
-            { id: "green", name: "Emerald Green", note: "F4", freq: 349.23, key: "4", body: "#4ade80", wing: "#16a34a", glow: "rgba(74,222,128,0.5)" },
-            { id: "orange", name: "Tangerine", note: "G4", freq: 392.00, key: "5", body: "#fb923c", wing: "#ea580c", glow: "rgba(251,146,60,0.5)" },
-            { id: "purple", name: "Cosmic Purple", note: "A4", freq: 440.00, key: "6", body: "#c084fc", wing: "#9333ea", glow: "rgba(192,132,252,0.5)" },
-            { id: "cyan", name: "Electric Cyan", note: "B4", freq: 493.88, key: "7", body: "#22d3ee", wing: "#0891b2", glow: "rgba(34,211,238,0.5)" },
-            { id: "gold", name: "High Gold", note: "C5", freq: 523.25, key: "8", body: "#fde047", wing: "#f59e0b", glow: "rgba(253,224,71,0.65)" }
+            { id: "ruby", name: "Ruby Red", note: "C#4", freq: 277.18, key: "2", body: "#f87171", wing: "#dc2626", glow: "rgba(248,113,113,0.5)" },
+            { id: "blue", name: "Ocean Blue", note: "D4", freq: 293.66, key: "3", body: "#38bdf8", wing: "#0284c7", glow: "rgba(56,189,248,0.5)" },
+            { id: "lavender", name: "Lavender", note: "D#4", freq: 311.13, key: "4", body: "#d8b4fe", wing: "#9333ea", glow: "rgba(216,180,254,0.5)" },
+            { id: "pink", name: "Bubblegum Pink", note: "E4", freq: 329.63, key: "5", body: "#f472b6", wing: "#db2777", glow: "rgba(244,114,182,0.5)" },
+            { id: "green", name: "Emerald Green", note: "F4", freq: 349.23, key: "6", body: "#4ade80", wing: "#16a34a", glow: "rgba(74,222,128,0.5)" },
+            { id: "mint", name: "Mint Teal", note: "F#4", freq: 369.99, key: "7", body: "#2dd4bf", wing: "#0d9488", glow: "rgba(45,212,191,0.5)" },
+            { id: "orange", name: "Tangerine", note: "G4", freq: 392.00, key: "8", body: "#fb923c", wing: "#ea580c", glow: "rgba(251,146,60,0.5)" },
+            { id: "indigo", name: "Midnight Indigo", note: "G#4", freq: 415.30, key: "9", body: "#818cf8", wing: "#4338ca", glow: "rgba(129,140,248,0.5)" },
+            { id: "purple", name: "Cosmic Purple", note: "A4", freq: 440.00, key: "0", body: "#c084fc", wing: "#7e22ce", glow: "rgba(192,132,252,0.5)" },
+            { id: "cyan", name: "Electric Cyan", note: "B4", freq: 493.88, key: "Q", body: "#22d3ee", wing: "#0891b2", glow: "rgba(34,211,238,0.5)" },
+            { id: "gold", name: "High Gold", note: "C5", freq: 523.25, key: "W", body: "#fde047", wing: "#f59e0b", glow: "rgba(253,224,71,0.7)" }
         ];
 
         function singChoirDuck(duckId) {
@@ -588,23 +606,33 @@
                     ["pink", 1840], ["blue", 2060], ["yellow", 2280]
                 ],
                 scale: [
-                    ["yellow", 0], ["blue", 180], ["pink", 360], ["green", 540],
-                    ["orange", 720], ["purple", 900], ["cyan", 1080], ["gold", 1260],
-                    ["cyan", 1480], ["purple", 1660], ["orange", 1840], ["green", 2020],
-                    ["pink", 2200], ["blue", 2380], ["yellow", 2560]
+                    ["yellow", 0], ["ruby", 140], ["blue", 280], ["lavender", 420],
+                    ["pink", 560], ["green", 700], ["mint", 840], ["orange", 980],
+                    ["indigo", 1120], ["purple", 1260], ["cyan", 1400], ["gold", 1540],
+                    ["cyan", 1720], ["purple", 1860], ["orange", 2000], ["green", 2140],
+                    ["pink", 2280], ["blue", 2420], ["yellow", 2560]
                 ],
                 twinkle: [
                     ["yellow", 0], ["yellow", 250], ["orange", 500], ["orange", 750],
                     ["purple", 1000], ["purple", 1250], ["orange", 1500],
                     ["green", 1880], ["green", 2130], ["pink", 2380], ["pink", 2630],
                     ["blue", 2880], ["blue", 3130], ["yellow", 3380]
+                ],
+                megalo: [
+                    ["blue", 0], ["blue", 140], ["gold", 280], ["purple", 500],
+                    ["indigo", 760], ["orange", 980], ["green", 1200], ["blue", 1420], ["green", 1560], ["orange", 1700]
+                ],
+                boss: [
+                    ["yellow", 0], ["ruby", 160], ["pink", 320], ["green", 480],
+                    ["orange", 640], ["indigo", 800], ["cyan", 960], ["gold", 1120],
+                    ["gold", 1320], ["gold", 1520]
                 ]
             };
             const seq = songs[songId] || songs.anthem;
             seq.forEach(([duckId, delay]) => {
                 setTimeout(() => singChoirDuck(duckId), delay);
             });
-            showToast("The Duck Choir is singing!", "success");
+            showToast("The 12-Duck Choir is singing!", "success");
         }
 
         /* =========================================================================
@@ -1889,6 +1917,20 @@
                 triggerAdminAbuse("ZERO_G", `RainbowLord16 disabled gravity for ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer });
             } else if (cmd === "disco" || cmd === "disco_party") {
                 triggerAdminAbuse("DISCO", `RainbowLord16 started a Server-Wide Rainbow Disco Party!`, { targetPlayer: tPlayer });
+            } else if (cmd === "blackhole" || cmd === "vortex") {
+                triggerAdminAbuse("BLACKHOLE", `RainbowLord16 opened a SINGULARITY BLACK HOLE on ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer });
+            } else if (cmd === "glitch") {
+                triggerAdminAbuse("GLITCH", `RainbowLord16 corrupted ${tPlayer || "EVERYONE"}'s reality matrix!`, { targetPlayer: tPlayer });
+            } else if (cmd === "invert") {
+                triggerAdminAbuse("INVERT", `RainbowLord16 inverted ${tPlayer || "EVERYONE"}'s colors into the Shadow Realm!`, { targetPlayer: tPlayer });
+            } else if (cmd === "earthquake" || cmd === "quake") {
+                triggerAdminAbuse("EARTHQUAKE", `RainbowLord16 triggered a MAGNITUDE 12 QUACKQUAKE!`, { targetPlayer: tPlayer });
+            } else if (cmd === "meteor" || cmd === "apocalypse") {
+                triggerAdminAbuse("METEOR", `RainbowLord16 summoned an APOCALYPTIC METEOR SHOWER!`, { targetPlayer: tPlayer });
+            } else if (cmd === "clone" || cmd === "clone_ducks") {
+                triggerAdminAbuse("CLONE_DUCKS", `RainbowLord16 unleashed a 50-DUCK STAMPEDE on ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer });
+            } else if (cmd === "pets" || cmd === "give_all_pets") {
+                triggerAdminAbuse("GIVE_PETS", `RainbowLord16 bestowed MYTHIC CREATOR PETS on ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer });
             } else if (cmd === "ban" || cmd === "fake_ban") {
                 triggerAdminAbuse("FAKE_BAN", `RainbowLord16 issued a Troll Ban Hammer on ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer });
             } else if (cmd === "clear" || cmd === "clear_trolls") {
@@ -1960,7 +2002,8 @@
             const btn = document.getElementById("heroDuckBtn");
             if (btn) btn.classList.remove("zero-g-duck");
             document.body.style.transform = "";
-            document.body.classList.remove("prism-aura", "screen-shaking");
+            document.body.style.filter = "";
+            document.body.classList.remove("prism-aura", "screen-shaking", "blackhole-vortex", "cyber-glitch-mode");
         }
 
         function renderDirectDuckTroll() {
@@ -2115,6 +2158,69 @@
                                 <circle cx="198" cy="124" r="4" fill="#ffffff"/>
                                 <ellipse cx="160" cy="226" rx="34" ry="58" fill="#000000"/>
                             </svg>`
+                        },
+                        {
+                            tag: "ENTITY_05 // THE SMILING SHADOW",
+                            heading: "LOOK CLOSER",
+                            bg: "radial-gradient(circle, #020617 0%, #000000 92%)",
+                            svg: `<svg viewBox="0 0 320 320" class="w-[88vw] max-w-[480px] h-auto drop-shadow-[0_0_65px_rgba(255,255,255,0.9)]">
+                                <circle cx="160" cy="160" r="138" fill="#030303"/>
+                                <circle cx="105" cy="112" r="26" fill="#ffffff"/>
+                                <circle cx="105" cy="112" r="6" fill="#000000"/>
+                                <circle cx="215" cy="112" r="26" fill="#ffffff"/>
+                                <circle cx="215" cy="112" r="6" fill="#000000"/>
+                                <path d="M46,166 Q160,318 274,166 Q160,248 46,166 Z" fill="#ffffff"/>
+                                <line x1="82" y1="184" x2="82" y2="225" stroke="#000000" stroke-width="5"/>
+                                <line x1="112" y1="196" x2="112" y2="246" stroke="#000000" stroke-width="5"/>
+                                <line x1="144" y1="204" x2="144" y2="256" stroke="#000000" stroke-width="5"/>
+                                <line x1="176" y1="204" x2="176" y2="256" stroke="#000000" stroke-width="5"/>
+                                <line x1="208" y1="196" x2="208" y2="246" stroke="#000000" stroke-width="5"/>
+                                <line x1="238" y1="184" x2="238" y2="225" stroke="#000000" stroke-width="5"/>
+                            </svg>`
+                        },
+                        {
+                            tag: "ENTITY_06 // 1000-EYED VOID SERAPH",
+                            heading: "BE NOT AFRAID",
+                            bg: "radial-gradient(circle, #3b0764 0%, #000000 84%)",
+                            svg: `<svg viewBox="0 0 320 320" class="w-[88vw] max-w-[480px] h-auto drop-shadow-[0_0_65px_rgba(232,121,249,1)]">
+                                <circle cx="160" cy="160" r="126" fill="none" stroke="#facc15" stroke-width="8" stroke-dasharray="18 10"/>
+                                <circle cx="160" cy="160" r="92" fill="none" stroke="#e879f9" stroke-width="6" stroke-dasharray="12 8"/>
+                                <ellipse cx="160" cy="160" rx="58" ry="38" fill="#ffffff" stroke="#000" stroke-width="5"/>
+                                <circle cx="160" cy="160" r="24" fill="#dc2626"/><circle cx="160" cy="160" r="9" fill="#000000"/>
+                                <circle cx="72" cy="92" r="18" fill="#fef08a"/><circle cx="72" cy="92" r="7" fill="#000"/>
+                                <circle cx="248" cy="92" r="18" fill="#fef08a"/><circle cx="248" cy="92" r="7" fill="#000"/>
+                                <circle cx="72" cy="228" r="18" fill="#fef08a"/><circle cx="72" cy="228" r="7" fill="#000"/>
+                                <circle cx="248" cy="228" r="18" fill="#fef08a"/><circle cx="248" cy="228" r="7" fill="#000"/>
+                                <circle cx="160" cy="48" r="16" fill="#fef08a"/><circle cx="160" cy="48" r="6" fill="#000"/>
+                                <circle cx="160" cy="272" r="16" fill="#fef08a"/><circle cx="160" cy="272" r="6" fill="#000"/>
+                            </svg>`
+                        },
+                        {
+                            tag: "ENTITY_07 // SCREAMING VHS PHANTOM",
+                            heading: "NO SIGNAL",
+                            bg: "radial-gradient(circle, #1e293b 0%, #000000 86%)",
+                            svg: `<svg viewBox="0 0 320 320" class="w-[88vw] max-w-[480px] h-auto drop-shadow-[0_0_65px_rgba(56,189,248,0.95)]">
+                                <path d="M70,290 C60,150 90,40 160,36 C230,40 260,150 250,290 Z" fill="#cbd5e1" stroke="#0f172a" stroke-width="6"/>
+                                <path d="M98,110 Q124,142 146,112 Q124,162 98,110 Z" fill="#000000"/>
+                                <path d="M174,112 Q196,142 222,110 Q196,162 174,112 Z" fill="#000000"/>
+                                <path d="M112,136 L104,215 M208,136 L216,215" stroke="#000000" stroke-width="10" stroke-linecap="round"/>
+                                <ellipse cx="160" cy="218" rx="44" ry="66" fill="#000000"/>
+                            </svg>`
+                        },
+                        {
+                            tag: "ENTITY_08 // CRIMSON BEAK STALKER",
+                            heading: "RUN NOW",
+                            bg: "radial-gradient(circle, #991b1b 0%, #000000 80%)",
+                            svg: `<svg viewBox="0 0 320 320" class="w-[88vw] max-w-[480px] h-auto drop-shadow-[0_0_70px_rgba(255,0,0,1)]">
+                                <circle cx="160" cy="148" r="108" fill="#1c1917" stroke="#ef4444" stroke-width="6"/>
+                                <polygon points="75,92 135,126 84,136" fill="#fde047"/>
+                                <polygon points="245,92 185,126 236,136" fill="#fde047"/>
+                                <circle cx="106" cy="122" r="7" fill="#000000"/>
+                                <circle cx="214" cy="122" r="7" fill="#000000"/>
+                                <polygon points="56,174 160,136 264,174 160,204" fill="#ea580c" stroke="#000" stroke-width="5"/>
+                                <polygon points="76,194 160,298 244,194 160,214" fill="#7f1d1d" stroke="#000" stroke-width="5"/>
+                                <polygon points="104,196 116,238 128,198" fill="#fff"/><polygon points="148,202 160,248 172,202" fill="#fff"/><polygon points="192,198 204,238 216,196" fill="#fff"/>
+                            </svg>`
                         }
                     ];
                     const chosen = nightmares[Math.floor(Math.random() * nightmares.length)];
@@ -2155,6 +2261,43 @@
             } else if (type === "DISCO") {
                 document.body.classList.add("prism-aura");
                 setTimeout(() => document.body.classList.remove("prism-aura"), 10000);
+            } else if (type === "BLACKHOLE") {
+                playDramaticSfx("nuke");
+                document.body.classList.add("blackhole-vortex");
+                setTimeout(() => document.body.classList.remove("blackhole-vortex"), 6500);
+            } else if (type === "GLITCH") {
+                playDramaticSfx("jumpscare");
+                document.body.classList.add("cyber-glitch-mode");
+                setTimeout(() => document.body.classList.remove("cyber-glitch-mode"), 6500);
+            } else if (type === "INVERT") {
+                document.body.style.filter = "invert(1) hue-rotate(180deg)";
+                setTimeout(() => { document.body.style.filter = ""; }, 9000);
+            } else if (type === "EARTHQUAKE") {
+                playDramaticSfx("nuke");
+                document.body.classList.add("screen-shaking");
+                setTimeout(() => document.body.classList.remove("screen-shaking"), 7500);
+            } else if (type === "METEOR") {
+                playDramaticSfx("nuke");
+                document.body.classList.add("screen-shaking");
+                for (let i = 0; i < 24; i++) {
+                    setTimeout(() => spawnFallingSkyAnomaly(i % 2 === 0 ? "gem" : "void"), i * 140);
+                }
+                setTimeout(() => document.body.classList.remove("screen-shaking"), 4000);
+            } else if (type === "CLONE_DUCKS") {
+                for (let i = 0; i < 20; i++) {
+                    setTimeout(() => spawnFloatingText("QUACK!!", 10 + Math.random() * 80, 15 + Math.random() * 70, "text-amber-300 scale-125"), i * 110);
+                }
+            } else if (type === "GIVE_PETS") {
+                state.pets.push({
+                    id: "creator_pet_" + Date.now(),
+                    name: "RainbowLord Seraph",
+                    rarity: "Creator",
+                    level: 10,
+                    mult: 250.0,
+                    color: "#ec4899",
+                    equipped: getEquippedPets().length < 3
+                });
+                showToast("Received Mythic Creator Pet: RainbowLord Seraph (250x)!", "admin");
             } else if (type === "FAKE_BAN") {
                 const ov = document.getElementById("adminTrollOverlay");
                 const box = document.getElementById("adminTrollContent");
@@ -2720,18 +2863,20 @@
                         </div>`;
                     }).join("")}</div>`;
             } else if (id === "piano") {
-                titleEl.textContent = "Duck Quack Choir (Tap Each Colored Duck or Keys 1-8)";
+                titleEl.textContent = "12-Duck Rainbow Choir (Tap Each Colored Duck or Keys 1-0, Q, W)";
                 bodyEl.innerHTML = `
                     <div class="space-y-4">
                         <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-950/85 border border-slate-800 p-3 rounded-2xl">
-                            <div class="text-xs text-slate-300">Tap any colored duck in the row (or press <span class="text-amber-300 font-bold">1–8</span>) to make it open its beak and sing its own musical quack!</div>
+                            <div class="text-xs text-slate-300">Tap any of the 12 colored ducks (or press <span class="text-amber-300 font-bold">1–0, Q, W</span>) to make it bounce and sing its own pitch!</div>
                             <div class="flex flex-wrap gap-1.5">
-                                <button onclick="playDuckChoirSong('anthem')" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold">Sing Duck Anthem</button>
-                                <button onclick="playDuckChoirSong('scale')" class="px-3 py-1.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-extrabold">Rainbow Scale</button>
+                                <button onclick="playDuckChoirSong('anthem')" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold">Duck Anthem</button>
+                                <button onclick="playDuckChoirSong('scale')" class="px-3 py-1.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-extrabold">12-Duck Scale</button>
                                 <button onclick="playDuckChoirSong('twinkle')" class="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-extrabold">Twinkle Duck</button>
+                                <button onclick="playDuckChoirSong('megalo')" class="px-3 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-extrabold">Megalovania Quack</button>
+                                <button onclick="playDuckChoirSong('boss')" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold">Boss Theme</button>
                             </div>
                         </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2.5 bg-slate-950/90 p-4 rounded-3xl border border-slate-800">
+                        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 bg-slate-950/90 p-4 rounded-3xl border border-slate-800">
                             ${DUCK_CHOIR_MEMBERS.map(d => `
                                 <button data-choir-duck="${d.id}" onpointerdown="singChoirDuck('${d.id}')" style="box-shadow: 0 8px 20px -8px ${d.glow};" class="group rounded-2xl bg-slate-900/95 hover:bg-slate-800 border border-slate-700/90 p-3 flex flex-col items-center justify-between gap-2 transition cursor-pointer">
                                     <span class="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-700 text-[10px] font-extrabold text-slate-300">Key ${d.key} &bull; ${d.note}</span>
@@ -2862,19 +3007,23 @@
                                 <button onclick="triggerAdminAbuse('NUKE','RainbowLord16 dropped a TACTICAL QUACK NUKE!')" class="py-2 px-2 rounded-xl bg-rose-600/30 border border-rose-400/50 text-[11px] font-extrabold text-rose-200">Nuke Target</button>
                                 <button onclick="triggerAdminAbuse('JAIL','RainbowLord16 jailed players behind laser bars!')" class="py-2 px-2 rounded-xl bg-amber-600/30 border border-amber-400/50 text-[11px] font-extrabold text-amber-200">Jail Duck</button>
                                 <button onclick="triggerAdminAbuse('FREEZE','RainbowLord16 froze players in solid ice!')" class="py-2 px-2 rounded-xl bg-cyan-600/30 border border-cyan-400/50 text-[11px] font-extrabold text-cyan-200">Freeze Ice</button>
-                                <button onclick="triggerAdminAbuse('JUMPSCARE','RainbowLord16 unleashed the Demon Goose!')" class="py-2 px-2 rounded-xl bg-red-600/30 border border-red-400/50 text-[11px] font-extrabold text-red-200">Jumpscare</button>
+                                <button onclick="triggerAdminAbuse('JUMPSCARE','RainbowLord16 unleashed a Nightmare Entity!')" class="py-2 px-2 rounded-xl bg-red-600/30 border border-red-400/50 text-[11px] font-extrabold text-red-200">8x Jumpscare</button>
                                 <button onclick="triggerAdminAbuse('FLIP','RainbowLord16 flipped the screen upside down!')" class="py-2 px-2 rounded-xl bg-indigo-600/30 border border-indigo-400/50 text-[11px] font-extrabold text-indigo-200">Flip Screen</button>
                                 <button onclick="triggerAdminAbuse('SPIN','RainbowLord16 triggered a 360° Barrel Roll!')" class="py-2 px-2 rounded-xl bg-violet-600/30 border border-violet-400/50 text-[11px] font-extrabold text-violet-200">Barrel Roll</button>
-                                <button onclick="triggerAdminAbuse('GIANT','RainbowLord16 spawned Giant Titan Ducks!')" class="py-2 px-2 rounded-xl bg-emerald-600/30 border border-emerald-400/50 text-[11px] font-extrabold text-emerald-200">Giant Duck</button>
+                                <button onclick="triggerAdminAbuse('BLACKHOLE','RainbowLord16 opened a Singularity Black Hole!')" class="py-2 px-2 rounded-xl bg-purple-700/40 border border-purple-400/60 text-[11px] font-extrabold text-purple-200">Black Hole</button>
+                                <button onclick="triggerAdminAbuse('GLITCH','RainbowLord16 corrupted the Cyber Matrix!')" class="py-2 px-2 rounded-xl bg-emerald-600/30 border border-emerald-400/50 text-[11px] font-extrabold text-emerald-200">Cyber Glitch</button>
+                                <button onclick="triggerAdminAbuse('INVERT','RainbowLord16 inverted colors into Shadow Realm!')" class="py-2 px-2 rounded-xl bg-slate-700/50 border border-slate-400/50 text-[11px] font-extrabold text-slate-200">Invert Realm</button>
+                                <button onclick="triggerAdminAbuse('EARTHQUAKE','RainbowLord16 unleashed a Magnitude 12 Quackquake!')" class="py-2 px-2 rounded-xl bg-orange-700/40 border border-orange-400/60 text-[11px] font-extrabold text-orange-200">Quackquake</button>
+                                <button onclick="triggerAdminAbuse('METEOR','RainbowLord16 triggered an Apocalyptic Meteor Shower!')" class="py-2 px-2 rounded-xl bg-amber-600/30 border border-amber-300/50 text-[11px] font-extrabold text-amber-100">Meteor Shower</button>
+                                <button onclick="triggerAdminAbuse('CLONE_DUCKS','RainbowLord16 summoned a 50-Duck Stampede!')" class="py-2 px-2 rounded-xl bg-yellow-600/30 border border-yellow-400/50 text-[11px] font-extrabold text-yellow-200">Duck Stampede</button>
+                                <button onclick="triggerAdminAbuse('GIANT','RainbowLord16 spawned Giant Titan Ducks!')" class="py-2 px-2 rounded-xl bg-lime-600/30 border border-lime-400/50 text-[11px] font-extrabold text-lime-200">Giant Duck</button>
                                 <button onclick="triggerAdminAbuse('TINY','RainbowLord16 shrunk ducks to tiny size!')" class="py-2 px-2 rounded-xl bg-teal-600/30 border border-teal-400/50 text-[11px] font-extrabold text-teal-200">Tiny Duck</button>
                                 <button onclick="triggerAdminAbuse('ZERO_G','RainbowLord16 disabled stage gravity!')" class="py-2 px-2 rounded-xl bg-sky-600/30 border border-sky-400/50 text-[11px] font-extrabold text-sky-200">Zero Gravity</button>
                                 <button onclick="triggerAdminAbuse('DISCO','RainbowLord16 started Rainbow Disco Party!')" class="py-2 px-2 rounded-xl bg-fuchsia-600/30 border border-fuchsia-400/50 text-[11px] font-extrabold text-fuchsia-200">Disco Mode</button>
-                                <button onclick="triggerAdminAbuse('FAKE_BAN','RainbowLord16 swung the Troll Ban Hammer!')" class="py-2 px-2 rounded-xl bg-orange-600/30 border border-orange-400/50 text-[11px] font-extrabold text-orange-200">Fake Ban</button>
+                                <button onclick="triggerAdminAbuse('FAKE_BAN','RainbowLord16 swung the Troll Ban Hammer!')" class="py-2 px-2 rounded-xl bg-rose-700/30 border border-rose-400/50 text-[11px] font-extrabold text-rose-200">Fake Ban</button>
+                                <button onclick="triggerAdminAbuse('GIVE_PETS','RainbowLord16 bestowed a 250x Mythic Creator Pet!')" class="py-2 px-2 rounded-xl bg-pink-600/30 border border-pink-400/50 text-[11px] font-extrabold text-pink-200">Gift 250x Pet</button>
+                                <button onclick="triggerAdminAbuse('RAINBOW_STORM','RainbowLord16 summoned a 100x RAINBOW STORM!',{targetPlayer:'ALL'})" class="py-2 px-2 rounded-xl bg-indigo-500/30 border border-indigo-300/50 text-[11px] font-extrabold text-indigo-100">100x Storm</button>
                                 <button onclick="triggerAdminAbuse('CLEAR','RainbowLord16 cleared all active trolls.')" class="py-2 px-2 rounded-xl bg-slate-800 border border-slate-600 text-[11px] font-extrabold text-slate-200">Clear Trolls</button>
-                                <button onclick="triggerAdminAbuse('RAINBOW_STORM','RainbowLord16 summoned a 100x RAINBOW STORM!',{targetPlayer:'ALL'})" class="py-2 px-2 rounded-xl bg-pink-600/30 border border-pink-400/50 text-[11px] font-extrabold text-pink-200">100x Storm</button>
-                                <button onclick="triggerAdminAbuse('RAIN_EGGS','RainbowLord16 rained Cyber Eggs from the sky!')" class="py-2 px-2 rounded-xl bg-lime-600/30 border border-lime-400/50 text-[11px] font-extrabold text-lime-200">Rain Eggs</button>
-                                <button onclick="triggerAdminAbuse('RAIN_GEMS','RainbowLord16 rained Sky Diamonds!')" class="py-2 px-2 rounded-xl bg-cyan-500/30 border border-cyan-300/50 text-[11px] font-extrabold text-cyan-100">Rain Gems</button>
-                                <button onclick="triggerAdminAbuse('CUTSCENE','RainbowLord16 arrived in the Omniverse!',{theme:'rainbow',targetPlayer:'ALL'})" class="py-2 px-2 rounded-xl bg-amber-500/30 border border-amber-300/50 text-[11px] font-extrabold text-amber-100">Cutscene</button>
                             </div>
                         </div>` : `
                         <div class="rounded-2xl bg-slate-950/85 border border-fuchsia-500/30 p-4">
