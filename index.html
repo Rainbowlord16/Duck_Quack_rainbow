@@ -996,9 +996,15 @@
                 </div>
 
                 <!-- Export / Import Save String -->
-                <div class="grid grid-cols-2 gap-2">
-                    <button type="button" onclick="exportSaveString()" class="arcade-btn bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded-xl text-xs font-bold">Copy Save String</button>
-                    <button type="button" onclick="importSaveString()" class="arcade-btn bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded-xl text-xs font-bold">Import Save String</button>
+                <div class="space-y-2">
+                    <div class="grid grid-cols-2 gap-2">
+                        <button type="button" onclick="exportSaveString()" class="arcade-btn bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded-xl text-xs font-bold">Copy Save String</button>
+                        <button type="button" onclick="toggleImportSaveBox()" class="arcade-btn bg-slate-800 hover:bg-slate-700 text-slate-200 py-2 rounded-xl text-xs font-bold">Import Save String</button>
+                    </div>
+                    <div id="importSaveContainer" class="hidden bg-slate-950/90 border border-white/15 rounded-2xl p-2.5 space-y-2">
+                        <textarea id="importSaveTextarea" rows="2" placeholder="Paste exported save string here..." class="w-full bg-black border border-white/15 rounded-xl p-2 text-[11px] font-mono text-emerald-300 focus:outline-none focus:border-indigo-400"></textarea>
+                        <button type="button" onclick="importSaveString()" class="arcade-btn w-full bg-indigo-600 hover:bg-indigo-500 text-white py-1.5 rounded-xl text-xs font-extrabold">Load Save Data</button>
+                    </div>
                 </div>
 
                 <!-- Log Out / Start New Account Button -->
@@ -2649,6 +2655,36 @@
             return `duckQuackAvatar_${getAccountSlotId()}`;
         }
 
+        function compressAvatarDataUrl(rawDataUrl) {
+            return new Promise((resolve) => {
+                const img = new Image();
+                img.onload = () => {
+                    const maxDim = 128;
+                    let w = img.width || maxDim;
+                    let h = img.height || maxDim;
+                    if (w > h && w > maxDim) {
+                        h = Math.round((h * maxDim) / w);
+                        w = maxDim;
+                    } else if (h >= w && h > maxDim) {
+                        w = Math.round((w * maxDim) / h);
+                        h = maxDim;
+                    }
+                    const canvas = document.createElement("canvas");
+                    canvas.width = w;
+                    canvas.height = h;
+                    const ctx = canvas.getContext("2d");
+                    ctx.drawImage(img, 0, 0, w, h);
+                    try {
+                        resolve(canvas.toDataURL("image/webp", 0.82));
+                    } catch (err) {
+                        resolve(canvas.toDataURL("image/jpeg", 0.82));
+                    }
+                };
+                img.onerror = () => resolve(rawDataUrl);
+                img.src = rawDataUrl;
+            });
+        }
+
         function handleProfilePicUpload(event) {
             const file = event.target.files && event.target.files[0];
             if (!file) return;
@@ -2656,16 +2692,17 @@
                 return showToast("Image exceeds 6 MB limit!", "error");
             }
             const reader = new FileReader();
-            reader.onload = () => {
-                const dataUrl = String(reader.result || "");
-                state.profilePic = dataUrl;
+            reader.onload = async () => {
+                const rawUrl = String(reader.result || "");
+                const optimizedUrl = await compressAvatarDataUrl(rawUrl);
+                state.profilePic = optimizedUrl;
                 try {
-                    localStorage.setItem(getAvatarStorageKey(), dataUrl);
+                    localStorage.setItem(getAvatarStorageKey(), optimizedUrl);
                 } catch (e) {}
                 saveGame();
-                window.syncLeaderboardScore(false);
+                await window.syncLeaderboardScore(false);
                 renderAll();
-                showToast("📸 Profile picture updated!", "success");
+                showToast("📸 Profile picture updated & visible on Global Top!", "success");
             };
             reader.readAsDataURL(file);
         }
@@ -2727,15 +2764,18 @@
 
         window.syncLeaderboardScore = async function (showFeedback = false) {
             const slotId = getAccountSlotId();
+            const isAdmin = isCurrentUserVerifiedAdmin();
+            const avatarFromStorage = localStorage.getItem(getAvatarStorageKey()) || "";
+            const resolvedPic = state.profilePic || avatarFromStorage || "";
             const entry = {
                 slotId,
-                name: state.playerName || "QuackCommander",
-                profilePic: isCurrentUserVerifiedAdmin() ? (state.profilePic || "") : (state.profilePic || ""),
-                isAdmin: isCurrentUserVerifiedAdmin(),
-                quacks: sanitizeNum(state.lifetimeQuacks, 0),
-                rebirths: sanitizeNum(state.rebirths, 0),
-                bosses: sanitizeNum(state.bossesSlain, 0),
-                eggs: sanitizeNum(state.eggsHatched, 0),
+                name: isAdmin ? ADMIN_OWNER_NAME : (state.playerName || "QuackCommander"),
+                profilePic: resolvedPic,
+                isAdmin,
+                quacks: isAdmin ? Math.max(999e24, sanitizeNum(state.lifetimeQuacks, 0)) : sanitizeNum(state.lifetimeQuacks, 0),
+                rebirths: isAdmin ? Math.max(999999, sanitizeNum(state.rebirths, 0)) : sanitizeNum(state.rebirths, 0),
+                bosses: isAdmin ? Math.max(9999, sanitizeNum(state.bossesSlain, 0)) : sanitizeNum(state.bossesSlain, 0),
+                eggs: isAdmin ? Math.max(99999, sanitizeNum(state.eggsHatched, 0)) : sanitizeNum(state.eggsHatched, 0),
                 updatedAt: Date.now()
             };
             saveLocalLeaderboardEntry(entry);
@@ -2758,10 +2798,15 @@
                 const colRef = api.collection(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard");
                 api.onSnapshot(colRef, (snap) => {
                     const rows = [];
-                    snap.forEach(d => rows.push(d.data()));
+                    snap.forEach(d => {
+                        const data = d.data();
+                        if (data) rows.push({ ...data, slotId: data.slotId || d.id });
+                    });
                     cloudLeaderboardRows = rows;
                     renderLeaderboard();
-                }, () => {});
+                }, (err) => {
+                    console.warn("Leaderboard snapshot fallback:", err);
+                });
             } catch (e) {}
         };
 
@@ -2789,11 +2834,13 @@
 
         function getMergedLeaderboardRows() {
             const map = new Map();
-            // Seed RainbowLord16 sovereign baseline
+            const adminAvatar = localStorage.getItem("duckQuackAvatar_ADMIN_RAINBOWLORD16") || "";
+
+            // Seed RainbowLord16 sovereign baseline permanently at #1
             map.set("ADMIN_RAINBOWLORD16", {
                 slotId: "ADMIN_RAINBOWLORD16",
                 name: ADMIN_OWNER_NAME,
-                profilePic: localStorage.getItem("duckQuackAvatar_ADMIN_RAINBOWLORD16") || "",
+                profilePic: adminAvatar,
                 isAdmin: true,
                 quacks: 999e24,
                 rebirths: 999999,
@@ -2801,24 +2848,32 @@
                 eggs: 99999
             });
 
-            const localArchive = loadLocalLeaderboardArchive();
-            Object.values(localArchive).forEach(row => {
-                if (row && row.slotId) {
-                    const prev = map.get(row.slotId);
-                    if (!prev || sanitizeNum(row.quacks, 0) >= sanitizeNum(prev.quacks, 0)) {
-                        map.set(row.slotId, row);
-                    }
-                }
-            });
+            const mergeRow = (rawRow) => {
+                if (!rawRow || !rawRow.slotId) return;
+                const isSlotAdmin = rawRow.slotId === "ADMIN_RAINBOWLORD16";
+                const slotLocalAvatar = localStorage.getItem(`duckQuackAvatar_${rawRow.slotId}`) || "";
+                const prev = map.get(rawRow.slotId);
+                const resolvedAvatar = isSlotAdmin
+                    ? (rawRow.profilePic || (prev && prev.profilePic) || adminAvatar || "")
+                    : (rawRow.profilePic || slotLocalAvatar || (prev && prev.profilePic) || "");
 
-            (cloudLeaderboardRows || []).forEach(row => {
-                if (row && row.slotId) {
-                    const prev = map.get(row.slotId);
-                    if (!prev || sanitizeNum(row.quacks, 0) >= sanitizeNum(prev.quacks, 0)) {
-                        map.set(row.slotId, row);
-                    }
+                const sanitizedRow = {
+                    ...rawRow,
+                    name: isSlotAdmin ? ADMIN_OWNER_NAME : (rawRow.name || "QuackCommander"),
+                    isAdmin: isSlotAdmin,
+                    profilePic: resolvedAvatar
+                };
+
+                if (!prev || sanitizeNum(sanitizedRow.quacks, 0) >= sanitizeNum(prev.quacks, 0)) {
+                    map.set(rawRow.slotId, sanitizedRow);
+                } else if (resolvedAvatar && !prev.profilePic) {
+                    map.set(rawRow.slotId, { ...prev, profilePic: resolvedAvatar });
                 }
-            });
+            };
+
+            const localArchive = loadLocalLeaderboardArchive();
+            Object.values(localArchive).forEach(mergeRow);
+            (cloudLeaderboardRows || []).forEach(mergeRow);
 
             const list = Array.from(map.values());
             list.sort((a, b) => {
@@ -2837,15 +2892,21 @@
 
             const mini = document.getElementById("miniLeaderboardList");
             if (mini) {
-                mini.innerHTML = rows.slice(0, 4).map((r, i) => `
-                    <div class="flex items-center justify-between bg-slate-950/75 border ${r.isAdmin ? "obsidian-neon-rainbow" : "border-white/10"} rounded-xl px-2.5 py-1.5">
-                        <div class="flex items-center gap-2 min-w-0">
-                            <span class="font-black text-amber-300">#${i + 1}</span>
-                            <span class="font-bold text-white truncate">${r.name}</span>
+                mini.innerHTML = rows.slice(0, 4).map((r, i) => {
+                    const miniAvatar = r.profilePic
+                        ? `<img src="${r.profilePic}" alt="" class="w-5 h-5 rounded-md object-cover border border-amber-400/50 shrink-0">`
+                        : `<span class="w-5 h-5 rounded-md bg-slate-800 inline-flex items-center justify-center text-[9px] text-amber-300 shrink-0"><i class="fa-solid fa-duck"></i></span>`;
+                    return `
+                        <div class="flex items-center justify-between bg-slate-950/75 border ${r.isAdmin ? "obsidian-neon-rainbow" : "border-white/10"} rounded-xl px-2.5 py-1.5 gap-2">
+                            <div class="flex items-center gap-1.5 min-w-0">
+                                <span class="font-black text-amber-300 shrink-0">#${i + 1}</span>
+                                ${miniAvatar}
+                                <span class="font-bold text-white truncate">${r.name}</span>
+                            </div>
+                            <span class="font-extrabold text-emerald-300 shrink-0">${formatNum(r.quacks)}</span>
                         </div>
-                        <span class="font-extrabold text-emerald-300 shrink-0">${formatNum(r.quacks)}</span>
-                    </div>
-                `).join("");
+                    `;
+                }).join("");
             }
 
             const full = document.getElementById("fullLeaderboardList");
@@ -2853,8 +2914,8 @@
                 full.innerHTML = rows.map((r, i) => {
                     const val = formatNum(r[leaderboardTab] || 0);
                     const avatarHtml = r.profilePic
-                        ? `<img src="${r.profilePic}" alt="" class="w-9 h-9 rounded-xl object-cover border border-amber-400/50">`
-                        : `<div class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-amber-300"><i class="fa-solid fa-duck"></i></div>`;
+                        ? `<img src="${r.profilePic}" alt="" class="w-9 h-9 rounded-xl object-cover border border-amber-400/50 shrink-0">`
+                        : `<div class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-amber-300 shrink-0"><i class="fa-solid fa-duck"></i></div>`;
                     return `
                         <div class="flex items-center justify-between bg-slate-950/85 border ${r.isAdmin ? "obsidian-neon-rainbow" : r.slotId === currentSlot ? "border-sky-400/50" : "border-white/10"} rounded-2xl p-3">
                             <div class="flex items-center gap-3 min-w-0">
@@ -2943,22 +3004,44 @@
         function exportSaveString() {
             try {
                 const str = btoa(unescape(encodeURIComponent(JSON.stringify({ ...state, profilePic: "" }))));
-                navigator.clipboard.writeText(str);
+                const box = document.getElementById("importSaveContainer");
+                const area = document.getElementById("importSaveTextarea");
+                if (box && area) {
+                    box.classList.remove("hidden");
+                    area.value = str;
+                    area.select();
+                    document.execCommand("copy");
+                }
                 showToast("📋 Save string copied to clipboard!", "success");
             } catch (e) {
                 showToast("Could not copy save string.", "error");
             }
         }
 
+        function toggleImportSaveBox() {
+            const box = document.getElementById("importSaveContainer");
+            const area = document.getElementById("importSaveTextarea");
+            if (!box) return;
+            box.classList.toggle("hidden");
+            if (!box.classList.contains("hidden") && area) {
+                area.value = "";
+                area.focus();
+            }
+        }
+
         function importSaveString() {
-            const raw = prompt("Paste your exported save string:");
-            if (!raw) return;
+            const area = document.getElementById("importSaveTextarea");
+            const raw = area ? area.value.trim() : "";
+            if (!raw) return showToast("Paste a valid save string first!", "error");
             try {
-                const parsed = JSON.parse(decodeURIComponent(escape(atob(raw.trim()))));
+                const parsed = JSON.parse(decodeURIComponent(escape(atob(raw))));
                 state = { ...createFreshDefaultState(), ...parsed };
                 enforceAdminSecurity();
                 saveGame();
+                window.syncLeaderboardScore(false);
                 renderAll();
+                const box = document.getElementById("importSaveContainer");
+                if (box) box.classList.add("hidden");
                 showToast("✅ Save imported successfully!", "success");
             } catch (e) {
                 showToast("Invalid save string!", "error");
