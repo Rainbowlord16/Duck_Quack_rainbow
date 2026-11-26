@@ -92,22 +92,63 @@
             animation: orbitFloat 2.4s ease-in-out infinite;
         }
         @keyframes skyFall {
-            0% { transform: translateY(-40px) rotate(0deg); opacity: 1; }
-            100% { transform: translateY(460px) rotate(360deg); opacity: 0.85; }
+            0% { transform: translateY(-48px) rotate(0deg) scale(0.9); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(480px) rotate(360deg) scale(1.05); opacity: 0; }
         }
         .falling-anomaly-orb {
-            animation: skyFall 5.2s linear forwards;
+            position: absolute;
+            top: 0;
+            pointer-events: auto;
+            cursor: pointer;
+            animation: skyFall 4.8s linear forwards;
+            filter: drop-shadow(0 0 12px rgba(250, 204, 21, 0.75));
+            transition: transform 0.1s ease;
         }
-        /* Expandable Stage Box Theater Mode */
+        .falling-anomaly-orb:hover {
+            transform: scale(1.18);
+        }
+        @keyframes shockwaveExpand {
+            0% { transform: translate(-50%, -50%) scale(0.35); opacity: 0.9; }
+            100% { transform: translate(-50%, -50%) scale(2.1); opacity: 0; }
+        }
+        .quack-shockwave {
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            width: 150px;
+            height: 150px;
+            border-radius: 9999px;
+            border: 3px solid rgba(250, 204, 21, 0.75);
+            pointer-events: none;
+            animation: shockwaveExpand 0.45s ease-out forwards;
+        }
+        /* True Fullscreen Stage Box Theater Mode */
         #stageCard.stage-expanded {
-            grid-column: 1 / -1 !important;
-            min-height: 620px !important;
-            z-index: 30;
-            box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 35px rgba(56, 189, 248, 0.25);
+            position: fixed !important;
+            inset: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            margin: 0 !important;
+            border-radius: 0 !important;
+            z-index: 45 !important;
+            background: radial-gradient(circle at 50% 35%, #172554 0%, #070b14 75%, #020409 100%) !important;
+            box-shadow: inset 0 0 60px rgba(56, 189, 248, 0.25) !important;
         }
         #stageCard.stage-expanded #duckVisualWrapper {
-            width: 17rem !important;
-            height: 17rem !important;
+            width: 19rem !important;
+            height: 19rem !important;
+        }
+        #stageCard.stage-expanded #orbitingPetsContainer {
+            width: 24rem !important;
+            height: 24rem !important;
+        }
+        #stageCard.stage-expanded #duckAuraElement {
+            width: 21rem !important;
+            height: 21rem !important;
         }
         .fever-glow {
             box-shadow: 0 0 40px rgba(245, 158, 11, 0.55), inset 0 0 30px rgba(239, 68, 68, 0.35);
@@ -129,7 +170,7 @@
             animation: rainbowPrismCycle 3s linear infinite;
         }
 
-        /* Obsidian Black Base + Glowing Neon Rainbow Outline (Matches Profile Avatar!) */
+        /* Obsidian Black Base + Glowing Neon Rainbow Outline */
         @keyframes neonRainbowOutlineGlow {
             0% {
                 border-color: #ff007f;
@@ -365,7 +406,7 @@
                 </div>
             </div>
 
-            <!-- Automation Toggles (Fixed State Sync!) -->
+            <!-- Automation Toggles -->
             <div class="grid grid-cols-2 gap-2">
                 <button type="button" id="btnAutoTap" onclick="toggleAutomation('autoClickerOn')" class="arcade-btn glass-panel rounded-2xl p-2.5 text-center border border-white/10">
                     <div class="text-[10px] font-extrabold uppercase text-slate-400">Auto-Tapper</div>
@@ -381,17 +422,17 @@
         <!-- CENTER COLUMN: HERO DUCK STAGE & FEVER BAR -->
         <section id="stageCard" class="lg:col-span-6 glass-panel rounded-3xl p-4 sm:p-6 flex flex-col items-center justify-between min-h-[470px] sm:min-h-[540px] relative overflow-hidden order-1 lg:order-2 transition-all duration-300">
             <!-- Dynamic Illustrated World Backdrop -->
-            <div id="worldBackdropSvg" class="absolute inset-0 pointer-events-none opacity-45"></div>
+            <div id="worldBackdropSvg" class="absolute inset-0 pointer-events-none opacity-65"></div>
 
             <!-- Interactive Falling Weather Anomaly Layer -->
-            <div id="weatherAnomalyLayer" class="absolute inset-0 pointer-events-none overflow-hidden z-20"></div>
+            <div id="weatherAnomalyLayer" class="absolute inset-0 pointer-events-none overflow-hidden z-30"></div>
 
             <!-- Fever Bar + Weather Pill -->
             <div class="w-full relative z-10 space-y-2">
                 <div class="flex flex-wrap items-center justify-between gap-1.5 text-xs font-extrabold mb-1">
                     <span id="feverLabel" class="text-amber-300 uppercase tracking-wider"><i class="fa-solid fa-fire me-1"></i>Quack Fever Meter</span>
                     <div class="flex items-center gap-1.5">
-                        <span id="weatherStatusPill" class="bg-sky-500/20 border border-sky-400/30 text-sky-300 px-2 py-0.5 rounded-full text-[10px] font-extrabold">☀️ Clear Skies (1x)</span>
+                        <span id="weatherStatusPill" class="bg-sky-500/20 border border-sky-400/30 text-sky-300 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold inline-flex items-center gap-1"></span>
                         <span id="comboBadge" class="bg-slate-950/80 border border-amber-400/30 text-amber-300 px-2.5 py-0.5 rounded-full text-[11px]">1.0x Combo</span>
                         <button type="button" id="btnExpandStage" onclick="toggleExpandStage()" class="arcade-btn bg-sky-600/90 hover:bg-sky-500 text-white border border-sky-300/40 px-2.5 py-0.5 rounded-full text-[10px] font-black flex items-center gap-1" title="Expand or Collapse Stage">
                             <i id="expandStageIcon" class="fa-solid fa-expand"></i>
@@ -409,6 +450,9 @@
                 <!-- Laser Beam Overlay Canvas -->
                 <canvas id="petLaserCanvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
 
+                <!-- Click Shockwave Container -->
+                <div id="quackShockwaveLayer" class="absolute inset-0 pointer-events-none z-10"></div>
+
                 <!-- Ambient Aura Ring -->
                 <div id="duckAuraElement" class="duck-aura-ring absolute w-60 h-60 sm:w-68 sm:h-68 rounded-full pointer-events-none"></div>
 
@@ -423,7 +467,7 @@
                 <!-- Bottom Skin Caption -->
                 <div class="mt-2 text-center z-20">
                     <span id="equippedSkinTitle" class="inline-block bg-slate-950/85 border border-amber-400/30 px-3.5 py-1 rounded-full title-font text-xs sm:text-sm font-bold text-amber-200 shadow">Classic Rubber Duck</span>
-                    <div class="text-[11px] font-bold text-slate-300 mt-1">Tap Duck to Quack!</div>
+                    <div class="text-[11px] font-bold text-slate-300 mt-1">Tap Duck to Quack • Catch Falling Sky Orbs!</div>
                 </div>
             </div>
 
@@ -589,7 +633,7 @@
         <div class="glass-panel rounded-3xl max-w-4xl w-full p-5 sm:p-6 max-h-[88vh] flex flex-col border border-amber-400/30">
             <div class="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-white/10">
                 <div>
-                    <h3 class="title-font text-xl font-bold text-amber-300"><i class="fa-solid fa-egg me-2"></i>Egg Hatchery (21 Pet Species)</h3>
+                    <h3 class="title-font text-xl font-bold text-amber-300"><i class="fa-solid fa-egg me-2"></i>Egg Hatchery (12 Pet Species)</h3>
                     <p class="text-xs text-slate-400">Hatch eggs to collect powerful companions!</p>
                 </div>
                 <div class="flex items-center gap-2">
@@ -835,14 +879,17 @@
                 <button type="button" onclick="closeModal('bossModal')" class="w-8 h-8 rounded-xl bg-slate-800 text-slate-300 hover:text-white font-bold">✕</button>
             </div>
             <div class="my-5 space-y-4">
-                <div class="text-xs font-extrabold uppercase text-amber-300">Boss Level <span id="bossLevelVal">1</span> • Slain: <span id="bossSlainVal">0</span></div>
+                <div class="flex items-center justify-between text-xs font-extrabold uppercase px-2">
+                    <span class="text-amber-300">Boss Lv.<span id="bossLevelVal">1</span> • Slain: <span id="bossSlainVal">0</span></span>
+                    <span class="text-rose-300">Timer: <span id="bossTimerVal">30.0s</span></span>
+                </div>
                 <div class="w-full h-5 bg-slate-950 rounded-full p-0.5 border border-red-500/40 overflow-hidden relative">
                     <div id="bossHpBar" class="h-full bg-gradient-to-r from-red-600 to-rose-400 rounded-full transition-all duration-100" style="width: 100%"></div>
                     <div id="bossHpLabel" class="absolute inset-0 flex items-center justify-center text-[11px] font-black text-white">1,000 / 1,000 HP</div>
                 </div>
-                <button type="button" onclick="attackBoss()" class="arcade-btn mx-auto w-36 h-36 rounded-full bg-gradient-to-br from-red-600 to-rose-900 border-4 border-red-400/50 flex flex-col items-center justify-center shadow-2xl">
-                    <i class="fa-solid fa-skull-crossbones text-4xl text-white mb-1"></i>
-                    <span class="text-xs font-black uppercase text-red-200">STRIKE BOSS</span>
+                <button type="button" onclick="attackBoss()" class="arcade-btn mx-auto w-44 h-44 rounded-full bg-gradient-to-br from-red-950 via-rose-900 to-slate-950 border-4 border-red-500/60 flex flex-col items-center justify-center shadow-2xl p-3">
+                    <div id="bossSvgContainer" class="w-28 h-28"></div>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-red-200 mt-1">STRIKE LEVIATHAN</span>
                 </button>
             </div>
         </div>
@@ -959,11 +1006,11 @@
                     <i class="fa-solid fa-right-from-bracket me-1.5"></i>Log Out & Reset to New Account
                 </button>
 
-                <!-- Encrypted SHA-256 Admin Authentication Gate -->
+                <!-- Admin Authentication Gate -->
                 <div class="obsidian-neon-rainbow rounded-2xl p-3.5 space-y-2.5">
                     <div class="flex items-center justify-between">
                         <span class="text-xs font-black uppercase tracking-wider bg-gradient-to-r from-pink-400 via-yellow-300 to-cyan-400 bg-clip-text text-transparent">
-                            👑 RainbowLord16 Admin Vault (Encrypted)
+                            👑 RainbowLord16 Admin Vault
                         </span>
                         <span id="adminStatusPill" class="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">LOCKED</span>
                     </div>
@@ -1362,45 +1409,210 @@
         let feverCharge = 0;
         let feverActiveTimer = 0;
         let stageExpanded = false;
-        let activeWeather = { name: "Clear Skies", icon: "☀️", mult: 1, timer: 0 };
+        let activeWeather = { id: "clear", name: "Clear Skies", mult: 1, timer: 0 };
+        let weatherCycleCooldown = 25000;
+        let anomalySpawnAccumulator = 0;
+        let bossTimeRemaining = 30000;
         let cloudLeaderboardRows = [];
         let leaderboardTab = "quacks";
         let activeLaserBeams = [];
         let petOrbitAngle = 0;
         let lastQuackSoundTime = 0;
 
-        function sanitizeNum(val, fallback = 0) {
-            const n = Number(val);
-            return Number.isFinite(n) ? n : fallback;
+        /* =========================================================================
+           3B. CUSTOM VECTOR SVG ARTWORK ENGINE (PETS, EGGS, WORLDS, EVENTS & BOSS)
+           ========================================================================= */
+        function getPetSvg(speciesId, tier = 1, sizeClass = "w-8 h-8") {
+            const sp = PET_SPECIES.find(s => s.id === speciesId) || PET_SPECIES[0];
+            const tierStroke = tier === 5 ? "#ff007f" : tier === 4 ? "#a855f7" : tier === 3 ? "#22d3ee" : tier === 2 ? "#facc15" : "#090d16";
+            const prismClass = tier === 5 ? "rainbow-prism-anim" : "";
+            let crest = "";
+            if (speciesId === "froggy") {
+                crest = `<circle cx="23" cy="14" r="5" fill="${sp.color}" stroke="${tierStroke}" stroke-width="2.5"/><circle cx="41" cy="14" r="5" fill="${sp.color}" stroke="${tierStroke}" stroke-width="2.5"/>`;
+            } else if (speciesId === "crystal" || speciesId === "void" || speciesId === "genesis") {
+                crest = `<polygon points="32,4 26,16 38,16" fill="#e0f2fe" stroke="${tierStroke}" stroke-width="2"/><polygon points="20,10 17,20 25,18" fill="#bae6fd" stroke="${tierStroke}" stroke-width="2"/><polygon points="44,10 47,20 39,18" fill="#bae6fd" stroke="${tierStroke}" stroke-width="2"/>`;
+            } else if (speciesId === "solar" || speciesId === "magma") {
+                crest = `<path d="M24 16 Q32 4 40 16" fill="#facc15" stroke="#ef4444" stroke-width="2.5"/>`;
+            } else if (speciesId === "astro" || speciesId === "cyber") {
+                crest = `<circle cx="32" cy="30" r="22" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="4 3"/>`;
+            }
+            return `
+                <svg viewBox="0 0 64 64" class="${sizeClass} ${prismClass} shrink-0">
+                    ${crest}
+                    <ellipse cx="32" cy="43" rx="18" ry="13" fill="${sp.color}" stroke="${tierStroke}" stroke-width="3.5"/>
+                    <circle cx="32" cy="25" r="13" fill="${sp.color}" stroke="${tierStroke}" stroke-width="3.5"/>
+                    <circle cx="27" cy="23" r="2.2" fill="#090d16"/>
+                    <circle cx="37" cy="23" r="2.2" fill="#090d16"/>
+                    <ellipse cx="32" cy="29" rx="7" ry="4" fill="#fb923c" stroke="#090d16" stroke-width="2"/>
+                </svg>
+            `;
         }
 
-        function getCurrentSlotId() {
-            if (isCurrentUserVerifiedAdmin()) return "ADMIN_RAINBOWLORD16";
-            let id = localStorage.getItem(LOCAL_SLOT_ID_KEY);
-            if (!id || id === "ADMIN_RAINBOWLORD16") {
-                id = "QUACK-" + Math.random().toString(36).substring(2, 10).toUpperCase();
-                localStorage.setItem(LOCAL_SLOT_ID_KEY, id);
-            }
-            return id;
+        function getEggSvg(eggId, sizeClass = "w-14 h-16") {
+            const palettes = {
+                pond_egg: { base: "#fef08a", spot: "#4ade80", rim: "#854d0e" },
+                crystal_egg: { base: "#bae6fd", spot: "#38bdf8", rim: "#1e3a8a" },
+                cyber_egg: { base: "#e9d5ff", spot: "#c084fc", rim: "#4c1d95" },
+                cosmic_egg: { base: "#fed7aa", spot: "#f97316", rim: "#7c2d12" },
+                genesis_egg: { base: "#090d16", spot: "#00e5ff", rim: "#ff007f" }
+            };
+            const p = palettes[eggId] || palettes.pond_egg;
+            return `
+                <svg viewBox="0 0 64 76" class="${sizeClass} mx-auto drop-shadow-lg">
+                    <path d="M32 6 C14 6, 8 32, 8 50 C8 65, 18 70, 32 70 C46 70, 56 65, 56 50 C56 32, 50 6, 32 6 Z" fill="${p.base}" stroke="${p.rim}" stroke-width="4"/>
+                    <circle cx="22" cy="36" r="5" fill="${p.spot}" opacity="0.85"/>
+                    <circle cx="40" cy="46" r="6.5" fill="${p.spot}" opacity="0.85"/>
+                    <circle cx="31" cy="22" r="4" fill="${p.spot}" opacity="0.85"/>
+                    <path d="M18 24 Q24 14 32 13" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+                </svg>
+            `;
         }
 
-        const NUM_SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg"];
-        function formatNumber(n) {
-            n = sanitizeNum(n, 0);
-            if (n < 1000) return Math.floor(n).toString();
-            const exp = Math.floor(Math.log10(n));
-            const tier = Math.floor(exp / 3);
-            if (tier < NUM_SUFFIXES.length) {
-                return (n / Math.pow(10, tier * 3)).toFixed(2).replace(/\.00$/, "") + " " + NUM_SUFFIXES[tier];
+        function getWeatherBadgeSvg(weatherId) {
+            if (weatherId === "meteor") {
+                return `<svg viewBox="0 0 24 24" class="w-3.5 h-3.5"><path d="M19 3 L7 15" stroke="#fb923c" stroke-width="3" stroke-linecap="round"/><circle cx="7" cy="17" r="4.5" fill="#ef4444" stroke="#facc15" stroke-width="1.5"/></svg>`;
             }
-            return n.toExponential(2).replace("+", "");
+            if (weatherId === "bread_rain") {
+                return `<svg viewBox="0 0 24 24" class="w-3.5 h-3.5"><rect x="3" y="8" width="18" height="10" rx="5" fill="#f59e0b" stroke="#78350f" stroke-width="2"/><path d="M7 11 L9 14 M12 11 L14 14 M17 11 L18 14" stroke="#fef08a" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+            }
+            if (weatherId === "cyber_surge") {
+                return `<svg viewBox="0 0 24 24" class="w-3.5 h-3.5"><polygon points="13,2 4,14 11,14 9,22 20,10 13,10" fill="#38bdf8" stroke="#0f172a" stroke-width="1.5"/></svg>`;
+            }
+            if (weatherId === "void_rift") {
+                return `<svg viewBox="0 0 24 24" class="w-3.5 h-3.5"><circle cx="12" cy="12" r="8" fill="#581c87" stroke="#c084fc" stroke-width="2"/><circle cx="12" cy="12" r="3" fill="#090d16"/></svg>`;
+            }
+            if (weatherId === "rainbow_storm") {
+                return `<svg viewBox="0 0 24 24" class="w-3.5 h-3.5 rainbow-prism-anim"><polygon points="12,2 15,9 22,9 16,14 18,21 12,17 6,21 8,14 2,9 9,9" fill="#ff007f" stroke="#00e5ff" stroke-width="1.5"/></svg>`;
+            }
+            return `<svg viewBox="0 0 24 24" class="w-3.5 h-3.5"><circle cx="12" cy="12" r="5" fill="#facc15"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1" stroke="#facc15" stroke-width="2" stroke-linecap="round"/></svg>`;
+        }
+
+        function getWorldBackdropSvg(worldId) {
+            const w = WORLDS_DATA.find(x => x.id === worldId) || WORLDS_DATA[0];
+            if (worldId === 21) {
+                return `<svg viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" class="w-full h-full">
+                    <defs>
+                        <linearGradient id="neonGridGrad" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stop-color="#ff007f" stop-opacity="0.45"/>
+                            <stop offset="50%" stop-color="#facc15" stop-opacity="0.45"/>
+                            <stop offset="100%" stop-color="#00e5ff" stop-opacity="0.45"/>
+                        </linearGradient>
+                    </defs>
+                    <rect width="800" height="500" fill="#05050a"/>
+                    <circle cx="400" cy="240" r="190" fill="none" stroke="url(#neonGridGrad)" stroke-width="4" stroke-dasharray="16 10"/>
+                    <circle cx="400" cy="240" r="130" fill="none" stroke="#00ff9d" stroke-width="2.5" opacity="0.5"/>
+                    <path d="M0 410 L800 410 M0 450 L800 450 M150 370 L50 500 M300 370 L250 500 M500 370 L550 500 M650 370 L750 500" stroke="url(#neonGridGrad)" stroke-width="2"/>
+                </svg>`;
+            }
+            if (worldId === 1) {
+                return `<svg viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" class="w-full h-full">
+                    <rect width="800" height="500" fill="${w.bg}"/>
+                    <ellipse cx="400" cy="390" rx="340" ry="75" fill="#0284c7" opacity="0.45"/>
+                    <ellipse cx="160" cy="410" rx="52" ry="18" fill="#22c55e" stroke="#14532d" stroke-width="3"/>
+                    <ellipse cx="640" cy="400" rx="60" ry="20" fill="#22c55e" stroke="#14532d" stroke-width="3"/>
+                    <circle cx="655" cy="392" r="9" fill="#f472b6"/>
+                    <path d="M70 430 Q80 340 65 290 M90 430 Q105 350 98 300 M710 430 Q700 340 715 290" stroke="#15803d" stroke-width="6" stroke-linecap="round" fill="none"/>
+                </svg>`;
+            }
+            if (worldId === 2) {
+                return `<svg viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" class="w-full h-full">
+                    <rect width="800" height="500" fill="${w.bg}"/>
+                    <circle cx="150" cy="110" r="55" fill="#fef3c7" opacity="0.25"/>
+                    <circle cx="200" cy="100" r="65" fill="#fef3c7" opacity="0.25"/>
+                    <circle cx="630" cy="120" r="60" fill="#fef3c7" opacity="0.25"/>
+                    <rect x="110" y="360" width="130" height="65" rx="30" fill="#d97706" stroke="#451a03" stroke-width="4"/>
+                    <rect x="560" y="355" width="140" height="70" rx="32" fill="#f59e0b" stroke="#451a03" stroke-width="4"/>
+                </svg>`;
+            }
+            if (worldId === 5) {
+                return `<svg viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" class="w-full h-full">
+                    <rect width="800" height="500" fill="${w.bg}"/>
+                    <polygon points="40,460 190,190 340,460" fill="#450a0a" stroke="#ef4444" stroke-width="3"/>
+                    <polygon points="470,460 630,170 780,460" fill="#450a0a" stroke="#f97316" stroke-width="3"/>
+                    <ellipse cx="400" cy="445" rx="360" ry="45" fill="#ea580c" opacity="0.6"/>
+                </svg>`;
+            }
+            return `<svg viewBox="0 0 800 500" preserveAspectRatio="xMidYMid slice" class="w-full h-full">
+                <rect width="800" height="500" fill="${w.bg}"/>
+                <circle cx="140" cy="110" r="3" fill="#fff" opacity="0.7"/>
+                <circle cx="670" cy="95" r="4" fill="#fde047" opacity="0.8"/>
+                <circle cx="260" cy="75" r="2.5" fill="#38bdf8" opacity="0.8"/>
+                <circle cx="560" cy="150" r="3.5" fill="#f472b6" opacity="0.75"/>
+                <ellipse cx="400" cy="410" rx="330" ry="65" fill="#ffffff" opacity="0.08"/>
+            </svg>`;
+        }
+
+        function getBossSvg() {
+            return `
+                <svg viewBox="0 0 120 120" class="w-full h-full drop-shadow-[0_0_16px_rgba(239,68,68,0.8)]">
+                    <polygon points="24,42 10,16 38,30" fill="#dc2626" stroke="#090d16" stroke-width="3"/>
+                    <polygon points="96,42 110,16 82,30" fill="#dc2626" stroke="#090d16" stroke-width="3"/>
+                    <circle cx="60" cy="64" r="40" fill="#7f1d1d" stroke="#ef4444" stroke-width="4"/>
+                    <path d="M36 52 L52 60 M84 52 L68 60" stroke="#facc15" stroke-width="4" stroke-linecap="round"/>
+                    <circle cx="44" cy="62" r="6" fill="#facc15"/>
+                    <circle cx="76" cy="62" r="6" fill="#facc15"/>
+                    <polygon points="40,82 60,72 80,82 72,96 48,96" fill="#f97316" stroke="#090d16" stroke-width="3"/>
+                    <polygon points="48,84 53,92 58,84" fill="#fff"/>
+                    <polygon points="62,84 67,92 72,84" fill="#fff"/>
+                </svg>
+            `;
+        }
+
+        function getHeroDuckSvg() {
+            const skin = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
+            const isNeonAdmin = skin.id === "admin_neon_rainbow";
+            const strokeColor = isNeonAdmin ? "#00e5ff" : "#090d16";
+            const prismClass = skin.rainbow ? "rainbow-prism-anim" : isNeonAdmin ? "neon-rainbow-admin" : "";
+
+            let hatSvg = "";
+            if (state.equippedHat === "propeller") {
+                hatSvg = `<path d="M74 44 C78 26, 122 26, 126 44 Z" fill="#ef4444" stroke="#090d16" stroke-width="4"/><rect x="97" y="18" width="6" height="10" fill="#facc15"/><ellipse cx="100" cy="18" rx="24" ry="4" fill="#38bdf8" stroke="#090d16" stroke-width="3"/>`;
+            } else if (state.equippedHat === "wizard") {
+                hatSvg = `<ellipse cx="100" cy="44" rx="44" ry="9" fill="#4c1d95" stroke="#090d16" stroke-width="4"/><polygon points="68,44 102,4 132,44" fill="#6d28d9" stroke="#090d16" stroke-width="4"/><polygon points="100,20 103,27 110,27 104,31 106,38 100,34 94,38 96,31 90,27 97,27" fill="#facc15"/>`;
+            } else if (state.equippedHat === "rainbow_crown") {
+                hatSvg = `<polygon points="70,44 74,18 88,32 100,12 112,32 126,18 130,44" fill="#facc15" stroke="#090d16" stroke-width="4" stroke-linejoin="round"/>`;
+            } else if (state.equippedHat === "admin_neon_crown") {
+                hatSvg = `<polygon points="68,44 72,14 88,30 100,8 112,30 128,14 132,44" fill="#05050a" stroke="#ff007f" stroke-width="4" stroke-linejoin="round"/><circle cx="100" cy="24" r="4" fill="#00e5ff"/>`;
+            }
+
+            let shadesSvg = "";
+            if (state.equippedShades === "cool") {
+                shadesSvg = `<rect x="68" y="64" width="26" height="15" rx="4" fill="#090d16"/><rect x="104" y="64" width="26" height="15" rx="4" fill="#090d16"/><line x1="94" y1="69" x2="104" y2="69" stroke="#090d16" stroke-width="4"/>`;
+            } else if (state.equippedShades === "cyber_visor") {
+                shadesSvg = `<rect x="64" y="62" width="70" height="18" rx="8" fill="#0ea5e9" fill-opacity="0.85" stroke="#090d16" stroke-width="3.5"/><line x1="72" y1="71" x2="126" y2="71" stroke="#e0f2fe" stroke-width="2.5"/>`;
+            } else if (state.equippedShades === "admin_neon_visor") {
+                shadesSvg = `<rect x="62" y="61" width="74" height="19" rx="8" fill="#05050a" stroke="#00ff9d" stroke-width="3.5"/><line x1="70" y1="70" x2="128" y2="70" stroke="#ff007f" stroke-width="3"/>`;
+            }
+
+            return `
+                <svg viewBox="0 0 200 200" class="w-full h-full ${prismClass}">
+                    <ellipse cx="100" cy="176" rx="64" ry="13" fill="rgba(0,0,0,0.4)"/>
+                    <path d="M72 156 L60 176 L84 176 Z" fill="${skin.beak}" stroke="${strokeColor}" stroke-width="5" stroke-linejoin="round"/>
+                    <path d="M122 156 L110 176 L134 176 Z" fill="${skin.beak}" stroke="${strokeColor}" stroke-width="5" stroke-linejoin="round"/>
+                    <path d="M44 118 C44 82, 152 82, 158 122 C164 156, 134 164, 98 164 C60 164, 44 148, 44 118 Z" fill="${skin.body}" stroke="${strokeColor}" stroke-width="6" stroke-linejoin="round"/>
+                    <path d="M58 124 C62 102, 128 102, 134 126 C138 146, 118 152, 95 152 C68 152, 56 142, 58 124 Z" fill="${skin.belly}"/>
+                    <path d="M150 116 L176 100 L168 126 L180 134 L152 140 Z" fill="${skin.body}" stroke="${strokeColor}" stroke-width="5" stroke-linejoin="round"/>
+                    <path d="M96 112 C118 105, 144 116, 138 134 C132 150, 104 150, 94 134 C88 126, 88 116, 96 112 Z" fill="${skin.body}" stroke="${strokeColor}" stroke-width="5" stroke-linejoin="round"/>
+                    <circle cx="96" cy="72" r="38" fill="${skin.body}" stroke="${strokeColor}" stroke-width="6"/>
+                    <circle cx="80" cy="68" r="6.5" fill="${isNeonAdmin ? '#00ff9d' : '#090d16'}"/>
+                    <circle cx="78" cy="66" r="2.5" fill="#ffffff"/>
+                    <circle cx="112" cy="68" r="6.5" fill="${isNeonAdmin ? '#00ff9d' : '#090d16'}"/>
+                    <circle cx="110" cy="66" r="2.5" fill="#ffffff"/>
+                    <ellipse cx="68" cy="80" rx="6" ry="3.5" fill="#fb7185" opacity="0.75"/>
+                    <ellipse cx="122" cy="80" rx="6" ry="3.5" fill="#fb7185" opacity="0.75"/>
+                    <path d="M74 84 C74 76, 114 76, 114 86 C114 96, 74 96, 74 84 Z" fill="${skin.beak}" stroke="${strokeColor}" stroke-width="5" stroke-linejoin="round"/>
+                    ${shadesSvg}
+                    ${hatSvg}
+                </svg>
+            `;
         }
 
         /* =========================================================================
-           4. MULTIPLIERS & CORE SIMULATION MATH
+           4. MULTIPLIERS, UPGRADES, CLICKING & INTERACTIVE WEATHER EVENTS
            ========================================================================= */
-        function getMaxPetSlots() {
-            return 4 + sanitizeNum(state.rpUpgrades.rpPetSlots, 0);
+        function sanitizeNum(val, fallback = 0) {
+            const n = Number(val);
+            return Number.isFinite(n) ? n : fallback;
         }
 
         function getWorldMultiplier() {
@@ -1410,300 +1622,403 @@
 
         function getPetMultiplier() {
             let total = 1;
-            const tamerBonus = 1 + (sanitizeNum(state.skills.skillPets, 0) * 0.5);
-            for (const pid of state.equippedPetIds) {
-                const pet = state.pets.find(p => p.uid === pid);
-                if (!pet) continue;
+            (state.equippedPetIds || []).forEach(pid => {
+                const pet = (state.pets || []).find(p => p.id === pid);
+                if (!pet) return;
                 const sp = PET_SPECIES.find(s => s.id === pet.speciesId);
-                const tr = PET_TIERS.find(t => t.tier === pet.tier) || PET_TIERS[0];
-                if (sp) total += sp.baseMult * tr.mult * tamerBonus;
-            }
-            return total;
+                const tierInfo = PET_TIERS.find(t => t.tier === pet.tier) || PET_TIERS[0];
+                if (sp) total += sp.baseMult * tierInfo.mult;
+            });
+            const skillBonus = 1 + (state.skills.skillPets || 0) * 0.5;
+            return total * skillBonus;
         }
 
         function getGearMultiplier() {
-            const sk = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
-            const au = AURAS_DATA.find(a => a.id === state.equippedAura) || AURAS_DATA[0];
-            const ht = HATS_DATA.find(h => h.id === state.equippedHat) || HATS_DATA[0];
-            const sh = SHADES_DATA.find(s => s.id === state.equippedShades) || SHADES_DATA[0];
-            return sk.mult * au.mult * ht.mult * sh.mult;
+            const skin = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
+            const aura = AURAS_DATA.find(a => a.id === state.equippedAura) || AURAS_DATA[0];
+            const hat = HATS_DATA.find(h => h.id === state.equippedHat) || HATS_DATA[0];
+            const shades = SHADES_DATA.find(s => s.id === state.equippedShades) || SHADES_DATA[0];
+            return skin.mult * aura.mult * hat.mult * shades.mult;
         }
 
         function getWeatherAndVoidMultiplier() {
-            const voidLvl = sanitizeNum(state.voidUpgrades.voidPower, 0);
-            const voidMult = Math.pow(2, Math.min(voidLvl, 60)) * (voidLvl > 60 ? (1 + (voidLvl - 60)) : 1);
+            const voidMult = Math.pow(2, state.voidUpgrades.voidPower || 0);
             let potionMult = 1;
             const now = Date.now();
-            for (const p of POTIONS_DATA) {
-                if (state.activePotions[p.id] && state.activePotions[p.id] > now) {
+            POTIONS_DATA.forEach(p => {
+                if (state.activePotions[p.id] && state.activePotions[p.id] > now && p.mult) {
                     potionMult *= p.mult;
                 }
-            }
-            return activeWeather.mult * voidMult * potionMult;
+            });
+            return (activeWeather.mult || 1) * voidMult * potionMult;
         }
 
         function getEndgameMultiplier() {
-            let m = 1;
-            for (const rid of state.unlockedRelics) {
+            let relicMult = 1;
+            (state.unlockedRelics || []).forEach(rid => {
                 const r = RELICS_DATA.find(x => x.id === rid);
-                if (r) m *= r.mult;
-            }
-            for (const cid of state.collectedCards) {
+                if (r) relicMult *= r.mult;
+            });
+            let cardMult = 1;
+            (state.collectedCards || []).forEach(cid => {
                 const c = CARDS_DATA.find(x => x.id === cid);
-                if (c) m *= c.mult;
-            }
-            for (const mid of state.builtMonuments) {
-                const mon = MONUMENTS_DATA.find(x => x.id === mid);
-                if (mon) m *= mon.mult;
-            }
-            const masteryAvg = (state.masteryLevels.tapping + state.masteryLevels.hatching + state.masteryLevels.boss + state.masteryLevels.alchemy) / 4;
-            return m * (1 + (masteryAvg - 1) * 0.25);
+                if (c) cardMult *= c.mult;
+            });
+            let monMult = 1;
+            (state.builtMonuments || []).forEach(mid => {
+                const m = MONUMENTS_DATA.find(x => x.id === mid);
+                if (m) monMult *= m.mult;
+            });
+            const masteryMult = 1 + ((state.masteryLevels.tapping || 1) - 1) * 0.15;
+            return relicMult * cardMult * monMult * masteryMult;
         }
 
         function getRebirthMultiplier() {
-            const rpBonus = 1 + (sanitizeNum(state.rpUpgrades.rpMult, 0) * 0.5);
-            return 1 + (sanitizeNum(state.rebirths, 0) * 0.5 * rpBonus);
-        }
-
-        function getGlobalMultiplier() {
-            const feverMult = feverActiveTimer > 0 ? (3 + sanitizeNum(state.upgrades.feverBoost, 0) * 0.2) : 1;
-            return getWorldMultiplier() * getPetMultiplier() * getGearMultiplier() * getWeatherAndVoidMultiplier() * getEndgameMultiplier() * getRebirthMultiplier() * comboCount * feverMult;
+            const rpBonus = 1 + (state.rpUpgrades.rpMult || 0) * 0.5;
+            return (1 + (state.rebirths || 0) * 0.5 * rpBonus) * (1 + (state.transcendenceCount || 0) * 10);
         }
 
         function getQuacksPerClick() {
-            const base = sanitizeNum(state.upgrades.clickPower, 1);
-            const skillMult = Math.pow(2, Math.min(sanitizeNum(state.skills.skillTap, 0), 40));
-            return base * skillMult * getGlobalMultiplier();
+            const base = state.upgrades.clickPower || 1;
+            const skillTap = Math.pow(2, state.skills.skillTap || 0);
+            const feverMult = feverActiveTimer > 0 ? (3 + (state.upgrades.feverBoost || 0) * 0.5) : 1;
+            return base * skillTap * getWorldMultiplier() * getPetMultiplier() * getGearMultiplier() * getWeatherAndVoidMultiplier() * getEndgameMultiplier() * getRebirthMultiplier() * comboCount * feverMult;
         }
 
         function getQuacksPerSec() {
-            const lvl = sanitizeNum(state.upgrades.autoSpeed, 0);
-            if (lvl <= 0) return 0;
-            const skillMult = Math.pow(2, Math.min(sanitizeNum(state.skills.skillAuto, 0), 40));
-            return (lvl * 4) * skillMult * getGlobalMultiplier();
+            const autoLvl = state.upgrades.autoSpeed || 0;
+            if (autoLvl <= 0) return 0;
+            const skillAuto = Math.pow(2, state.skills.skillAuto || 0);
+            return autoLvl * 4 * skillAuto * getWorldMultiplier() * getPetMultiplier() * getGearMultiplier() * getWeatherAndVoidMultiplier() * getEndgameMultiplier() * getRebirthMultiplier();
         }
 
-        /* =========================================================================
-           5. AUDIO SYNTHESIZER & TOAST NOTIFICATIONS
-           ========================================================================= */
-        let audioCtx = null;
-        function playSound(kind = "quack") {
-            if (!state.soundOn) return;
-            try {
-                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                if (audioCtx.state === "suspended") audioCtx.resume();
-                const now = audioCtx.currentTime;
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                const voice = VOICES_DATA.find(v => v.id === state.equippedVoice) || VOICES_DATA[0];
-
-                if (kind === "quack") {
-                    osc.type = voice.type;
-                    osc.frequency.setValueAtTime(voice.freq + Math.random() * 45, now);
-                    osc.frequency.exponentialRampToValueAtTime(Math.max(90, voice.freq * 0.45), now + 0.11);
-                    gain.gain.setValueAtTime(0.14, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.11);
-                } else if (kind === "crit") {
-                    osc.type = "triangle";
-                    osc.frequency.setValueAtTime(580, now);
-                    osc.frequency.exponentialRampToValueAtTime(980, now + 0.16);
-                    gain.gain.setValueAtTime(0.2, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
-                } else {
-                    osc.type = "sine";
-                    osc.frequency.setValueAtTime(520, now);
-                    osc.frequency.setValueAtTime(680, now + 0.06);
-                    gain.gain.setValueAtTime(0.12, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
-                }
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(now);
-                osc.stop(now + 0.17);
-            } catch (e) {}
+        function getUpgradeCost(upgId) {
+            const def = UPGRADES_DATA.find(u => u.id === upgId);
+            const lvl = state.upgrades[upgId] || 0;
+            return Math.floor(def.baseCost * Math.pow(def.mult, lvl));
         }
 
-        function toggleAudio() {
-            state.soundOn = !state.soundOn;
-            const cls = state.soundOn ? "fa-solid fa-volume-high text-amber-400" : "fa-solid fa-volume-xmark text-rose-400";
-            const d = document.getElementById("audioIconDesktop");
-            const m = document.getElementById("audioIconMobile");
-            if (d) d.className = cls;
-            if (m) m.className = cls;
-            saveGame();
+        function buyUpgrade(upgId) {
+            const def = UPGRADES_DATA.find(u => u.id === upgId);
+            if (!def) return;
+            const cost = getUpgradeCost(upgId);
+            if (state.quacks < cost) return showToast("Not enough Quacks!", "error");
+            state.quacks -= cost;
+            state.upgrades[upgId] = (state.upgrades[upgId] || 0) + 1;
+            playQuackSound(520);
+            renderAll();
         }
 
-        function showToast(msg, type = "info") {
-            const container = document.getElementById("toastContainer");
-            if (!container) return;
+        function spawnQuackShockwave() {
+            const layer = document.getElementById("quackShockwaveLayer");
+            if (!layer) return;
+            const wave = document.createElement("div");
+            wave.className = "quack-shockwave";
+            layer.appendChild(wave);
+            setTimeout(() => wave.remove(), 460);
+        }
+
+        function spawnFloatingText(x, y, text, isCrit = false) {
             const el = document.createElement("div");
-            const colors = {
-                success: "border-emerald-400/60 bg-slate-900/95 text-emerald-200",
-                error: "border-rose-400/60 bg-slate-900/95 text-rose-200",
-                info: "border-sky-400/60 bg-slate-900/95 text-sky-100"
-            };
-            el.className = `pointer-events-auto border ${colors[type] || colors.info} px-3.5 py-2.5 rounded-2xl text-xs font-extrabold shadow-2xl backdrop-blur-md transition-all`;
-            el.textContent = msg;
-            container.appendChild(el);
-            setTimeout(() => {
-                el.style.opacity = "0";
-                setTimeout(() => el.remove(), 250);
-            }, 3000);
-        }
-
-        /* =========================================================================
-           6. HERO DUCK CLICK, LASERS, FLOATING NUMBERS & STAGE CONTROLS
-           ========================================================================= */
-        window.onDuckClick = function(e, isAuto = false) {
-            if (e && typeof e.preventDefault === "function" && !isAuto) {
-                e.preventDefault();
-            }
-            const critLvl = sanitizeNum(state.upgrades.critChance, 0);
-            const critChance = Math.min(0.75, 0.05 + critLvl * 0.01);
-            const isCrit = Math.random() < critChance;
-            const critMult = isCrit ? (5 + critLvl * 0.5 + sanitizeNum(state.skills.skillCrit, 0) * 5) : 1;
-            const gain = getQuacksPerClick() * critMult;
-
-            state.quacks += gain;
-            state.lifetimeQuacks += gain;
-            state.totalClicks += 1;
-            state.passXp += 2;
-            state.masteryXp.tapping += 1;
-            if (state.masteryXp.tapping >= state.masteryLevels.tapping * 100) {
-                state.masteryXp.tapping = 0;
-                state.masteryLevels.tapping++;
-            }
-
-            if (!isAuto) {
-                comboCount = Math.min(5.0, +(comboCount + 0.05).toFixed(2));
-                comboDecayTimer = 2500;
-                if (feverActiveTimer <= 0) {
-                    feverCharge = Math.min(100, feverCharge + 2.5);
-                    if (feverCharge >= 100) {
-                        feverActiveTimer = 12000;
-                        showToast("🔥 QUACK FEVER OVERDRIVE ACTIVATED!", "success");
-                    }
-                }
-                playSound(isCrit ? "crit" : "quack");
-            } else {
-                const now = Date.now();
-                if (now - lastQuackSoundTime > 260) {
-                    lastQuackSoundTime = now;
-                    playSound("quack");
-                }
-            }
-
-            // Squash animation
-            const wrap = document.getElementById("duckVisualWrapper");
-            if (wrap) {
-                wrap.classList.remove("animate-squash");
-                void wrap.offsetWidth;
-                wrap.classList.add("animate-squash");
-            }
-
-            // Pet laser beams
-            if (state.equippedPetIds.length > 0) {
-                activeLaserBeams.push({ alpha: 1.0, color: isCrit ? "#f43f5e" : "#38bdf8" });
-            }
-
-            // Floating number
-            if (!isAuto) {
-                const cx = e && e.clientX ? e.clientX : window.innerWidth / 2;
-                const cy = e && e.clientY ? e.clientY : window.innerHeight / 2;
-                spawnFloatingText(cx, cy, `${isCrit ? "CRIT! " : ""}+${formatNumber(gain)}`, isCrit);
-            }
-
-            updateHudFast();
-        };
-
-        function spawnFloatingText(x, y, text, isCrit) {
-            const el = document.createElement("div");
-            el.className = `floating-number ${isCrit ? "text-rose-400 text-xl" : "text-amber-300 text-base"}`;
-            el.style.left = `${x + (Math.random() * 24 - 12)}px`;
-            el.style.top = `${y - 16}px`;
+            el.className = `floating-number ${isCrit ? "text-rose-400 text-2xl sm:text-3xl" : "text-amber-300 text-lg sm:text-xl"}`;
+            el.style.left = `${x}px`;
+            el.style.top = `${y}px`;
             el.textContent = text;
             document.body.appendChild(el);
             setTimeout(() => el.remove(), 800);
         }
 
-        function toggleExpandStage() {
-            stageExpanded = !stageExpanded;
-            const card = document.getElementById("stageCard");
-            const icon = document.getElementById("expandStageIcon");
-            const lbl = document.getElementById("expandStageLabel");
-            if (card) card.classList.toggle("stage-expanded", stageExpanded);
-            if (icon) icon.className = stageExpanded ? "fa-solid fa-compress" : "fa-solid fa-expand";
-            if (lbl) lbl.textContent = stageExpanded ? "Compact" : "Expand Stage";
+        function onDuckClick(e) {
+            const critChance = Math.min(0.65, 0.05 + (state.upgrades.critChance || 0) * 0.015);
+            const isCrit = Math.random() < critChance;
+            const critMult = isCrit ? (5 + (state.skills.skillCrit || 0) * 5) : 1;
+            const gain = getQuacksPerClick() * critMult;
+
+            state.quacks += gain;
+            state.lifetimeQuacks += gain;
+            state.totalClicks = (state.totalClicks || 0) + 1;
+            state.passXp = (state.passXp || 0) + 2;
+            gainMasteryXp("tapping", 2);
+
+            comboCount = Math.min(5.0, comboCount + 0.08);
+            comboDecayTimer = 2500;
+
+            if (feverActiveTimer <= 0) {
+                feverCharge = Math.min(100, feverCharge + 3.5);
+                if (feverCharge >= 100) {
+                    feverActiveTimer = 10000 + (state.upgrades.feverBoost || 0) * 500;
+                    showToast("🔥 QUACK FEVER OVERDRIVE ACTIVATED!", "success");
+                }
+            }
+
+            const wrapper = document.getElementById("duckVisualWrapper");
+            if (wrapper) {
+                wrapper.classList.remove("animate-squash");
+                void wrapper.offsetWidth;
+                wrapper.classList.add("animate-squash");
+            }
+            spawnQuackShockwave();
+            triggerPetLaserBeams();
+            playQuackSound(isCrit ? 680 : null);
+
+            const cx = e && e.clientX ? e.clientX : window.innerWidth / 2;
+            const cy = e && e.clientY ? e.clientY : window.innerHeight / 2;
+            spawnFloatingText(cx, cy - 20, `${isCrit ? "CRIT! " : ""}+${formatNum(gain)}`, isCrit);
+            renderAll();
         }
 
-        function toggleAutomation(key) {
-            state[key] = !state[key];
-            updateAutomationButtons();
-            saveGame();
-            showToast(`${key === "autoClickerOn" ? "Auto-Tapper" : key === "autoRebirthOn" ? "Auto-Rebirth" : "Auto-Hatch"}: ${state[key] ? "ACTIVE" : "OFF"}`, state[key] ? "success" : "info");
-        }
-
-        function updateAutomationButtons() {
-            const tapLbl = document.getElementById("lblAutoTap");
-            const rebLbl = document.getElementById("lblAutoRebirth");
-            const hatchLbl = document.getElementById("lblAutoHatch");
-            if (tapLbl) {
-                tapLbl.textContent = state.autoClickerOn ? "ACTIVE" : "OFF";
-                tapLbl.className = `text-xs font-black mt-0.5 ${state.autoClickerOn ? "text-emerald-400" : "text-rose-400"}`;
-            }
-            if (rebLbl) {
-                rebLbl.textContent = state.autoRebirthOn ? "ACTIVE" : "OFF";
-                rebLbl.className = `text-xs font-black mt-0.5 ${state.autoRebirthOn ? "text-emerald-400" : "text-rose-400"}`;
-            }
-            if (hatchLbl) {
-                hatchLbl.textContent = state.autoHatchOn ? "ACTIVE" : "OFF";
-                hatchLbl.className = state.autoHatchOn ? "text-emerald-400" : "text-rose-400";
+        function triggerPetLaserBeams() {
+            const equipped = (state.equippedPetIds || []).length;
+            if (!equipped) return;
+            for (let i = 0; i < equipped; i++) {
+                const angle = petOrbitAngle + (i * (Math.PI * 2)) / equipped;
+                activeLaserBeams.push({ angle, alpha: 1.0, color: i % 2 === 0 ? "#38bdf8" : "#facc15" });
             }
         }
 
         /* =========================================================================
-           7. UPGRADES, WORLDS, EGGS, PETS & WARDROBE
+           4B. ACTUAL INTERACTIVE WEATHER & SKY ANOMALY EVENTS
            ========================================================================= */
-        function getUpgradeCost(id) {
-            const def = UPGRADES_DATA.find(u => u.id === id);
-            const lvl = sanitizeNum(state.upgrades[id], 0);
-            return Math.floor(def.baseCost * Math.pow(def.mult, lvl));
+        const WEATHER_EVENTS = [
+            { id: "clear", name: "Clear Skies", mult: 1, duration: 25000 },
+            { id: "meteor", name: "Meteor Shower (3x)", mult: 3, duration: 22000 },
+            { id: "bread_rain", name: "Golden Bread Rain (5x)", mult: 5, duration: 22000 },
+            { id: "cyber_surge", name: "Cyber Glitch Surge (8x)", mult: 8, duration: 20000 },
+            { id: "void_rift", name: "Void Rift Anomaly (15x)", mult: 15, duration: 18000 }
+        ];
+
+        function triggerRandomWeatherEvent() {
+            const pool = WEATHER_EVENTS.filter(w => w.id !== "clear");
+            const picked = pool[Math.floor(Math.random() * pool.length)];
+            activeWeather = { id: picked.id, name: picked.name, mult: picked.mult, timer: picked.duration };
+            showToast(`🌦️ Live Event: ${picked.name}! Catch falling sky orbs!`, "info");
+            for (let i = 0; i < 3; i++) {
+                setTimeout(() => spawnFallingSkyAnomaly(), i * 350);
+            }
         }
 
-        function buyUpgrade(id) {
-            const def = UPGRADES_DATA.find(u => u.id === id);
-            if (!def) return;
-            const lvl = sanitizeNum(state.upgrades[id], 0);
-            if (lvl >= def.max) return showToast("Upgrade already maxed!", "info");
-            const cost = getUpgradeCost(id);
-            if (state.quacks < cost) return showToast("Not enough Quacks!", "error");
-            state.quacks -= cost;
-            state.upgrades[id] = lvl + 1;
-            playSound("buy");
+        function getSkyAnomalySvg(type) {
+            if (type === "meteor") {
+                return `<svg viewBox="0 0 48 48" class="w-11 h-11"><path d="M38 8 L16 30" stroke="#fb923c" stroke-width="5" stroke-linecap="round"/><circle cx="15" cy="33" r="10" fill="#ef4444" stroke="#facc15" stroke-width="3"/></svg>`;
+            }
+            if (type === "bread") {
+                return `<svg viewBox="0 0 48 48" class="w-11 h-11"><rect x="6" y="15" width="36" height="20" rx="10" fill="#f59e0b" stroke="#78350f" stroke-width="3"/><path d="M14 20 L18 28 M24 20 L28 28 M34 20 L37 28" stroke="#fef08a" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+            }
+            if (type === "rainbow_star") {
+                return `<svg viewBox="0 0 48 48" class="w-12 h-12 rainbow-prism-anim"><polygon points="24,3 30,17 45,17 33,27 37,42 24,33 11,42 15,27 3,17 18,17" fill="#ff007f" stroke="#00e5ff" stroke-width="3"/></svg>`;
+            }
+            return `<svg viewBox="0 0 48 48" class="w-10 h-10"><polygon points="24,4 42,18 35,42 13,42 6,18" fill="#22d3ee" stroke="#090d16" stroke-width="3"/><polygon points="24,11 34,20 29,35 19,35 14,20" fill="#cffafe"/></svg>`;
+        }
+
+        function spawnFallingSkyAnomaly(forcedType = null) {
+            const layer = document.getElementById("weatherAnomalyLayer");
+            if (!layer) return;
+
+            let type = forcedType;
+            if (!type) {
+                if (activeWeather.id === "rainbow_storm") type = "rainbow_star";
+                else if (activeWeather.id === "meteor") type = "meteor";
+                else if (activeWeather.id === "bread_rain") type = "bread";
+                else type = Math.random() < 0.5 ? "gem_orb" : "bread";
+            }
+
+            const orb = document.createElement("button");
+            orb.type = "button";
+            orb.className = "falling-anomaly-orb focus:outline-none";
+            orb.style.left = `${8 + Math.random() * 82}%`;
+            orb.innerHTML = getSkyAnomalySvg(type);
+
+            orb.onpointerdown = (ev) => {
+                ev.stopPropagation();
+                let rewardText = "";
+                if (type === "rainbow_star") {
+                    const qGain = Math.max(50000, getQuacksPerClick() * 500);
+                    state.quacks += qGain;
+                    state.lifetimeQuacks += qGain;
+                    state.gems += 250;
+                    state.feathers += 2;
+                    rewardText = `🌈 +${formatNum(qGain)} Qk & +250 Gems!`;
+                } else if (type === "meteor") {
+                    const qGain = Math.max(5000, getQuacksPerClick() * 120);
+                    state.quacks += qGain;
+                    state.lifetimeQuacks += qGain;
+                    state.shards += 3;
+                    rewardText = `☄️ +${formatNum(qGain)} Qk & +3 Shards!`;
+                } else if (type === "bread") {
+                    const qGain = Math.max(2500, getQuacksPerClick() * 80);
+                    state.quacks += qGain;
+                    state.lifetimeQuacks += qGain;
+                    rewardText = `🥖 +${formatNum(qGain)} Quacks!`;
+                } else {
+                    state.gems += 35;
+                    rewardText = `💎 +35 Bonus Gems!`;
+                }
+                playQuackSound(760);
+                spawnFloatingText(ev.clientX || window.innerWidth / 2, ev.clientY || 220, rewardText, true);
+                orb.remove();
+                renderAll();
+            };
+
+            layer.appendChild(orb);
+            setTimeout(() => {
+                if (orb.parentNode) orb.remove();
+            }, 4900);
+        }
+
+        /* =========================================================================
+           5. EXPAND / COMPACT FULLSCREEN STAGE TOGGLE
+           ========================================================================= */
+        function toggleExpandStage() {
+            stageExpanded = !stageExpanded;
+            const card = document.getElementById("stageCard");
+            const icon = document.getElementById("expandStageIcon");
+            const label = document.getElementById("expandStageLabel");
+            if (card) card.classList.toggle("stage-expanded", stageExpanded);
+            if (icon) icon.className = stageExpanded ? "fa-solid fa-compress" : "fa-solid fa-expand";
+            if (label) label.textContent = stageExpanded ? "Compact Stage" : "Expand Stage";
+            document.body.style.overflow = stageExpanded ? "hidden" : "";
+        }
+
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && stageExpanded) {
+                toggleExpandStage();
+            }
+        });
+
+        /* =========================================================================
+           6. BIG NUMBER FORMATTING, AUDIO & TOAST SYSTEM
+           ========================================================================= */
+        const NUMBER_SUFFIXES = [
+            "", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc",
+            "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg"
+        ];
+
+        function formatNum(num) {
+            const n = sanitizeNum(num, 0);
+            if (n < 0) return "-" + formatNum(-n);
+            if (n < 1000) return n < 10 ? (n % 1 === 0 ? String(n) : n.toFixed(1)) : Math.floor(n).toLocaleString();
+            const exp = Math.floor(Math.log10(n));
+            const tier = Math.floor(exp / 3);
+            if (tier < NUMBER_SUFFIXES.length) {
+                const scaled = n / Math.pow(10, tier * 3);
+                return scaled.toFixed(2).replace(/\.00$/, "") + NUMBER_SUFFIXES[tier];
+            }
+            return n.toExponential(2).replace("+", "");
+        }
+
+        let sharedAudioCtx = null;
+        function playQuackSound(customFreq = null) {
+            if (!state.soundOn) return;
+            const nowMs = Date.now();
+            if (nowMs - lastQuackSoundTime < 45) return;
+            lastQuackSoundTime = nowMs;
+
+            try {
+                if (!sharedAudioCtx) {
+                    const Ctx = window.AudioContext || window.webkitAudioContext;
+                    if (Ctx) sharedAudioCtx = new Ctx();
+                }
+                if (!sharedAudioCtx) return;
+                if (sharedAudioCtx.state === "suspended") sharedAudioCtx.resume();
+
+                const voice = VOICES_DATA.find(v => v.id === state.equippedVoice) || VOICES_DATA[0];
+                const osc = sharedAudioCtx.createOscillator();
+                const gain = sharedAudioCtx.createGain();
+                const t = sharedAudioCtx.currentTime;
+
+                osc.type = voice.type || "sawtooth";
+                const startFreq = customFreq || voice.freq || 340;
+                osc.frequency.setValueAtTime(startFreq, t);
+                osc.frequency.exponentialRampToValueAtTime(Math.max(90, startFreq * 0.45), t + 0.11);
+
+                gain.gain.setValueAtTime(0.14, t);
+                gain.gain.exponentialRampToValueAtTime(0.008, t + 0.11);
+
+                osc.connect(gain);
+                gain.connect(sharedAudioCtx.destination);
+                osc.start(t);
+                osc.stop(t + 0.12);
+            } catch (e) {}
+        }
+
+        function toggleAudio() {
+            state.soundOn = !state.soundOn;
+            updateAudioIcons();
+            saveGame();
+        }
+
+        function updateAudioIcons() {
+            const cls = state.soundOn ? "fa-solid fa-volume-high text-amber-400" : "fa-solid fa-volume-xmark text-rose-400";
+            const dIcon = document.getElementById("audioIconDesktop");
+            const mIcon = document.getElementById("audioIconMobile");
+            if (dIcon) dIcon.className = cls;
+            if (mIcon) mIcon.className = cls;
+        }
+
+        function showToast(msg, type = "info") {
+            const container = document.getElementById("toastContainer");
+            if (!container) return;
+            const colors = {
+                success: "border-emerald-400/50 bg-slate-950/95 text-emerald-200",
+                error: "border-rose-500/50 bg-slate-950/95 text-rose-200",
+                info: "border-amber-400/50 bg-slate-950/95 text-amber-200"
+            };
+            const toast = document.createElement("div");
+            toast.className = `pointer-events-auto border rounded-2xl px-3.5 py-2.5 text-xs font-extrabold shadow-2xl backdrop-blur-md transition-all duration-300 ${colors[type] || colors.info}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = "0";
+                toast.style.transform = "translateX(20px)";
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        /* =========================================================================
+           7. MODALS, WORLDS, EGGS, PETS, WARDROBE & ALL SIMULATOR SYSTEMS
+           ========================================================================= */
+        function openModal(modalId) {
+            const el = document.getElementById(modalId);
+            if (!el) return;
+            el.classList.remove("hidden");
+            el.classList.add("flex");
+            renderAll();
+            if (modalId === "wheelModal") drawFortuneWheel();
+            if (modalId === "arcadeModal") initArcadeCanvas();
+        }
+
+        function closeModal(modalId) {
+            const el = document.getElementById(modalId);
+            if (!el) return;
+            el.classList.add("hidden");
+            el.classList.remove("flex");
+        }
+
+        function toggleAutomation(key) {
+            state[key] = !state[key];
+            saveGame();
             renderAll();
         }
 
-        function selectOrUnlockWorld(worldId) {
+        function travelToWorld(worldId) {
             const w = WORLDS_DATA.find(x => x.id === worldId);
             if (!w) return;
             if (w.adminOnly && !isCurrentUserVerifiedAdmin()) {
-                return showToast("🔒 Exclusive to RainbowLord16 Admin Account!", "error");
+                return showToast("🔒 Restricted to RainbowLord16 Admin!", "error");
             }
-            if (state.unlockedWorlds.includes(worldId)) {
+            if ((state.unlockedWorlds || []).includes(worldId)) {
                 state.currentWorld = worldId;
-                playSound("buy");
+                showToast(`🌐 Entered ${w.name}!`, "success");
                 renderAll();
-                closeModal("worldsModal");
                 return;
             }
             if (state.quacks < w.cost) return showToast("Not enough Quacks to unlock this realm!", "error");
             state.quacks -= w.cost;
             state.unlockedWorlds.push(worldId);
             state.currentWorld = worldId;
-            playSound("crit");
-            showToast(`🌍 Unlocked ${w.name}!`, "success");
+            playQuackSound(600);
+            showToast(`🎉 Unlocked ${w.name} (${formatNum(w.mult)}x)!`, "success");
             renderAll();
-            closeModal("worldsModal");
         }
 
         function hatchEgg(eggId, silent = false) {
@@ -1722,182 +2037,198 @@
                 }
                 state.gems -= egg.cost;
             }
+
             const speciesId = egg.pool[Math.floor(Math.random() * egg.pool.length)];
-            const sp = PET_SPECIES.find(s => s.id === speciesId);
+            const sp = PET_SPECIES.find(s => s.id === speciesId) || PET_SPECIES[0];
             const newPet = {
-                uid: "pet_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+                id: "pet_" + Date.now() + "_" + Math.floor(Math.random() * 10000),
                 speciesId,
                 tier: 1
             };
             state.pets.push(newPet);
-            state.eggsHatched += 1;
-            state.passXp += 10;
-            state.masteryXp.hatching += 5;
-            if (state.masteryXp.hatching >= state.masteryLevels.hatching * 50) {
-                state.masteryXp.hatching = 0;
-                state.masteryLevels.hatching++;
-            }
-            if (state.equippedPetIds.length < getMaxPetSlots()) {
-                state.equippedPetIds.push(newPet.uid);
+            state.eggsHatched = (state.eggsHatched || 0) + 1;
+            state.passXp = (state.passXp || 0) + 10;
+            gainMasteryXp("hatching", 10);
+
+            if (state.equippedPetIds.length < getMaxEquippedPets()) {
+                state.equippedPetIds.push(newPet.id);
             }
             if (!silent) {
-                playSound("crit");
-                showToast(`🥚 Hatched ${sp.name} (${sp.rarity})!`, "success");
-                renderAll();
+                playQuackSound(660);
+                showToast(`🐣 Hatched ${sp.name} (${sp.rarity})!`, "success");
             }
+            renderAll();
         }
 
-        function toggleEquipPet(uid) {
-            const idx = state.equippedPetIds.indexOf(uid);
+        function getMaxEquippedPets() {
+            return 4 + (state.rpUpgrades.rpPetSlots || 0);
+        }
+
+        function toggleEquipPet(petId) {
+            const idx = state.equippedPetIds.indexOf(petId);
             if (idx >= 0) {
                 state.equippedPetIds.splice(idx, 1);
             } else {
-                if (state.equippedPetIds.length >= getMaxPetSlots()) {
-                    return showToast(`Max ${getMaxPetSlots()} pets equipped!`, "error");
+                if (state.equippedPetIds.length >= getMaxEquippedPets()) {
+                    return showToast(`Max ${getMaxEquippedPets()} pets equipped!`, "error");
                 }
-                state.equippedPetIds.push(uid);
+                state.equippedPetIds.push(petId);
             }
             renderAll();
         }
 
         function equipBestPets() {
-            const sorted = [...state.pets].sort((a, b) => {
-                const sa = PET_SPECIES.find(s => s.id === a.speciesId)?.baseMult || 1;
-                const ta = PET_TIERS.find(t => t.tier === a.tier)?.mult || 1;
-                const sb = PET_SPECIES.find(s => s.id === b.speciesId)?.baseMult || 1;
-                const tb = PET_TIERS.find(t => t.tier === b.tier)?.mult || 1;
-                return (sb * tb) - (sa * ta);
+            const sorted = [...(state.pets || [])].sort((a, b) => {
+                const spA = PET_SPECIES.find(s => s.id === a.speciesId) || { baseMult: 1 };
+                const spB = PET_SPECIES.find(s => s.id === b.speciesId) || { baseMult: 1 };
+                const tA = PET_TIERS.find(t => t.tier === a.tier) || { mult: 1 };
+                const tB = PET_TIERS.find(t => t.tier === b.tier) || { mult: 1 };
+                return (spB.baseMult * tB.mult) - (spA.baseMult * tA.mult);
             });
-            state.equippedPetIds = sorted.slice(0, getMaxPetSlots()).map(p => p.uid);
-            playSound("buy");
-            renderAll();
+            state.equippedPetIds = sorted.slice(0, getMaxEquippedPets()).map(p => p.id);
             showToast("✨ Equipped your strongest pets!", "success");
+            renderAll();
         }
 
         function fuseAllPets() {
             let fusedCount = 0;
-            for (let tier = 1; tier <= 4; tier++) {
-                for (const sp of PET_SPECIES) {
-                    let matching = state.pets.filter(p => p.speciesId === sp.id && p.tier === tier);
-                    while (matching.length >= 3) {
-                        const toRemove = matching.slice(0, 3).map(p => p.uid);
-                        state.pets = state.pets.filter(p => !toRemove.includes(p.uid));
-                        state.equippedPetIds = state.equippedPetIds.filter(id => !toRemove.includes(id));
+            let changed = true;
+            while (changed) {
+                changed = false;
+                const groups = {};
+                state.pets.forEach(p => {
+                    if (p.tier >= 5) return;
+                    const key = `${p.speciesId}_${p.tier}`;
+                    groups[key] = groups[key] || [];
+                    groups[key].push(p);
+                });
+                for (const key of Object.keys(groups)) {
+                    if (groups[key].length >= 3) {
+                        const toConsume = groups[key].slice(0, 3).map(x => x.id);
+                        const sample = groups[key][0];
+                        state.pets = state.pets.filter(p => !toConsume.includes(p.id));
+                        state.equippedPetIds = state.equippedPetIds.filter(id => !toConsume.includes(id));
                         state.pets.push({
-                            uid: "pet_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
-                            speciesId: sp.id,
-                            tier: tier + 1
+                            id: "pet_fused_" + Date.now() + "_" + Math.floor(Math.random() * 10000),
+                            speciesId: sample.speciesId,
+                            tier: sample.tier + 1
                         });
                         fusedCount++;
-                        matching = state.pets.filter(p => p.speciesId === sp.id && p.tier === tier);
+                        changed = true;
+                        break;
                     }
                 }
             }
             if (fusedCount > 0) {
                 equipBestPets();
-                showToast(`🔥 Fused ${fusedCount} upgraded pet(s)!`, "success");
+                playQuackSound(740);
+                showToast(`🔮 Fused ${fusedCount} upgraded pet(s)!`, "success");
             } else {
-                showToast("Need 3 matching pets of the same tier to fuse!", "info");
+                showToast("Need 3 identical pets (below Rainbow Supreme) to fuse!", "info");
             }
-        }
-
-        function selectWardrobeItem(category, id) {
-            const maps = {
-                skin: { list: SKINS_DATA, unlocked: "unlockedSkins", equipped: "equippedSkin" },
-                aura: { list: AURAS_DATA, unlocked: "unlockedAuras", equipped: "equippedAura" },
-                hat: { list: HATS_DATA, unlocked: "unlockedHats", equipped: "equippedHat" },
-                shades: { list: SHADES_DATA, unlocked: "unlockedShades", equipped: "equippedShades" },
-                voice: { list: VOICES_DATA, unlocked: "unlockedVoices", equipped: "equippedVoice" }
-            };
-            const cfg = maps[category];
-            const item = cfg.list.find(x => x.id === id);
-            if (!item) return;
-            if (item.adminOnly && !isCurrentUserVerifiedAdmin()) {
-                return showToast("🔒 Exclusive to RainbowLord16 Admin Account!", "error");
-            }
-            if (!state[cfg.unlocked].includes(id)) {
-                if (state.gems < item.cost) return showToast("Not enough Gems!", "error");
-                state.gems -= item.cost;
-                state[cfg.unlocked].push(id);
-            }
-            state[cfg.equipped] = id;
-            playSound(category === "voice" ? "quack" : "buy");
             renderAll();
         }
 
-        /* =========================================================================
-           8. REBIRTH, VOID FORGE, SKILLS, ALCHEMY, DIG, CARDS, WHEEL, ARCADE, BOSS
-           ========================================================================= */
+        function buyOrEquipCosmetic(category, id) {
+            const configs = {
+                skin: { list: SKINS_DATA, unlockedKey: "unlockedSkins", equippedKey: "equippedSkin" },
+                aura: { list: AURAS_DATA, unlockedKey: "unlockedAuras", equippedKey: "equippedAura" },
+                hat: { list: HATS_DATA, unlockedKey: "unlockedHats", equippedKey: "equippedHat" },
+                shades: { list: SHADES_DATA, unlockedKey: "unlockedShades", equippedKey: "equippedShades" },
+                voice: { list: VOICES_DATA, unlockedKey: "unlockedVoices", equippedKey: "equippedVoice" }
+            };
+            const cfg = configs[category];
+            if (!cfg) return;
+            const item = cfg.list.find(x => x.id === id);
+            if (!item) return;
+            if (item.adminOnly && !isCurrentUserVerifiedAdmin()) {
+                return showToast("🔒 Exclusive to RainbowLord16 Admin!", "error");
+            }
+            if (!(state[cfg.unlockedKey] || []).includes(id)) {
+                if (state.gems < item.cost) return showToast("Not enough Gems!", "error");
+                state.gems -= item.cost;
+                state[cfg.unlockedKey].push(id);
+            }
+            state[cfg.equippedKey] = id;
+            playQuackSound(580);
+            renderAll();
+        }
+
         function getRebirthCost() {
-            return Math.floor(100000 * Math.pow(2.5, sanitizeNum(state.rebirths, 0)));
+            return Math.floor(100000 * Math.pow(2.5, state.rebirths || 0));
         }
 
         function performRebirth(silent = false) {
             const cost = getRebirthCost();
             if (state.quacks < cost) {
-                if (!silent) showToast(`Need ${formatNumber(cost)} Quacks to Rebirth!`, "error");
+                if (!silent) showToast(`Need ${formatNum(cost)} Quacks to Rebirth!`, "error");
                 return;
             }
-            const rpGain = 1 + Math.floor(state.currentWorld / 3);
-            const gemGain = 25 + state.currentWorld * 5;
-            state.rebirths += 1;
-            state.rp += rpGain;
-            state.gems += gemGain;
+            const rpGain = 1 + Math.floor((state.rebirths || 0) / 5);
+            const gemGain = Math.floor(25 * (1 + (state.voidUpgrades.voidGems || 0) * 0.25));
+            state.rebirths = (state.rebirths || 0) + 1;
+            state.rp = (state.rp || 0) + rpGain;
+            state.gems = (state.gems || 0) + gemGain;
             state.quacks = 0;
             state.upgrades = { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0 };
             if (!silent) {
-                playSound("crit");
-                showToast(`♻️ Rebirth #${state.rebirths}! +${rpGain} RP & +${gemGain} Gems!`, "success");
-                renderAll();
+                playQuackSound(640);
+                showToast(`♻️ Rebirthed! +${rpGain} RP & +${gemGain} Gems!`, "success");
             }
+            renderAll();
         }
 
         function performTranscendence() {
-            if (state.currentWorld < 15) return showToast("Reach World 15+ to Transcend into the Void!", "error");
-            const gain = 10 + (state.currentWorld - 15) * 5;
-            state.transcendenceCount += 1;
-            state.shards += gain;
+            if (state.currentWorld < 15 && !(state.unlockedWorlds || []).includes(15)) {
+                return showToast("Reach World 15 (Void Horizon) first!", "error");
+            }
+            const shardGain = 10 + (state.transcendenceCount || 0) * 5;
+            state.transcendenceCount = (state.transcendenceCount || 0) + 1;
+            state.shards = (state.shards || 0) + shardGain;
             state.quacks = 0;
             state.rebirths = 0;
             state.upgrades = { clickPower: 1, autoSpeed: 0, critChance: 0, feverBoost: 0 };
-            playSound("crit");
-            showToast(`🌌 Void Transcendence! Harvested +${gain} Void Shards!`, "success");
+            playQuackSound(720);
+            showToast(`🌌 Void Transcendence! +${shardGain} Void Shards!`, "success");
             renderAll();
         }
 
         function buyRpUpgrade(id) {
             const def = RP_UPGRADES_DATA.find(u => u.id === id);
-            const lvl = sanitizeNum(state.rpUpgrades[id], 0);
-            if (!def || lvl >= def.max) return;
+            if (!def) return;
+            const lvl = state.rpUpgrades[id] || 0;
+            if (lvl >= def.max) return;
             const cost = def.baseCost * (lvl + 1);
             if (state.rp < cost) return showToast("Not enough RP!", "error");
             state.rp -= cost;
             state.rpUpgrades[id] = lvl + 1;
-            playSound("buy");
+            playQuackSound(560);
             renderAll();
         }
 
         function buyVoidUpgrade(id) {
             const def = VOID_UPGRADES_DATA.find(u => u.id === id);
-            const lvl = sanitizeNum(state.voidUpgrades[id], 0);
-            if (!def || lvl >= def.max) return;
+            if (!def) return;
+            const lvl = state.voidUpgrades[id] || 0;
+            if (lvl >= def.max) return;
             const cost = def.baseCost * (lvl + 1);
             if (state.shards < cost) return showToast("Not enough Void Shards!", "error");
             state.shards -= cost;
             state.voidUpgrades[id] = lvl + 1;
-            playSound("buy");
+            playQuackSound(620);
             renderAll();
         }
 
         function buySkillNode(id) {
             const def = SKILLS_DATA.find(s => s.id === id);
-            const lvl = sanitizeNum(state.skills[id], 0);
-            if (!def || lvl >= def.max) return;
+            if (!def) return;
+            const lvl = state.skills[id] || 0;
+            if (lvl >= def.max) return;
             const cost = def.cost * (lvl + 1);
             if (state.feathers < cost) return showToast("Not enough Golden Feathers!", "error");
             state.feathers -= cost;
             state.skills[id] = lvl + 1;
-            playSound("buy");
+            playQuackSound(680);
             renderAll();
         }
 
@@ -1906,13 +2237,10 @@
             if (!p) return;
             if (state.gems < p.cost) return showToast("Not enough Gems!", "error");
             state.gems -= p.cost;
-            state.activePotions[p.id] = Date.now() + p.duration * 1000;
-            state.masteryXp.alchemy += 25;
-            if (state.masteryXp.alchemy >= state.masteryLevels.alchemy * 100) {
-                state.masteryXp.alchemy = 0;
-                state.masteryLevels.alchemy++;
-            }
-            playSound("crit");
+            const currentEnd = Math.max(Date.now(), state.activePotions[id] || 0);
+            state.activePotions[id] = currentEnd + p.duration * 1000;
+            gainMasteryXp("alchemy", 15);
+            playQuackSound(600);
             showToast(`🧪 Brewed ${p.name}!`, "success");
             renderAll();
         }
@@ -1920,83 +2248,106 @@
         function excavateLayer() {
             if (state.gems < 10) return showToast("Need 10 Gems to excavate!", "error");
             state.gems -= 10;
-            state.digDepth += 15;
-            state.relics += 1;
-            const locked = RELICS_DATA.filter(r => !state.unlockedRelics.includes(r.id));
-            if (locked.length > 0 && Math.random() < 0.35) {
-                const found = locked[0];
-                state.unlockedRelics.push(found.id);
-                showToast(`🏺 Unearthed Relic: ${found.name} (${found.mult}x)!`, "success");
+            state.digDepth = (state.digDepth || 0) + 5;
+            const roll = Math.random();
+            if (roll < 0.25) {
+                const locked = RELICS_DATA.filter(r => !(state.unlockedRelics || []).includes(r.id));
+                if (locked.length > 0) {
+                    const found = locked[Math.floor(Math.random() * locked.length)];
+                    state.unlockedRelics.push(found.id);
+                    state.relics = (state.relics || 0) + 1;
+                    showToast(`🏺 Unearthed Relic: ${found.name} (${found.mult}x)!`, "success");
+                } else {
+                    state.shards += 5;
+                    showToast("💎 Found +5 Void Shards deep underground!", "success");
+                }
+            } else if (roll < 0.6) {
+                state.feathers += 1;
+                showToast("🪶 Found +1 Golden Feather!", "success");
             } else {
-                state.shards += 2;
-                showToast(`⛏️ Excavated ${state.digDepth}m! +1 Relic & +2 Void Shards`, "info");
+                const qFind = Math.max(5000, getQuacksPerClick() * 50);
+                state.quacks += qFind;
+                state.lifetimeQuacks += qFind;
+                showToast(`⛏️ Dug up +${formatNum(qFind)} Quacks!`, "info");
             }
-            playSound("buy");
+            playQuackSound(480);
             renderAll();
+        }
+
+        function gainMasteryXp(type, amount) {
+            state.masteryXp[type] = (state.masteryXp[type] || 0) + amount;
+            const lvl = state.masteryLevels[type] || 1;
+            const req = lvl * 100;
+            if (state.masteryXp[type] >= req) {
+                state.masteryXp[type] -= req;
+                state.masteryLevels[type] = lvl + 1;
+            }
         }
 
         function openCardPack() {
             if (state.gems < 250) return showToast("Need 250 Gems for a Card Pack!", "error");
             state.gems -= 250;
             const card = CARDS_DATA[Math.floor(Math.random() * CARDS_DATA.length)];
-            if (!state.collectedCards.includes(card.id)) {
+            if (!(state.collectedCards || []).includes(card.id)) {
                 state.collectedCards.push(card.id);
-                showToast(`🃏 Unlocked Card: ${card.name} (${card.mult}x)!`, "success");
+                showToast(`🃏 New Collector Card: ${card.name} (${card.mult}x)!`, "success");
             } else {
-                state.feathers += 2;
-                showToast(`🃏 Duplicate ${card.name}! Converted to +2 Feathers`, "info");
+                state.gems += 100;
+                showToast(`🃏 Duplicate ${card.name} converted to +100 Gems!`, "info");
             }
-            playSound("crit");
             renderAll();
         }
 
         function buildMonument(id) {
             const mon = MONUMENTS_DATA.find(m => m.id === id);
-            if (!mon || state.builtMonuments.includes(id)) return;
+            if (!mon || (state.builtMonuments || []).includes(id)) return;
             if (state.gems < mon.cost) return showToast("Not enough Gems!", "error");
             state.gems -= mon.cost;
             state.builtMonuments.push(id);
-            playSound("crit");
             showToast(`🏛️ Built ${mon.name} (${mon.mult}x)!`, "success");
             renderAll();
         }
 
+        /* =========================================================================
+           8. SPIN WHEEL, ARCADE, BOSS RAID, SEASON PASS & PROMO CODES
+           ========================================================================= */
+        let wheelAngle = 0;
         let wheelSpinning = false;
-        let wheelRotation = 0;
         const WHEEL_SLICES = [
-            { label: "+500 Gems", color: "#10b981", fn: () => { state.gems += 500; } },
-            { label: "+5 Feathers", color: "#f59e0b", fn: () => { state.feathers += 5; } },
-            { label: "+15 Shards", color: "#a855f7", fn: () => { state.shards += 15; } },
-            { label: "100x Quacks", color: "#0ea5e9", fn: () => { state.quacks += getQuacksPerClick() * 100; } },
-            { label: "+2,500 Gems", color: "#ec4899", fn: () => { state.gems += 2500; } },
-            { label: "+25 RP", color: "#06b6d4", fn: () => { state.rp += 25; } }
+            { label: "250 Gems", color: "#10b981", fn: () => { state.gems += 250; } },
+            { label: "3 Feathers", color: "#f59e0b", fn: () => { state.feathers += 3; } },
+            { label: "10 Shards", color: "#a855f7", fn: () => { state.shards += 10; } },
+            { label: "100x Tap", color: "#3b82f6", fn: () => { const g = Math.max(10000, getQuacksPerClick() * 100); state.quacks += g; state.lifetimeQuacks += g; } },
+            { label: "+2 RP", color: "#06b6d4", fn: () => { state.rp += 2; } },
+            { label: "JACKPOT!", color: "#f43f5e", fn: () => { state.gems += 1000; state.feathers += 5; } }
         ];
 
         function drawFortuneWheel() {
             const canvas = document.getElementById("wheelCanvas");
             if (!canvas) return;
             const ctx = canvas.getContext("2d");
-            const cx = canvas.width / 2, cy = canvas.height / 2, r = cx - 8;
+            const r = canvas.width / 2;
             const arc = (Math.PI * 2) / WHEEL_SLICES.length;
             ctx.clearRect(0, 0, canvas.width, canvas.height);
+
             WHEEL_SLICES.forEach((s, i) => {
-                const start = wheelRotation + i * arc;
+                const start = wheelAngle + i * arc;
                 ctx.beginPath();
-                ctx.moveTo(cx, cy);
-                ctx.arc(cx, cy, r, start, start + arc);
+                ctx.moveTo(r, r);
+                ctx.arc(r, r, r - 4, start, start + arc);
                 ctx.fillStyle = s.color;
                 ctx.fill();
-                ctx.strokeStyle = "#0f172a";
+                ctx.strokeStyle = "#090d16";
                 ctx.lineWidth = 3;
                 ctx.stroke();
 
                 ctx.save();
-                ctx.translate(cx, cy);
+                ctx.translate(r, r);
                 ctx.rotate(start + arc / 2);
-                ctx.fillStyle = "#fff";
-                ctx.font = "bold 12px sans-serif";
+                ctx.fillStyle = "#ffffff";
+                ctx.font = "bold 12px Plus Jakarta Sans";
                 ctx.textAlign = "right";
-                ctx.fillText(s.label, r - 14, 4);
+                ctx.fillText(s.label, r - 16, 4);
                 ctx.restore();
             });
         }
@@ -2006,157 +2357,166 @@
             if (state.gems < 100) return showToast("Need 100 Gems to spin!", "error");
             state.gems -= 100;
             wheelSpinning = true;
-            const extra = Math.PI * 10 + Math.random() * Math.PI * 2;
-            const startRot = wheelRotation;
+            const extra = Math.PI * 8 + Math.random() * Math.PI * 2;
+            const startAngle = wheelAngle;
             const startTime = performance.now();
-            function anim(now) {
-                const t = Math.min(1, (now - startTime) / 2800);
-                const ease = 1 - Math.pow(1 - t, 3);
-                wheelRotation = startRot + extra * ease;
+            const dur = 2600;
+
+            function step(now) {
+                const p = Math.min(1, (now - startTime) / dur);
+                const ease = 1 - Math.pow(1 - p, 3);
+                wheelAngle = startAngle + extra * ease;
                 drawFortuneWheel();
-                if (t < 1) requestAnimationFrame(anim);
-                else {
+                if (p < 1) {
+                    requestAnimationFrame(step);
+                } else {
                     wheelSpinning = false;
-                    const norm = ((Math.PI * 1.5 - wheelRotation) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
-                    const idx = Math.floor(norm / ((Math.PI * 2) / WHEEL_SLICES.length));
-                    const prize = WHEEL_SLICES[idx];
+                    const idx = Math.floor(((Math.PI * 2 - (wheelAngle % (Math.PI * 2))) % (Math.PI * 2)) / ((Math.PI * 2) / WHEEL_SLICES.length));
+                    const prize = WHEEL_SLICES[idx] || WHEEL_SLICES[0];
                     prize.fn();
-                    playSound("crit");
-                    showToast(`🎡 Wheel Won: ${prize.label}!`, "success");
+                    playQuackSound(720);
+                    showToast(`🎡 Wheel Prize: ${prize.label}!`, "success");
                     renderAll();
                 }
             }
-            requestAnimationFrame(anim);
+            requestAnimationFrame(step);
         }
 
-        let arcadeRunning = false;
+        let arcadeActive = false;
         let arcadeScore = 0;
-        let arcadeDuckX = 160;
-        let arcadeLoaves = [];
-        function startArcadeGame() {
+        let arcadeBasketX = 200;
+        let arcadeDrops = [];
+
+        function initArcadeCanvas() {
             const canvas = document.getElementById("arcadeCanvas");
             if (!canvas) return;
             canvas.width = canvas.clientWidth || 480;
-            canvas.height = canvas.clientHeight || 256;
-            arcadeRunning = true;
-            arcadeScore = 0;
-            arcadeLoaves = [];
-            document.getElementById("arcadeScoreVal").textContent = "0";
+            canvas.height = 256;
             canvas.onpointermove = (e) => {
                 const rect = canvas.getBoundingClientRect();
-                arcadeDuckX = e.clientX - rect.left;
+                arcadeBasketX = e.clientX - rect.left;
             };
+        }
+
+        function startArcadeGame() {
+            initArcadeCanvas();
+            arcadeActive = true;
+            arcadeScore = 0;
+            arcadeDrops = [];
+            const scoreEl = document.getElementById("arcadeScoreVal");
+            if (scoreEl) scoreEl.textContent = "0";
+            requestAnimationFrame(arcadeTick);
+        }
+
+        function arcadeTick() {
+            if (!arcadeActive) return;
+            const canvas = document.getElementById("arcadeCanvas");
+            if (!canvas) return;
             const ctx = canvas.getContext("2d");
-            function loop() {
-                if (!arcadeRunning) return;
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                if (Math.random() < 0.08) {
-                    arcadeLoaves.push({ x: Math.random() * (canvas.width - 24) + 12, y: -12, vy: 2.8 + Math.random() * 2 });
-                }
-                ctx.fillStyle = "#facc15";
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (Math.random() < 0.06) {
+                arcadeDrops.push({ x: 20 + Math.random() * (canvas.width - 40), y: 0 });
+            }
+
+            ctx.fillStyle = "#facc15";
+            ctx.fillRect(arcadeBasketX - 32, canvas.height - 24, 64, 14);
+
+            for (let i = arcadeDrops.length - 1; i >= 0; i--) {
+                const d = arcadeDrops[i];
+                d.y += 3.5;
                 ctx.beginPath();
-                ctx.roundRect(arcadeDuckX - 28, canvas.height - 28, 56, 18, 9);
+                ctx.arc(d.x, d.y, 10, 0, Math.PI * 2);
+                ctx.fillStyle = "#f59e0b";
                 ctx.fill();
 
-                for (let i = arcadeLoaves.length - 1; i >= 0; i--) {
-                    const b = arcadeLoaves[i];
-                    b.y += b.vy;
-                    ctx.fillStyle = "#fb923c";
-                    ctx.beginPath();
-                    ctx.arc(b.x, b.y, 10, 0, Math.PI * 2);
-                    ctx.fill();
-                    if (b.y >= canvas.height - 32 && Math.abs(b.x - arcadeDuckX) < 34) {
-                        arcadeScore += 10;
-                        state.gems += 5;
-                        document.getElementById("arcadeScoreVal").textContent = arcadeScore;
-                        arcadeLoaves.splice(i, 1);
-                    } else if (b.y > canvas.height + 20) {
-                        arcadeLoaves.splice(i, 1);
-                    }
+                if (d.y >= canvas.height - 28 && Math.abs(d.x - arcadeBasketX) < 38) {
+                    arcadeScore += 10;
+                    state.gems += 2;
+                    const scoreEl = document.getElementById("arcadeScoreVal");
+                    if (scoreEl) scoreEl.textContent = arcadeScore;
+                    arcadeDrops.splice(i, 1);
+                } else if (d.y > canvas.height) {
+                    arcadeDrops.splice(i, 1);
                 }
-                requestAnimationFrame(loop);
             }
-            requestAnimationFrame(loop);
+            requestAnimationFrame(arcadeTick);
         }
 
         function attackBoss() {
-            const dmg = Math.max(100, getQuacksPerClick());
-            state.bossHp -= dmg;
-            playSound("crit");
+            const dmg = Math.max(10, getQuacksPerClick() * 2);
+            state.bossHp = Math.max(0, state.bossHp - dmg);
+            playQuackSound(420);
             if (state.bossHp <= 0) {
-                state.bossesSlain += 1;
-                state.bossLevel += 1;
-                state.bossMaxHp = Math.floor(1000 * Math.pow(3.2, state.bossLevel - 1));
+                state.bossesSlain = (state.bossesSlain || 0) + 1;
+                state.bossLevel = (state.bossLevel || 1) + 1;
+                state.bossMaxHp = Math.floor(1000 * Math.pow(2.4, state.bossLevel - 1));
                 state.bossHp = state.bossMaxHp;
+                bossTimeRemaining = 30000;
                 const gemReward = 50 * state.bossLevel;
                 state.gems += gemReward;
-                state.feathers += 2;
-                state.masteryXp.boss += 50;
-                if (state.masteryXp.boss >= state.masteryLevels.boss * 100) {
-                    state.masteryXp.boss = 0;
-                    state.masteryLevels.boss++;
-                }
-                showToast(`🐉 Boss Defeated! +${gemReward} Gems & +2 Feathers!`, "success");
-                window.syncLeaderboardScore(false);
+                state.feathers += 1;
+                gainMasteryXp("boss", 25);
+                showToast(`🐉 Leviathan Defeated! +${gemReward} Gems & +1 Feather!`, "success");
             }
-            renderBossModal();
-            updateHudFast();
+            renderAll();
         }
 
         function claimSeasonTier(tier) {
-            if (state.claimedPassTiers.includes(tier)) return;
-            const reqXp = tier * 100;
-            if (state.passXp < reqXp) return showToast(`Need ${reqXp} Pass XP!`, "error");
+            const unlockedTier = Math.min(50, 1 + Math.floor((state.passXp || 0) / 100));
+            if (tier > unlockedTier || (state.claimedPassTiers || []).includes(tier)) return;
             state.claimedPassTiers.push(tier);
-            state.gems += tier * 25;
-            if (tier % 5 === 0) state.feathers += 3;
-            playSound("crit");
-            showToast(`🎁 Claimed Season Tier ${tier} Reward!`, "success");
+            if (tier % 5 === 0) {
+                state.feathers += 2;
+                showToast(`🎖️ Tier ${tier} Claimed: +2 Golden Feathers!`, "success");
+            } else {
+                state.gems += tier * 20;
+                showToast(`🎖️ Tier ${tier} Claimed: +${tier * 20} Gems!`, "success");
+            }
             renderAll();
         }
 
         function redeemPromoCode() {
-            const inp = document.getElementById("promoCodeInput");
-            const code = (inp ? inp.value : "").trim().toUpperCase();
+            const input = document.getElementById("promoCodeInput");
+            const code = input ? input.value.trim().toUpperCase() : "";
             if (!code) return;
-            if (state.redeemedCodes.includes(code)) return showToast("Code already redeemed!", "error");
+            if ((state.redeemedCodes || []).includes(code)) {
+                return showToast("Code already redeemed!", "error");
+            }
             const reward = PROMO_CODES[code];
             if (!reward) return showToast("Invalid promo code!", "error");
+
             state.redeemedCodes.push(code);
             if (reward.gems) state.gems += reward.gems;
-            if (reward.quacks) state.quacks += reward.quacks;
+            if (reward.quacks) {
+                state.quacks += reward.quacks;
+                state.lifetimeQuacks += reward.quacks;
+            }
             if (reward.feathers) state.feathers += reward.feathers;
             if (reward.shards) state.shards += reward.shards;
-            if (inp) inp.value = "";
-            playSound("crit");
-            showToast(`🎉 Code Redeemed: ${reward.msg}`, "success");
+            if (input) input.value = "";
+            playQuackSound(700);
+            showToast(`🎁 Redeemed ${code}: ${reward.msg}`, "success");
             renderAll();
         }
 
         /* =========================================================================
-           9. ADMIN MAX-OUT & COMMUNITY ADMIN ABUSE COMMANDS
+           9. ADMIN COMMANDS, COMMUNITY EVENTS, PROFILE & LIVE LEADERBOARD
            ========================================================================= */
         function restoreMaxedAccount() {
-            if (!isCurrentUserVerifiedAdmin()) return showToast("Admin authentication required!", "error");
-            const MAX_VAL = 999999999999999999999999999; // 999 Sp
-            state.playerName = ADMIN_OWNER_NAME;
-            state.quacks = MAX_VAL;
-            state.lifetimeQuacks = MAX_VAL;
-            state.gems = MAX_VAL;
-            state.rp = MAX_VAL;
-            state.feathers = MAX_VAL;
-            state.shards = MAX_VAL;
-            state.relics = MAX_VAL;
+            if (!isCurrentUserVerifiedAdmin()) return showToast("🔒 Admin only!", "error");
+            const maxVal = 999e24; // 999 Sp
+            state.quacks = maxVal;
+            state.lifetimeQuacks = Math.max(state.lifetimeQuacks, maxVal);
+            state.gems = maxVal;
+            state.rp = maxVal;
+            state.feathers = maxVal;
+            state.shards = maxVal;
+            state.relics = maxVal;
             state.rebirths = 999999;
-            state.transcendenceCount = 999999;
-            state.currentWorld = 21;
+            state.transcendenceCount = 9999;
             state.unlockedWorlds = WORLDS_DATA.map(w => w.id);
-
-            UPGRADES_DATA.forEach(u => state.upgrades[u.id] = u.max);
-            RP_UPGRADES_DATA.forEach(u => state.rpUpgrades[u.id] = u.max);
-            VOID_UPGRADES_DATA.forEach(u => state.voidUpgrades[u.id] = u.max);
-            SKILLS_DATA.forEach(s => state.skills[s.id] = s.max);
-
+            state.currentWorld = 21;
             state.unlockedSkins = SKINS_DATA.map(s => s.id);
             state.equippedSkin = "admin_neon_rainbow";
             state.unlockedAuras = AURAS_DATA.map(a => a.id);
@@ -2167,42 +2527,33 @@
             state.equippedShades = "admin_neon_visor";
             state.unlockedVoices = VOICES_DATA.map(v => v.id);
             state.equippedVoice = "admin_neon_symphony";
-
-            state.pets = PET_SPECIES.map((sp, i) => ({
-                uid: `admin_pet_${sp.id}_${i}`,
-                speciesId: sp.id,
-                tier: 5
-            }));
-            equipBestPets();
-
-            state.unlockedRelics = RELICS_DATA.map(r => r.id);
-            state.collectedCards = CARDS_DATA.map(c => c.id);
-            state.builtMonuments = MONUMENTS_DATA.map(m => m.id);
-            Object.keys(state.masteryLevels).forEach(k => state.masteryLevels[k] = 99);
-            state.passXp = 999999;
-            const farFuture = Date.now() + 365 * 24 * 3600 * 1000;
-            POTIONS_DATA.forEach(p => state.activePotions[p.id] = farFuture);
-
+            state.upgrades = { clickPower: 999, autoSpeed: 999, critChance: 500, feverBoost: 500 };
+            state.rpUpgrades = { rpMult: 500, rpPetSlots: 4, rpLuck: 100 };
+            state.voidUpgrades = { voidPower: 250, voidGems: 250 };
+            state.skills = { skillTap: 100, skillAuto: 100, skillPets: 100, skillCrit: 100 };
+            state.passXp = 5000;
             saveGame();
-            window.syncLeaderboardScore(true);
+            window.syncLeaderboardScore(false);
             renderAll();
-            showToast("🌈 MAXED EVERYTHING TO 999 Sp + WORLD 21!", "success");
+            showToast("👑 RainbowLord16 Maxed Out to 999 Sp & World 21!", "success");
         }
 
-        async function broadcastCommunityAdminEvent(type, text) {
-            const eventPayload = {
-                id: "evt_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
-                type,
-                text,
+        async function broadcastCommunityAdminEvent(eventType, messageText) {
+            const payload = {
+                id: "evt_" + Date.now() + "_" + Math.floor(Math.random() * 10000),
+                type: eventType,
+                message: messageText,
                 by: ADMIN_OWNER_NAME,
-                createdAt: Date.now()
+                timestamp: Date.now()
             };
-            applyAdminAbuseEvent(eventPayload);
+            localStorage.setItem("dqCommunityAdminAbuse", JSON.stringify(payload));
+            applyAdminAbuseEvent(payload);
+
             const api = window.__cloudApi;
             if (api && api.getDb() && api.getUser()) {
                 try {
-                    const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "admin_events", "live");
-                    await api.setDoc(ref, eventPayload);
+                    const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "adminEvents", "latest");
+                    await api.setDoc(ref, payload);
                 } catch (e) {}
             }
         }
@@ -2215,307 +2566,319 @@
             const banner = document.getElementById("adminAbuseBanner");
             const bannerText = document.getElementById("adminAbuseBannerText");
             if (banner && bannerText) {
-                bannerText.textContent = `👑 [ADMIN ABUSE by ${evt.by || "RainbowLord16"}]: ${evt.text}`;
+                bannerText.textContent = `👑 [ADMIN ABUSE • ${evt.by}]: ${evt.message}`;
                 banner.classList.remove("hidden");
-                setTimeout(() => banner.classList.add("hidden"), 15000);
+                setTimeout(() => banner.classList.add("hidden"), 18000);
             }
+
             if (evt.type === "rainbow_storm") {
-                activeWeather = { name: "Admin Rainbow Storm", icon: "🌈", mult: 100, timer: 60000 };
-                showToast("🌈 ADMIN ABUSE: 100x RAINBOW STORM ACTIVE FOR EVERYONE!", "success");
+                activeWeather = { id: "rainbow_storm", name: "🌈 ADMIN RAINBOW STORM (100x)", mult: 100, timer: 30000 };
+                for (let i = 0; i < 6; i++) {
+                    setTimeout(() => spawnFallingSkyAnomaly("rainbow_star"), i * 300);
+                }
             } else if (evt.type === "super_fever") {
                 feverCharge = 100;
                 feverActiveTimer = 30000;
-                showToast("🔥 ADMIN ABUSE: GLOBAL HYPER FEVER ACTIVATED!", "success");
             } else if (evt.type === "global_gift") {
-                state.gems += 10000;
-                state.feathers += 25;
-                state.shards += 50;
-                showToast("🎁 ADMIN GIFT: +10,000 Gems, +25 Feathers & +50 Shards!", "success");
-            } else {
-                showToast(`📢 ${evt.text}`, "info");
+                state.gems += 5000;
+                state.feathers += 10;
+                state.shards += 25;
             }
+            showToast(`👑 ${evt.message}`, "success");
             renderAll();
         }
 
         function runAdminCommand(cmd) {
-            if (!isCurrentUserVerifiedAdmin()) return showToast("🔒 Admin authentication required!", "error");
-            if (cmd === "max_currencies") return restoreMaxedAccount();
-            if (cmd === "rainbow_storm") return broadcastCommunityAdminEvent("rainbow_storm", "100x Neon Rainbow Storm Summoned Across All Servers!");
-            if (cmd === "super_fever") return broadcastCommunityAdminEvent("super_fever", "Global 30s Hyper Quack Fever Activated!");
-            if (cmd === "global_gift") return broadcastCommunityAdminEvent("global_gift", "Free Gems, Golden Feathers & Void Shards Dropped for All Players!");
-            if (cmd === "world_21") {
-                selectOrUnlockWorld(21);
-                return showToast("🌈 Teleported to World 21: Rainbow Sovereign Sanctuary!", "success");
-            }
-            if (cmd === "spawn_god_pet") {
-                state.pets.push({ uid: "god_" + Date.now(), speciesId: "genesis", tier: 5 });
+            if (!isCurrentUserVerifiedAdmin()) return showToast("🔒 Restricted to RainbowLord16!", "error");
+            if (cmd === "max_currencies") restoreMaxedAccount();
+            else if (cmd === "rainbow_storm") broadcastCommunityAdminEvent("rainbow_storm", "100x Rainbow Meteor Storm Summoned for ALL Players!");
+            else if (cmd === "super_fever") broadcastCommunityAdminEvent("super_fever", "HYPER QUACK FEVER Activated Across the Community!");
+            else if (cmd === "global_gift") broadcastCommunityAdminEvent("global_gift", "RainbowLord16 Gifted +5,000 Gems, +10 Feathers & +25 Shards to Everyone!");
+            else if (cmd === "world_21") {
+                if (!state.unlockedWorlds.includes(21)) state.unlockedWorlds.push(21);
+                state.currentWorld = 21;
+                renderAll();
+                showToast("🌌 Teleported to World 21: Rainbow Sovereign Sanctuary!", "success");
+            } else if (cmd === "spawn_god_pet") {
+                const pet = { id: "pet_admin_" + Date.now(), speciesId: "genesis", tier: 5 };
+                state.pets.push(pet);
                 equipBestPets();
-                return showToast("🐉 Spawned Rainbow Supreme Genesis Quack God!", "success");
+                renderAll();
+                showToast("🐉 Spawned Rainbow Supreme Genesis Quack God (500x)!", "success");
             }
         }
 
         function executeTypedAdminCommand() {
-            if (!isCurrentUserVerifiedAdmin()) return showToast("🔒 Admin authentication required!", "error");
-            const inp = document.getElementById("adminCmdInput");
-            const raw = (inp ? inp.value : "").trim();
+            if (!isCurrentUserVerifiedAdmin()) return showToast("🔒 Restricted to RainbowLord16!", "error");
+            const input = document.getElementById("adminCmdInput");
+            const raw = input ? input.value.trim() : "";
             if (!raw) return;
-            if (inp) inp.value = "";
+            if (input) input.value = "";
+
             if (raw.startsWith("/announce ")) {
-                return broadcastCommunityAdminEvent("announce", raw.slice(10));
-            }
-            const parts = raw.split(/\s+/);
-            if (parts[0] === "/give" && parts.length >= 3) {
-                const cur = parts[1].toLowerCase();
+                const msg = raw.slice(10).trim();
+                if (msg) broadcastCommunityAdminEvent("announce", msg);
+            } else if (raw.startsWith("/give ")) {
+                const parts = raw.split(/\s+/);
+                const curr = (parts[1] || "").toLowerCase();
                 const amt = sanitizeNum(parts[2], 0);
-                if (["quacks", "gems", "rp", "feathers", "shards", "relics"].includes(cur)) {
-                    state[cur] += amt;
-                    if (cur === "quacks") state.lifetimeQuacks += amt;
+                if (amt > 0 && ["quacks", "gems", "rp", "feathers", "shards", "relics"].includes(curr)) {
+                    state[curr] += amt;
+                    if (curr === "quacks") state.lifetimeQuacks += amt;
                     renderAll();
-                    return showToast(`⚡ Granted +${formatNumber(amt)} ${cur}!`, "success");
+                    showToast(`⚡ Gave +${formatNum(amt)} ${curr.toUpperCase()}!`, "success");
                 }
-            }
-            runAdminCommand(raw.replace("/", ""));
+            } else if (raw === "/max_all") runAdminCommand("max_currencies");
+            else if (raw === "/rainbow_storm") runAdminCommand("rainbow_storm");
+            else if (raw === "/hyper_fever") runAdminCommand("super_fever");
+            else if (raw === "/global_gift") runAdminCommand("global_gift");
+            else showToast("Commands: /announce <msg>, /give <currency> <amt>, /max_all, /rainbow_storm, /hyper_fever, /global_gift", "info");
         }
 
-        /* =========================================================================
-           10. PROFILE, AVATAR ISOLATION, LOG OUT & REAL-TIME LEADERBOARD
-           ========================================================================= */
-        function handleProfilePicUpload(e) {
-            const file = e.target.files && e.target.files[0];
+        function getAccountSlotId() {
+            if (isCurrentUserVerifiedAdmin()) return "ADMIN_RAINBOWLORD16";
+            let slotId = localStorage.getItem(LOCAL_SLOT_ID_KEY);
+            if (!slotId || slotId === "ADMIN_RAINBOWLORD16") {
+                slotId = "PLAYER_" + Math.random().toString(36).slice(2, 10).toUpperCase();
+                localStorage.setItem(LOCAL_SLOT_ID_KEY, slotId);
+            }
+            return slotId;
+        }
+
+        function getAvatarStorageKey() {
+            return `duckQuackAvatar_${getAccountSlotId()}`;
+        }
+
+        function handleProfilePicUpload(event) {
+            const file = event.target.files && event.target.files[0];
             if (!file) return;
-            if (file.size > 6 * 1024 * 1024) return showToast("Image must be under 6 MB!", "error");
+            if (file.size > 6 * 1024 * 1024) {
+                return showToast("Image exceeds 6 MB limit!", "error");
+            }
             const reader = new FileReader();
             reader.onload = () => {
-                state.profilePic = reader.result;
+                const dataUrl = String(reader.result || "");
+                state.profilePic = dataUrl;
+                try {
+                    localStorage.setItem(getAvatarStorageKey(), dataUrl);
+                } catch (e) {}
                 saveGame();
-                window.syncLeaderboardScore(true);
-                renderProfilePreview();
-                showToast("🖼️ Profile picture updated!", "success");
+                window.syncLeaderboardScore(false);
+                renderAll();
+                showToast("📸 Profile picture updated!", "success");
             };
             reader.readAsDataURL(file);
         }
 
         function removeProfilePic() {
             state.profilePic = "";
+            localStorage.removeItem(getAvatarStorageKey());
             saveGame();
             window.syncLeaderboardScore(false);
-            renderProfilePreview();
+            renderAll();
             showToast("Profile picture removed.", "info");
         }
 
         function savePlayerName() {
-            const inp = document.getElementById("playerNameInput");
-            const val = (inp ? inp.value : "").trim();
+            const input = document.getElementById("playerNameInput");
+            const val = input ? input.value.trim() : "";
             if (!val) return;
-            if (val === ADMIN_OWNER_NAME && !isAdminAuthenticated) {
+            if (val.toLowerCase() === ADMIN_OWNER_NAME.toLowerCase() && !isAdminAuthenticated) {
                 return showToast("🔒 Unlock the Admin Vault below to use RainbowLord16!", "error");
             }
-            state.playerName = val;
+            state.playerName = val.slice(0, 20);
             saveGame();
-            window.syncLeaderboardScore(true);
-            showToast(`Commander name set to ${val}!`, "success");
+            window.syncLeaderboardScore(false);
+            renderAll();
+            showToast(`Commander name set to ${state.playerName}!`, "success");
         }
 
         function logoutAndResetAccount() {
-            window.syncLeaderboardScore(false);
             isAdminAuthenticated = false;
             sessionStorage.removeItem("dqAdminSessionAuth");
             localStorage.removeItem(SAVE_KEY);
-            const freshSlot = "QUACK-" + Math.random().toString(36).substring(2, 10).toUpperCase();
-            localStorage.setItem(LOCAL_SLOT_ID_KEY, freshSlot);
+            const newId = "PLAYER_" + Math.random().toString(36).slice(2, 10).toUpperCase();
+            localStorage.setItem(LOCAL_SLOT_ID_KEY, newId);
             state = createFreshDefaultState();
-            saveGame();
+            const nameInput = document.getElementById("playerNameInput");
+            if (nameInput) nameInput.value = state.playerName;
             updateAdminUiState();
+            saveGame();
+            window.syncLeaderboardScore(false);
             renderAll();
-            closeModal("profileModal");
-            showToast("👋 Logged out! Started a fresh Commander account.", "info");
+            showToast("👋 Logged out! Started a fresh account (RainbowLord16 preserved at #1).", "info");
         }
 
         function loadLocalLeaderboardArchive() {
             try {
                 const raw = localStorage.getItem(LB_LOCAL_ARCHIVE_KEY);
-                const parsed = raw ? JSON.parse(raw) : [];
-                return Array.isArray(parsed) ? parsed : [];
+                const parsed = raw ? JSON.parse(raw) : {};
+                return parsed && typeof parsed === "object" ? parsed : {};
             } catch (e) {
-                return [];
+                return {};
             }
         }
 
-        function ensureAdminLeaderboardSeed() {
+        function saveLocalLeaderboardEntry(entry) {
             const archive = loadLocalLeaderboardArchive();
-            if (!archive.some(r => r && r.id === "ADMIN_RAINBOWLORD16")) {
-                archive.push({
-                    id: "ADMIN_RAINBOWLORD16",
-                    name: ADMIN_OWNER_NAME,
-                    quacks: 1e300,
-                    rebirths: 999999999,
-                    bosses: 999999999,
-                    eggs: 999999999,
-                    profilePic: "",
-                    isAdmin: true,
-                    updatedAt: Date.now()
-                });
-                try { localStorage.setItem(LB_LOCAL_ARCHIVE_KEY, JSON.stringify(archive)); } catch (e) {}
-            }
+            archive[entry.slotId] = entry;
+            localStorage.setItem(LB_LOCAL_ARCHIVE_KEY, JSON.stringify(archive));
         }
 
-        function getMergedLeaderboardRows() {
-            ensureAdminLeaderboardSeed();
-            const slotId = getCurrentSlotId();
-            const isAdminNow = isCurrentUserVerifiedAdmin();
-            const meRow = {
-                id: slotId,
-                name: state.playerName || "QuackCommander",
-                quacks: isAdminNow ? Math.max(sanitizeNum(state.lifetimeQuacks, 0), 1e300) : sanitizeNum(state.lifetimeQuacks, 0),
-                rebirths: isAdminNow ? Math.max(sanitizeNum(state.rebirths, 0), 999999999) : sanitizeNum(state.rebirths, 0),
-                bosses: isAdminNow ? Math.max(sanitizeNum(state.bossesSlain, 0), 999999999) : sanitizeNum(state.bossesSlain, 0),
-                eggs: isAdminNow ? Math.max(sanitizeNum(state.eggsHatched, 0), 999999999) : sanitizeNum(state.eggsHatched, 0),
-                profilePic: state.profilePic || "",
-                isAdmin: isAdminNow
-            };
-            const map = new Map();
-            for (const row of [...loadLocalLeaderboardArchive(), ...cloudLeaderboardRows]) {
-                if (row && row.id) map.set(row.id, row);
-            }
-            map.set(slotId, meRow);
-            const rows = Array.from(map.values());
-            const key = leaderboardTab;
-            rows.sort((a, b) => {
-                if (a.id === "ADMIN_RAINBOWLORD16" && b.id !== "ADMIN_RAINBOWLORD16") return -1;
-                if (b.id === "ADMIN_RAINBOWLORD16" && a.id !== "ADMIN_RAINBOWLORD16") return 1;
-                return sanitizeNum(b[key], 0) - sanitizeNum(a[key], 0);
-            });
-            return rows;
-        }
-
-        function setLeaderboardTab(tab) {
-            leaderboardTab = tab;
-            document.querySelectorAll(".lb-tab-btn").forEach(btn => {
-                const active = btn.getAttribute("data-tab") === tab;
-                btn.className = active
-                    ? "lb-tab-btn bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-extrabold"
-                    : "lb-tab-btn bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-extrabold";
-            });
-            renderFullLeaderboard();
-        }
-
-        function renderMiniLeaderboard() {
-            const box = document.getElementById("miniLeaderboardList");
-            if (!box) return;
-            const rows = getMergedLeaderboardRows().slice(0, 3);
-            box.innerHTML = rows.map((r, i) => `
-                <div class="flex items-center justify-between bg-slate-950/80 border ${r.id === "ADMIN_RAINBOWLORD16" ? "border-pink-500/50" : "border-white/10"} rounded-xl px-2.5 py-1.5">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <span class="font-black text-amber-300">#${i + 1}</span>
-                        <span class="font-extrabold text-white truncate">${r.name}</span>
-                    </div>
-                    <span class="font-black text-amber-300 shrink-0">${formatNumber(r.quacks)}</span>
-                </div>
-            `).join("");
-        }
-
-        function renderFullLeaderboard() {
-            const box = document.getElementById("fullLeaderboardList");
-            const idLbl = document.getElementById("lbPlayerIdText");
-            if (idLbl) idLbl.textContent = getCurrentSlotId();
-            if (!box) return;
-            const rows = getMergedLeaderboardRows();
-            const key = leaderboardTab;
-            box.innerHTML = rows.map((r, i) => {
-                const isAdminRow = r.id === "ADMIN_RAINBOWLORD16";
-                const avatarHtml = (r.profilePic && (isAdminRow || r.id === getCurrentSlotId()))
-                    ? `<img src="${r.profilePic}" class="w-9 h-9 rounded-xl object-cover border border-amber-400/60" alt="">`
-                    : `<div class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-amber-300 font-black">${(r.name || "Q")[0].toUpperCase()}</div>`;
-                return `
-                    <div class="flex items-center justify-between gap-3 p-3 rounded-2xl ${isAdminRow ? "obsidian-neon-rainbow" : "bg-slate-950/85 border border-white/10"}">
-                        <div class="flex items-center gap-3 min-w-0">
-                            <span class="w-7 h-7 rounded-lg bg-slate-900 flex items-center justify-center font-black text-xs ${i === 0 ? "text-amber-300" : "text-slate-300"}">#${i + 1}</span>
-                            ${avatarHtml}
-                            <div class="min-w-0">
-                                <div class="text-sm font-black text-white truncate">${r.name} ${isAdminRow ? "👑" : ""}</div>
-                                <div class="text-[10px] font-bold text-slate-400">${isAdminRow ? "King of Rainbows • Owner" : r.id}</div>
-                            </div>
-                        </div>
-                        <div class="text-right shrink-0">
-                            <div class="title-font text-sm font-bold text-amber-300">${formatNumber(r[key])}</div>
-                            <div class="text-[10px] uppercase text-slate-400 font-bold">${key}</div>
-                        </div>
-                    </div>
-                `;
-            }).join("");
-        }
-
-        window.syncLeaderboardScore = async function(notify = false) {
-            const slotId = getCurrentSlotId();
-            const isAdminNow = isCurrentUserVerifiedAdmin();
+        window.syncLeaderboardScore = async function (showFeedback = false) {
+            const slotId = getAccountSlotId();
             const entry = {
-                id: slotId,
+                slotId,
                 name: state.playerName || "QuackCommander",
-                quacks: isAdminNow ? Math.max(sanitizeNum(state.lifetimeQuacks, 0), 1e300) : sanitizeNum(state.lifetimeQuacks, 0),
-                rebirths: isAdminNow ? Math.max(sanitizeNum(state.rebirths, 0), 999999999) : sanitizeNum(state.rebirths, 0),
-                bosses: isAdminNow ? Math.max(sanitizeNum(state.bossesSlain, 0), 999999999) : sanitizeNum(state.bossesSlain, 0),
-                eggs: isAdminNow ? Math.max(sanitizeNum(state.eggsHatched, 0), 999999999) : sanitizeNum(state.eggsHatched, 0),
-                profilePic: state.profilePic && state.profilePic.length < 400000 ? state.profilePic : "",
-                isAdmin: isAdminNow,
+                profilePic: isCurrentUserVerifiedAdmin() ? (state.profilePic || "") : (state.profilePic || ""),
+                isAdmin: isCurrentUserVerifiedAdmin(),
+                quacks: sanitizeNum(state.lifetimeQuacks, 0),
+                rebirths: sanitizeNum(state.rebirths, 0),
+                bosses: sanitizeNum(state.bossesSlain, 0),
+                eggs: sanitizeNum(state.eggsHatched, 0),
                 updatedAt: Date.now()
             };
-            const archive = loadLocalLeaderboardArchive().filter(r => r.id !== slotId);
-            archive.push(entry);
-            try { localStorage.setItem(LB_LOCAL_ARCHIVE_KEY, JSON.stringify(archive)); } catch (e) {}
+            saveLocalLeaderboardEntry(entry);
 
             const api = window.__cloudApi;
             if (api && api.getDb() && api.getUser()) {
                 try {
                     const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard", slotId);
                     await api.setDoc(ref, entry, { merge: true });
-                    if (notify) showToast("🏆 Global Leaderboard synced!", "success");
                 } catch (e) {}
-            } else if (notify) {
-                showToast("🏆 Saved to local Hall of Fame!", "info");
             }
-            renderMiniLeaderboard();
-            renderFullLeaderboard();
+            if (showFeedback) showToast("☁️ Leaderboard synced live!", "success");
+            renderLeaderboard();
         };
 
-        window.startLeaderboardListener = function() {
+        window.startLeaderboardListener = function () {
             const api = window.__cloudApi;
             if (!api || !api.getDb()) return;
             try {
-                const col = api.collection(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard");
-                api.onSnapshot(col, (snap) => {
-                    const list = [];
-                    snap.forEach(d => list.push(d.data()));
-                    cloudLeaderboardRows = list;
-                    renderMiniLeaderboard();
-                    renderFullLeaderboard();
-                }, (err) => console.warn("Leaderboard snapshot:", err));
+                const colRef = api.collection(api.getDb(), "artifacts", api.getAppId(), "public", "data", "leaderboard");
+                api.onSnapshot(colRef, (snap) => {
+                    const rows = [];
+                    snap.forEach(d => rows.push(d.data()));
+                    cloudLeaderboardRows = rows;
+                    renderLeaderboard();
+                }, () => {});
             } catch (e) {}
         };
 
-        window.startAdminAbuseListener = function() {
+        window.startAdminAbuseListener = function () {
             const api = window.__cloudApi;
             if (!api || !api.getDb()) return;
             try {
-                const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "admin_events", "live");
+                const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "public", "data", "adminEvents", "latest");
                 api.onSnapshot(ref, (snap) => {
                     if (snap.exists()) applyAdminAbuseEvent(snap.data());
-                }, (err) => console.warn("Admin event snapshot:", err));
+                }, () => {});
             } catch (e) {}
         };
 
-        window.addEventListener("storage", (e) => {
-            if (e.key === LB_LOCAL_ARCHIVE_KEY) {
-                renderMiniLeaderboard();
-                renderFullLeaderboard();
+        function setLeaderboardTab(tab) {
+            leaderboardTab = tab;
+            document.querySelectorAll(".lb-tab-btn").forEach(btn => {
+                const active = btn.dataset.tab === tab;
+                btn.className = active
+                    ? "lb-tab-btn bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-extrabold"
+                    : "lb-tab-btn bg-slate-800 text-slate-300 px-3 py-1.5 rounded-xl text-xs font-extrabold";
+            });
+            renderLeaderboard();
+        }
+
+        function getMergedLeaderboardRows() {
+            const map = new Map();
+            // Seed RainbowLord16 sovereign baseline
+            map.set("ADMIN_RAINBOWLORD16", {
+                slotId: "ADMIN_RAINBOWLORD16",
+                name: ADMIN_OWNER_NAME,
+                profilePic: localStorage.getItem("duckQuackAvatar_ADMIN_RAINBOWLORD16") || "",
+                isAdmin: true,
+                quacks: 999e24,
+                rebirths: 999999,
+                bosses: 9999,
+                eggs: 99999
+            });
+
+            const localArchive = loadLocalLeaderboardArchive();
+            Object.values(localArchive).forEach(row => {
+                if (row && row.slotId) {
+                    const prev = map.get(row.slotId);
+                    if (!prev || sanitizeNum(row.quacks, 0) >= sanitizeNum(prev.quacks, 0)) {
+                        map.set(row.slotId, row);
+                    }
+                }
+            });
+
+            (cloudLeaderboardRows || []).forEach(row => {
+                if (row && row.slotId) {
+                    const prev = map.get(row.slotId);
+                    if (!prev || sanitizeNum(row.quacks, 0) >= sanitizeNum(prev.quacks, 0)) {
+                        map.set(row.slotId, row);
+                    }
+                }
+            });
+
+            const list = Array.from(map.values());
+            list.sort((a, b) => {
+                if (a.slotId === "ADMIN_RAINBOWLORD16") return -1;
+                if (b.slotId === "ADMIN_RAINBOWLORD16") return 1;
+                return sanitizeNum(b[leaderboardTab], 0) - sanitizeNum(a[leaderboardTab], 0);
+            });
+            return list;
+        }
+
+        function renderLeaderboard() {
+            const rows = getMergedLeaderboardRows();
+            const currentSlot = getAccountSlotId();
+            const idLabel = document.getElementById("lbPlayerIdText");
+            if (idLabel) idLabel.textContent = currentSlot;
+
+            const mini = document.getElementById("miniLeaderboardList");
+            if (mini) {
+                mini.innerHTML = rows.slice(0, 4).map((r, i) => `
+                    <div class="flex items-center justify-between bg-slate-950/75 border ${r.isAdmin ? "obsidian-neon-rainbow" : "border-white/10"} rounded-xl px-2.5 py-1.5">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="font-black text-amber-300">#${i + 1}</span>
+                            <span class="font-bold text-white truncate">${r.name}</span>
+                        </div>
+                        <span class="font-extrabold text-emerald-300 shrink-0">${formatNum(r.quacks)}</span>
+                    </div>
+                `).join("");
             }
-        });
+
+            const full = document.getElementById("fullLeaderboardList");
+            if (full) {
+                full.innerHTML = rows.map((r, i) => {
+                    const val = formatNum(r[leaderboardTab] || 0);
+                    const avatarHtml = r.profilePic
+                        ? `<img src="${r.profilePic}" alt="" class="w-9 h-9 rounded-xl object-cover border border-amber-400/50">`
+                        : `<div class="w-9 h-9 rounded-xl bg-slate-800 flex items-center justify-center text-amber-300"><i class="fa-solid fa-duck"></i></div>`;
+                    return `
+                        <div class="flex items-center justify-between bg-slate-950/85 border ${r.isAdmin ? "obsidian-neon-rainbow" : r.slotId === currentSlot ? "border-sky-400/50" : "border-white/10"} rounded-2xl p-3">
+                            <div class="flex items-center gap-3 min-w-0">
+                                <span class="w-7 text-center font-black text-sm ${i === 0 ? "text-amber-300" : "text-slate-400"}">#${i + 1}</span>
+                                ${avatarHtml}
+                                <div class="min-w-0">
+                                    <div class="font-extrabold text-sm text-white truncate">${r.name} ${r.isAdmin ? '<span class="text-[10px] text-pink-400 font-black">[OWNER]</span>' : ""}</div>
+                                    <div class="text-[10px] text-slate-400 font-mono">${r.slotId}</div>
+                                </div>
+                            </div>
+                            <div class="title-font text-sm sm:text-base font-bold text-amber-300 shrink-0">${val}</div>
+                        </div>
+                    `;
+                }).join("");
+            }
+        }
 
         /* =========================================================================
-           11. SAVE / LOAD & CLOUD BACKUP
+           10. SAVE, LOAD, CLOUD BACKUP & RENDER ALL UI
            ========================================================================= */
         function saveGame() {
             try {
-                localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+                const copy = { ...state, profilePic: "" };
+                localStorage.setItem(SAVE_KEY, JSON.stringify(copy));
             } catch (e) {}
         }
 
@@ -2526,38 +2889,32 @@
                 }
                 const raw = localStorage.getItem(SAVE_KEY);
                 if (raw) {
-                    const parsed = JSON.parse(raw);
-                    state = { ...createFreshDefaultState(), ...parsed };
+                    const loaded = JSON.parse(raw);
+                    state = { ...createFreshDefaultState(), ...loaded };
                 }
-                // Normalize array fields in case an older save stored objects/nulls
-                const arrayKeys = [
-                    "unlockedWorlds", "pets", "equippedPetIds",
-                    "unlockedSkins", "unlockedAuras", "unlockedHats",
-                    "unlockedShades", "unlockedVoices", "unlockedRelics",
-                    "collectedCards", "builtMonuments", "claimedPassTiers", "redeemedCodes"
-                ];
-                arrayKeys.forEach(k => {
-                    if (!Array.isArray(state[k])) {
-                        state[k] = state[k] && typeof state[k] === "object" ? Object.keys(state[k]).map(v => isNaN(v) ? v : Number(v)) : [];
-                    }
-                });
-                if (!state.unlockedWorlds.includes(1)) state.unlockedWorlds.push(1);
-                if (!state.unlockedSkins.includes("classic")) state.unlockedSkins.push("classic");
-                if (!state.unlockedAuras.includes("none")) state.unlockedAuras.push("none");
-                if (!state.unlockedHats.includes("none")) state.unlockedHats.push("none");
-                if (!state.unlockedShades.includes("none")) state.unlockedShades.push("none");
-                if (!state.unlockedVoices.includes("classic")) state.unlockedVoices.push("classic");
+                if (!Array.isArray(state.unlockedWorlds)) state.unlockedWorlds = [1];
+                if (!Array.isArray(state.pets)) state.pets = [];
+                if (!Array.isArray(state.equippedPetIds)) state.equippedPetIds = [];
+                if (!Array.isArray(state.claimedPassTiers)) state.claimedPassTiers = [];
+                if (!Array.isArray(state.redeemedCodes)) state.redeemedCodes = [];
+                if (!Array.isArray(state.unlockedRelics)) state.unlockedRelics = [];
+                if (!Array.isArray(state.collectedCards)) state.collectedCards = [];
+                if (!Array.isArray(state.builtMonuments)) state.builtMonuments = [];
+
                 enforceAdminSecurity();
-            } catch (e) {}
+                state.profilePic = localStorage.getItem(getAvatarStorageKey()) || "";
+            } catch (e) {
+                state = createFreshDefaultState();
+            }
         }
 
         async function saveToCloud() {
             const api = window.__cloudApi;
             if (!api || !api.getDb() || !api.getUser()) return showToast("Cloud unavailable offline.", "error");
             try {
-                const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "users", api.getUser().uid, "saves", "main");
-                await api.setDoc(ref, { ...state, savedAt: Date.now() });
-                showToast("☁️ Cloud backup complete!", "success");
+                const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "users", api.getUser().uid, "saves", getAccountSlotId());
+                await api.setDoc(ref, { ...state, profilePic: "", savedAt: Date.now() });
+                showToast("☁️ Cloud backup saved!", "success");
             } catch (e) {
                 showToast("Cloud backup failed.", "error");
             }
@@ -2567,7 +2924,7 @@
             const api = window.__cloudApi;
             if (!api || !api.getDb() || !api.getUser()) return showToast("Cloud unavailable offline.", "error");
             try {
-                const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "users", api.getUser().uid, "saves", "main");
+                const ref = api.doc(api.getDb(), "artifacts", api.getAppId(), "users", api.getUser().uid, "saves", getAccountSlotId());
                 const snap = await api.getDoc(ref);
                 if (snap.exists()) {
                     state = { ...createFreshDefaultState(), ...snap.data() };
@@ -2576,7 +2933,7 @@
                     renderAll();
                     showToast("☁️ Cloud save restored!", "success");
                 } else {
-                    showToast("No cloud backup found yet.", "info");
+                    showToast("No cloud backup found for this slot.", "info");
                 }
             } catch (e) {
                 showToast("Cloud restore failed.", "error");
@@ -2584,417 +2941,417 @@
         }
 
         function exportSaveString() {
-            const str = btoa(unescape(encodeURIComponent(JSON.stringify(state))));
-            const ta = document.createElement("textarea");
-            ta.value = str;
-            document.body.appendChild(ta);
-            ta.select();
-            document.execCommand("copy");
-            ta.remove();
-            showToast("📋 Save string copied to clipboard!", "success");
+            try {
+                const str = btoa(unescape(encodeURIComponent(JSON.stringify({ ...state, profilePic: "" }))));
+                navigator.clipboard.writeText(str);
+                showToast("📋 Save string copied to clipboard!", "success");
+            } catch (e) {
+                showToast("Could not copy save string.", "error");
+            }
         }
 
         function importSaveString() {
-            const code = window.prompt("Paste your Duck Quack Save String:");
-            if (!code) return;
+            const raw = prompt("Paste your exported save string:");
+            if (!raw) return;
             try {
-                const parsed = JSON.parse(decodeURIComponent(escape(atob(code.trim()))));
+                const parsed = JSON.parse(decodeURIComponent(escape(atob(raw.trim()))));
                 state = { ...createFreshDefaultState(), ...parsed };
                 enforceAdminSecurity();
                 saveGame();
                 renderAll();
                 showToast("✅ Save imported successfully!", "success");
             } catch (e) {
-                showToast("❌ Invalid save string!", "error");
+                showToast("Invalid save string!", "error");
             }
-        }
-
-        /* =========================================================================
-           12. UI & SVG RENDERERS
-           ========================================================================= */
-        function openModal(id) {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.classList.remove("hidden");
-            el.classList.add("flex");
-            if (id === "wheelModal") drawFortuneWheel();
-            if (id === "bossModal") renderBossModal();
-            if (id === "leaderboardModal") renderFullLeaderboard();
-            if (id === "profileModal") {
-                const inp = document.getElementById("playerNameInput");
-                if (inp) inp.value = state.playerName || "";
-                renderProfilePreview();
-                updateAdminUiState();
-            }
-        }
-
-        function closeModal(id) {
-            const el = document.getElementById(id);
-            if (!el) return;
-            el.classList.add("hidden");
-            el.classList.remove("flex");
-            if (id === "arcadeModal") arcadeRunning = false;
-        }
-
-        function renderProfilePreview() {
-            const box = document.getElementById("profileAvatarPreview");
-            if (!box) return;
-            box.innerHTML = state.profilePic
-                ? `<img src="${state.profilePic}" class="w-full h-full object-cover" alt="">`
-                : `<i class="fa-solid fa-duck text-2xl text-amber-400"></i>`;
-        }
-
-        function renderHeroDuckSvg() {
-            const wrap = document.getElementById("duckVisualWrapper");
-            const auraEl = document.getElementById("duckAuraElement");
-            const skinTitle = document.getElementById("equippedSkinTitle");
-            if (!wrap) return;
-
-            const skin = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
-            const aura = AURAS_DATA.find(a => a.id === state.equippedAura) || AURAS_DATA[0];
-            const isAdminSkin = skin.id === "admin_neon_rainbow";
-
-            if (auraEl) {
-                auraEl.style.cssText = aura.css;
-                auraEl.className = `duck-aura-ring absolute w-60 h-60 sm:w-68 sm:h-68 rounded-full pointer-events-none ${aura.id === "admin_neon_halo" ? "obsidian-neon-rainbow" : ""}`;
-            }
-            if (skinTitle) skinTitle.textContent = skin.name;
-
-            let hatSvg = "";
-            if (state.equippedHat === "propeller") {
-                hatSvg = `<rect x="85" y="22" width="30" height="10" rx="5" fill="#38bdf8"/><line x1="100" y1="22" x2="100" y2="12" stroke="#facc15" stroke-width="4"/><ellipse cx="100" cy="12" rx="22" ry="4" fill="#f43f5e"/>`;
-            } else if (state.equippedHat === "wizard") {
-                hatSvg = `<polygon points="100,4 72,36 128,36" fill="#7e22ce" stroke="#facc15" stroke-width="3"/>`;
-            } else if (state.equippedHat === "rainbow_crown" || state.equippedHat === "admin_neon_crown") {
-                hatSvg = `<polygon points="74,34 80,14 92,26 100,10 108,26 120,14 126,34" fill="#facc15" stroke="#ff007f" stroke-width="3"/>`;
-            }
-
-            let shadesSvg = "";
-            if (state.equippedShades === "cool") {
-                shadesSvg = `<rect x="74" y="48" width="22" height="11" rx="3" fill="#090d16"/><rect x="104" y="48" width="22" height="11" rx="3" fill="#090d16"/><line x1="96" y1="52" x2="104" y2="52" stroke="#090d16" stroke-width="3"/>`;
-            } else if (state.equippedShades === "cyber_visor" || state.equippedShades === "admin_neon_visor") {
-                shadesSvg = `<rect x="70" y="46" width="60" height="13" rx="6" fill="#00e5ff" stroke="#ff007f" stroke-width="3"/>`;
-            }
-
-            const strokeColor = isAdminSkin ? "#00e5ff" : "#090d16";
-            wrap.innerHTML = `
-                <svg viewBox="0 0 200 200" class="w-full h-full ${skin.rainbow ? "rainbow-prism-anim" : ""} ${isAdminSkin ? "neon-rainbow-admin" : ""}">
-                    <path d="M44 132 C44 92, 156 92, 162 136 C168 174, 134 182, 100 182 C62 182, 44 166, 44 132 Z" fill="${skin.body}" stroke="${strokeColor}" stroke-width="7"/>
-                    <ellipse cx="102" cy="144" rx="40" ry="24" fill="${skin.belly}" opacity="0.85"/>
-                    <circle cx="100" cy="64" r="38" fill="${skin.body}" stroke="${strokeColor}" stroke-width="7"/>
-                    <circle cx="86" cy="54" r="5.5" fill="${isAdminSkin ? "#00ff9d" : "#090d16"}"/>
-                    <circle cx="114" cy="54" r="5.5" fill="${isAdminSkin ? "#00ff9d" : "#090d16"}"/>
-                    ${shadesSvg}
-                    <ellipse cx="100" cy="72" rx="22" ry="11" fill="${skin.beak}" stroke="${strokeColor}" stroke-width="5"/>
-                    ${hatSvg}
-                </svg>
-            `;
-        }
-
-        function renderBossModal() {
-            const lvl = document.getElementById("bossLevelVal");
-            const slain = document.getElementById("bossSlainVal");
-            const bar = document.getElementById("bossHpBar");
-            const lbl = document.getElementById("bossHpLabel");
-            if (lvl) lvl.textContent = state.bossLevel;
-            if (slain) slain.textContent = state.bossesSlain;
-            const pct = Math.max(0, Math.min(100, (state.bossHp / state.bossMaxHp) * 100));
-            if (bar) bar.style.width = `${pct}%`;
-            if (lbl) lbl.textContent = `${formatNumber(state.bossHp)} / ${formatNumber(state.bossMaxHp)} HP`;
-        }
-
-        function updateHudFast() {
-            const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-            setTxt("dispQuacks", formatNumber(state.quacks));
-            setTxt("dispGems", formatNumber(state.gems));
-            setTxt("dispRP", formatNumber(state.rp));
-            setTxt("dispFeathers", formatNumber(state.feathers));
-            setTxt("dispShards", formatNumber(state.shards));
-            setTxt("dispRelics", formatNumber(state.relics));
-
-            setTxt("statQpc", formatNumber(getQuacksPerClick()));
-            setTxt("statQps", `${formatNumber(getQuacksPerSec())}/s`);
-            setTxt("statWorldMult", `${formatNumber(getWorldMultiplier())}x`);
-            setTxt("statPetMult", `+${formatNumber((getPetMultiplier() - 1) * 100)}%`);
-            setTxt("statGearMult", `${formatNumber(getGearMultiplier())}x`);
-            setTxt("statWeatherVoidMult", `${formatNumber(getWeatherAndVoidMultiplier())}x`);
-            setTxt("statEndgameMult", `${formatNumber(getEndgameMultiplier())}x`);
-            setTxt("statRebirthMult", `${formatNumber(getRebirthMultiplier())}x`);
-
-            setTxt("comboBadge", `${comboCount.toFixed(1)}x Combo`);
-            const bar = document.getElementById("feverBarFill");
-            if (bar) bar.style.width = `${feverActiveTimer > 0 ? (feverActiveTimer / 12000) * 100 : feverCharge}%`;
         }
 
         function renderAll() {
             enforceAdminSecurity();
-            updateHudFast();
-            updateAutomationButtons();
-            renderHeroDuckSvg();
-            renderMiniLeaderboard();
+            const verifiedAdmin = isCurrentUserVerifiedAdmin();
+            const currentWorldObj = WORLDS_DATA.find(w => w.id === state.currentWorld) || WORLDS_DATA[0];
+            const skinObj = SKINS_DATA.find(s => s.id === state.equippedSkin) || SKINS_DATA[0];
+            const auraObj = AURAS_DATA.find(a => a.id === state.equippedAura) || AURAS_DATA[0];
 
-            const w = WORLDS_DATA.find(x => x.id === state.currentWorld) || WORLDS_DATA[0];
-            const setTxt = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-            setTxt("headerWorldBadge", `W${w.id}: ${w.name}`);
-            setTxt("headerRankBadge", isCurrentUserVerifiedAdmin() ? "KING OF RAINBOWS" : state.rebirths >= 10 ? "QUACK EMPEROR" : "COMMANDER");
-            setTxt("currentWorldTitle", w.name);
-            setTxt("currentWorldDesc", w.desc);
-            setTxt("worldProgressText", `${w.id} / ${isCurrentUserVerifiedAdmin() ? 21 : 20}`);
-            setTxt("unlockedWorldCountLabel", isCurrentUserVerifiedAdmin() ? "21" : "20");
+            // Header & Currencies
+            document.getElementById("headerWorldBadge").textContent = `W${currentWorldObj.id}: ${currentWorldObj.name.split(" ")[0]}`;
+            document.getElementById("headerRankBadge").textContent = verifiedAdmin ? "Rainbow Sovereign" : (state.rebirths >= 50 ? "Ascended" : state.rebirths >= 5 ? "Veteran" : "Novice");
+            document.getElementById("dispQuacks").textContent = formatNum(state.quacks);
+            document.getElementById("dispGems").textContent = formatNum(state.gems);
+            document.getElementById("dispRP").textContent = formatNum(state.rp);
+            document.getElementById("dispFeathers").textContent = formatNum(state.feathers);
+            document.getElementById("dispShards").textContent = formatNum(state.shards);
+            document.getElementById("dispRelics").textContent = formatNum(state.relics);
 
-            const bg = document.getElementById("worldBackdropSvg");
-            if (bg) bg.style.background = `radial-gradient(circle at 50% 45%, ${w.bg}, transparent 75%)`;
+            // Power Breakdown
+            document.getElementById("statQpc").textContent = formatNum(getQuacksPerClick());
+            document.getElementById("statQps").textContent = `${formatNum(getQuacksPerSec())}/s`;
+            document.getElementById("statWorldMult").textContent = `${formatNum(getWorldMultiplier())}x`;
+            document.getElementById("statPetMult").textContent = `${formatNum(getPetMultiplier())}x`;
+            document.getElementById("statGearMult").textContent = `${formatNum(getGearMultiplier())}x`;
+            document.getElementById("statWeatherVoidMult").textContent = `${formatNum(getWeatherAndVoidMultiplier())}x`;
+            document.getElementById("statEndgameMult").textContent = `${formatNum(getEndgameMultiplier())}x`;
+            document.getElementById("statRebirthMult").textContent = `${formatNum(getRebirthMultiplier())}x`;
 
-            // Core upgrades
-            setTxt("lvlClick", `Lv.${state.upgrades.clickPower || 1}`);
-            setTxt("costClick", formatNumber(getUpgradeCost("clickPower")));
-            setTxt("lvlAuto", `Lv.${state.upgrades.autoSpeed || 0}`);
-            setTxt("costAuto", formatNumber(getUpgradeCost("autoSpeed")));
-            setTxt("lvlCrit", `Lv.${state.upgrades.critChance || 0}`);
-            setTxt("costCrit", formatNumber(getUpgradeCost("critChance")));
+            // Active Potions
+            const now = Date.now();
+            const activePots = POTIONS_DATA.filter(p => state.activePotions[p.id] && state.activePotions[p.id] > now);
+            document.getElementById("activePotionsBadge").textContent = `${activePots.length} Active Potions`;
+            document.getElementById("activePotionsStrip").innerHTML = activePots.map(p => {
+                const secs = Math.ceil((state.activePotions[p.id] - now) / 1000);
+                return `<span class="bg-fuchsia-500/20 border border-fuchsia-400/40 text-fuchsia-200 px-2 py-0.5 rounded-full text-[10px] font-bold">${p.name} (${secs}s)</span>`;
+            }).join("");
 
-            // Equipped pets strip
-            setTxt("equippedCountText", `${state.equippedPetIds.length}/${getMaxPetSlots()}`);
+            // Realm Card
+            const maxVisibleWorld = verifiedAdmin ? 21 : 20;
+            document.getElementById("worldProgressText").textContent = `${state.currentWorld} / ${maxVisibleWorld}`;
+            document.getElementById("unlockedWorldCountLabel").textContent = maxVisibleWorld;
+            document.getElementById("currentWorldTitle").textContent = currentWorldObj.name;
+            document.getElementById("currentWorldDesc").textContent = currentWorldObj.desc;
+
+            // Automation Toggles
+            const autoTapLbl = document.getElementById("lblAutoTap");
+            if (autoTapLbl) {
+                autoTapLbl.textContent = state.autoClickerOn ? "ACTIVE" : "OFF";
+                autoTapLbl.className = state.autoClickerOn ? "text-xs font-black text-emerald-400 mt-0.5" : "text-xs font-black text-rose-400 mt-0.5";
+            }
+            const autoRebLbl = document.getElementById("lblAutoRebirth");
+            if (autoRebLbl) {
+                autoRebLbl.textContent = state.autoRebirthOn ? "ACTIVE" : "OFF";
+                autoRebLbl.className = state.autoRebirthOn ? "text-xs font-black text-emerald-400 mt-0.5" : "text-xs font-black text-rose-400 mt-0.5";
+            }
+            const autoHatchLbl = document.getElementById("lblAutoHatch");
+            if (autoHatchLbl) {
+                autoHatchLbl.textContent = state.autoHatchOn ? "ACTIVE" : "OFF";
+                autoHatchLbl.className = state.autoHatchOn ? "text-emerald-400" : "text-rose-400";
+            }
+
+            // Stage Visuals
+            const backdrop = document.getElementById("worldBackdropSvg");
+            if (backdrop && backdrop.dataset.worldId !== String(state.currentWorld)) {
+                backdrop.dataset.worldId = String(state.currentWorld);
+                backdrop.innerHTML = getWorldBackdropSvg(state.currentWorld);
+            }
+
+            const weatherPill = document.getElementById("weatherStatusPill");
+            if (weatherPill) {
+                weatherPill.innerHTML = `${getWeatherBadgeSvg(activeWeather.id)} <span>${activeWeather.name}</span>`;
+            }
+
+            document.getElementById("comboBadge").textContent = `${comboCount.toFixed(1)}x Combo`;
+            const feverPct = feverActiveTimer > 0 ? Math.min(100, (feverActiveTimer / 10000) * 100) : feverCharge;
+            document.getElementById("feverBarFill").style.width = `${feverPct}%`;
+            document.getElementById("feverLabel").innerHTML = feverActiveTimer > 0
+                ? `<i class="fa-solid fa-fire me-1 animate-bounce"></i>FEVER OVERDRIVE ACTIVE!`
+                : `<i class="fa-solid fa-fire me-1"></i>Quack Fever Meter (${Math.floor(feverCharge)}%)`;
+            const stageCard = document.getElementById("stageCard");
+            if (stageCard) stageCard.classList.toggle("fever-glow", feverActiveTimer > 0);
+
+            const duckWrap = document.getElementById("duckVisualWrapper");
+            if (duckWrap) duckWrap.innerHTML = getHeroDuckSvg();
+            const auraEl = document.getElementById("duckAuraElement");
+            if (auraEl) auraEl.style.cssText = auraObj.css || "";
+            document.getElementById("equippedSkinTitle").textContent = skinObj.name;
+
+            // Equipped Pets Strip & Orbiting Pets
+            const maxPets = getMaxEquippedPets();
+            document.getElementById("equippedCountText").textContent = `${state.equippedPetIds.length}/${maxPets}`;
+            const equippedPets = (state.equippedPetIds || []).map(pid => state.pets.find(p => p.id === pid)).filter(Boolean);
             const strip = document.getElementById("equippedPetsStrip");
             if (strip) {
-                if (state.equippedPetIds.length === 0) {
-                    strip.innerHTML = `<span class="text-xs text-slate-400 italic px-2">No pets equipped</span>`;
-                } else {
-                    strip.innerHTML = state.equippedPetIds.map(uid => {
-                        const p = state.pets.find(x => x.uid === uid);
-                        const sp = p ? PET_SPECIES.find(s => s.id === p.speciesId) : null;
-                        return sp ? `<span class="bg-slate-900 border border-purple-400/40 px-2.5 py-1 rounded-xl text-[11px] font-extrabold text-purple-200 shrink-0">${sp.name}</span>` : "";
+                strip.innerHTML = equippedPets.length === 0
+                    ? `<span class="text-xs text-slate-400 italic px-2">No pets equipped</span>`
+                    : equippedPets.map(p => {
+                        const sp = PET_SPECIES.find(s => s.id === p.speciesId) || PET_SPECIES[0];
+                        return `<div class="flex items-center gap-1 bg-slate-900 border border-white/10 rounded-xl px-2 py-1 shrink-0">${getPetSvg(p.speciesId, p.tier, "w-6 h-6")}<span class="text-[10px] font-bold text-white">${sp.name}</span></div>`;
                     }).join("");
-                }
             }
 
-            // Orbiting pet badges
-            const orbitBox = document.getElementById("orbitingPetsContainer");
-            if (orbitBox) {
-                orbitBox.innerHTML = state.equippedPetIds.map((uid, idx) => {
-                    const p = state.pets.find(x => x.uid === uid);
-                    const sp = p ? PET_SPECIES.find(s => s.id === p.speciesId) : null;
-                    if (!sp) return "";
-                    const ang = (idx / Math.max(1, state.equippedPetIds.length)) * Math.PI * 2;
-                    const left = 50 + Math.cos(ang) * 44;
-                    const top = 50 + Math.sin(ang) * 44;
-                    return `<div class="orbit-pet-badge absolute w-9 h-9 rounded-full border-2 border-slate-950 shadow-lg flex items-center justify-center text-xs font-black text-slate-950" style="left:${left}%; top:${top}%; background:${sp.color};">🦆</div>`;
-                }).join("");
-            }
+            // Quick Core Upgrades
+            document.getElementById("lvlClick").textContent = `Lv.${state.upgrades.clickPower || 1}`;
+            document.getElementById("costClick").textContent = formatNum(getUpgradeCost("clickPower"));
+            document.getElementById("lvlAuto").textContent = `Lv.${state.upgrades.autoSpeed || 0}`;
+            document.getElementById("costAuto").textContent = formatNum(getUpgradeCost("autoSpeed"));
+            document.getElementById("lvlCrit").textContent = `Lv.${state.upgrades.critChance || 0}`;
+            document.getElementById("costCrit").textContent = formatNum(getUpgradeCost("critChance"));
 
             // Worlds Grid
-            const wGrid = document.getElementById("worldsGrid");
-            if (wGrid) {
-                const visibleWorlds = WORLDS_DATA.filter(item => !item.adminOnly || isCurrentUserVerifiedAdmin());
-                wGrid.innerHTML = visibleWorlds.map(item => {
-                    const unlocked = state.unlockedWorlds.includes(item.id);
-                    const active = state.currentWorld === item.id;
+            const worldsGrid = document.getElementById("worldsGrid");
+            if (worldsGrid) {
+                worldsGrid.innerHTML = WORLDS_DATA.filter(w => !w.adminOnly || verifiedAdmin).map(w => {
+                    const unlocked = (state.unlockedWorlds || []).includes(w.id);
+                    const isCurrent = state.currentWorld === w.id;
                     return `
-                        <div class="${item.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-950/80 border border-white/10"} rounded-2xl p-3.5 flex flex-col justify-between">
+                        <div class="rounded-2xl p-3.5 border ${w.adminOnly ? "obsidian-neon-rainbow" : isCurrent ? "border-amber-400 bg-amber-950/30" : "border-white/10 bg-slate-950/80"} flex flex-col justify-between">
                             <div>
-                                <div class="flex justify-between text-xs font-black">
-                                    <span class="text-sky-400">World ${item.id}</span>
-                                    <span class="text-amber-300">${formatNumber(item.mult)}x</span>
+                                <div class="flex justify-between items-center text-[10px] font-extrabold uppercase text-sky-400">
+                                    <span>World ${w.id}</span>
+                                    <span class="text-emerald-300">${formatNum(w.mult)}x</span>
                                 </div>
-                                <div class="title-font text-base font-bold text-white mt-1">${item.name}</div>
-                                <p class="text-[11px] text-slate-400 mt-1">${item.desc}</p>
+                                <div class="title-font text-base font-bold text-white mt-0.5">${w.name}</div>
+                                <p class="text-[11px] text-slate-400 mt-1">${w.desc}</p>
                             </div>
-                            <button type="button" onclick="selectOrUnlockWorld(${item.id})" class="arcade-btn mt-3 w-full py-2 rounded-xl text-xs font-extrabold ${active ? "bg-emerald-600 text-white" : unlocked ? "bg-sky-600 text-white" : "bg-amber-500 text-slate-950"}">
-                                ${active ? "Current Realm" : unlocked ? "Travel" : `Unlock (${formatNumber(item.cost)})`}
+                            <button type="button" onclick="travelToWorld(${w.id})" ${isCurrent ? "disabled" : ""} class="arcade-btn mt-3 w-full py-2 rounded-xl text-xs font-extrabold ${isCurrent ? "bg-slate-800 text-slate-400" : unlocked ? "bg-sky-600 text-white" : "bg-emerald-600 text-white"}">
+                                ${isCurrent ? "Current Realm" : unlocked ? "Travel" : `Unlock (${formatNum(w.cost)})`}
                             </button>
                         </div>
                     `;
                 }).join("");
             }
 
-            // All Upgrades Modal Grid
-            const uGrid = document.getElementById("allUpgradesGrid");
-            if (uGrid) {
-                uGrid.innerHTML = UPGRADES_DATA.map(u => {
+            // All Upgrades Grid
+            const allUpg = document.getElementById("allUpgradesGrid");
+            if (allUpg) {
+                allUpg.innerHTML = UPGRADES_DATA.map(u => {
                     const lvl = state.upgrades[u.id] || 0;
+                    const cost = getUpgradeCost(u.id);
                     return `
-                        <div class="bg-slate-950/80 border border-white/10 rounded-2xl p-3.5 flex items-center justify-between gap-2">
+                        <div class="bg-slate-950/85 border border-white/10 rounded-2xl p-3.5 flex items-center justify-between gap-3">
                             <div>
                                 <div class="text-sm font-extrabold text-white">${u.name} <span class="text-amber-300">Lv.${lvl}</span></div>
                                 <div class="text-xs text-slate-400">${u.desc}</div>
                             </div>
-                            <button type="button" onclick="buyUpgrade('${u.id}')" class="arcade-btn bg-amber-500 text-slate-950 px-3 py-2 rounded-xl text-xs font-black shrink-0">${formatNumber(getUpgradeCost(u.id))}</button>
+                            <button type="button" onclick="buyUpgrade('${u.id}')" class="arcade-btn bg-amber-500 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black shrink-0">${formatNum(cost)}</button>
                         </div>
                     `;
                 }).join("");
             }
 
             // Eggs Grid
-            const eGrid = document.getElementById("eggsGrid");
-            if (eGrid) {
-                eGrid.innerHTML = EGGS_DATA.map(e => `
-                    <div class="bg-slate-950/80 border border-amber-400/25 rounded-2xl p-4 text-center flex flex-col justify-between">
+            const eggsGrid = document.getElementById("eggsGrid");
+            if (eggsGrid) {
+                eggsGrid.innerHTML = EGGS_DATA.map(e => `
+                    <div class="bg-slate-950/85 border border-white/10 rounded-2xl p-4 text-center flex flex-col justify-between">
                         <div>
-                            <div class="text-3xl mb-1">🥚</div>
-                            <div class="title-font text-base font-bold text-amber-300">${e.name}</div>
-                            <div class="text-[11px] text-slate-400 mt-1">Contains ${e.pool.length} species</div>
+                            ${getEggSvg(e.id)}
+                            <div class="title-font text-base font-bold text-white mt-2">${e.name}</div>
+                            <div class="text-[11px] text-slate-400 mt-1">Contains: ${e.pool.map(id => (PET_SPECIES.find(s => s.id === id) || {}).name).join(", ")}</div>
                         </div>
-                        <button type="button" onclick="hatchEgg('${e.id}')" class="arcade-btn mt-3 w-full py-2 rounded-xl bg-amber-500 text-slate-950 text-xs font-black">
-                            Hatch (${formatNumber(e.cost)} ${e.currency})
+                        <button type="button" onclick="hatchEgg('${e.id}')" class="arcade-btn mt-3 w-full py-2 rounded-xl text-xs font-extrabold ${e.currency === "gems" ? "bg-emerald-600 text-white" : "bg-amber-500 text-slate-950"}">
+                            Hatch (${formatNum(e.cost)} ${e.currency === "gems" ? "Gems" : "Quacks"})
                         </button>
                     </div>
                 `).join("");
             }
 
-            // Pets Grid
-            const pGrid = document.getElementById("petsGrid");
-            if (pGrid) {
-                pGrid.innerHTML = state.pets.slice(-60).reverse().map(p => {
-                    const sp = PET_SPECIES.find(s => s.id === p.speciesId) || PET_SPECIES[0];
-                    const tr = PET_TIERS.find(t => t.tier === p.tier) || PET_TIERS[0];
-                    const eq = state.equippedPetIds.includes(p.uid);
-                    return `
-                        <button type="button" onclick="toggleEquipPet('${p.uid}')" class="arcade-btn rarity-${sp.rarity.toLowerCase()} border rounded-2xl p-3 text-left flex flex-col justify-between ${eq ? "ring-2 ring-emerald-400" : ""}">
-                            <div class="flex justify-between items-center">
-                                <span class="text-[9px] font-black px-1.5 py-0.5 rounded ${tr.badge}">${tr.name}</span>
-                                ${eq ? `<span class="text-[9px] font-black text-emerald-300">EQUIPPED</span>` : ""}
+            // Pets Inventory Grid
+            const petsGrid = document.getElementById("petsGrid");
+            if (petsGrid) {
+                petsGrid.innerHTML = (state.pets || []).length === 0
+                    ? `<div class="col-span-full text-center text-xs text-slate-400 py-8">No pets hatched yet! Open the Egg Hatchery to summon companions.</div>`
+                    : state.pets.map(p => {
+                        const sp = PET_SPECIES.find(s => s.id === p.speciesId) || PET_SPECIES[0];
+                        const tInfo = PET_TIERS.find(t => t.tier === p.tier) || PET_TIERS[0];
+                        const eq = state.equippedPetIds.includes(p.id);
+                        return `
+                            <div onclick="toggleEquipPet('${p.id}')" class="cursor-pointer rounded-2xl p-3 border-2 rarity-${sp.rarity.toLowerCase()} ${eq ? "ring-2 ring-emerald-400" : ""} flex flex-col items-center text-center">
+                                ${getPetSvg(p.speciesId, p.tier, "w-12 h-12")}
+                                <div class="text-xs font-extrabold text-white mt-1.5">${sp.name}</div>
+                                <span class="text-[9px] font-black px-2 py-0.5 rounded-full mt-1 ${tInfo.badge}">${tInfo.name}</span>
+                                <div class="text-[11px] font-bold text-amber-300 mt-1">${formatNum(sp.baseMult * tInfo.mult)}x</div>
+                                <div class="text-[10px] font-extrabold mt-1 ${eq ? "text-emerald-300" : "text-slate-400"}">${eq ? "EQUIPPED" : "Click to Equip"}</div>
                             </div>
-                            <div class="text-xs font-extrabold text-white mt-2">${sp.name}</div>
-                            <div class="text-[11px] font-black text-amber-300">${formatNumber(sp.baseMult * tr.mult)}x</div>
-                        </button>
-                    `;
-                }).join("");
+                        `;
+                    }).join("");
             }
 
             // Wardrobe Grids
-            const renderWardrobeSection = (gridId, list, unlockedKey, equippedKey, cat) => {
-                const el = document.getElementById(gridId);
-                if (!el) return;
-                el.innerHTML = list.filter(x => !x.adminOnly || isCurrentUserVerifiedAdmin()).map(item => {
-                    const owned = state[unlockedKey].includes(item.id);
-                    const eq = state[equippedKey] === item.id;
-                    return `
-                        <button type="button" onclick="selectWardrobeItem('${cat}', '${item.id}')" class="arcade-btn ${item.adminOnly ? "obsidian-neon-rainbow" : "bg-slate-950/85 border border-white/10"} rounded-2xl p-3 text-left">
-                            <div class="text-xs font-extrabold text-white">${item.name}</div>
-                            ${item.mult ? `<div class="text-[10px] font-bold text-amber-300">${item.mult}x Power</div>` : ""}
-                            <div class="mt-2 text-[10px] font-black ${eq ? "text-emerald-400" : owned ? "text-sky-300" : "text-amber-300"}">
-                                ${eq ? "EQUIPPED" : owned ? "EQUIP" : `${formatNumber(item.cost)} Gems`}
-                            </div>
-                        </button>
-                    `;
-                }).join("");
-            };
-            renderWardrobeSection("skinsGrid", SKINS_DATA, "unlockedSkins", "equippedSkin", "skin");
-            renderWardrobeSection("aurasGrid", AURAS_DATA, "unlockedAuras", "equippedAura", "aura");
-            renderWardrobeSection("hatsGrid", HATS_DATA, "unlockedHats", "equippedHat", "hat");
-            renderWardrobeSection("shadesGrid", SHADES_DATA, "unlockedShades", "equippedShades", "shades");
-            renderWardrobeSection("voicesGrid", VOICES_DATA, "unlockedVoices", "equippedVoice", "voice");
+            renderCosmeticGrid("skinsGrid", SKINS_DATA, "unlockedSkins", "equippedSkin", "skin");
+            renderCosmeticGrid("aurasGrid", AURAS_DATA, "unlockedAuras", "equippedAura", "aura");
+            renderCosmeticGrid("hatsGrid", HATS_DATA, "unlockedHats", "equippedHat", "hat");
+            renderCosmeticGrid("shadesGrid", SHADES_DATA, "unlockedShades", "equippedShades", "shades");
+            renderCosmeticGrid("voicesGrid", VOICES_DATA, "unlockedVoices", "equippedVoice", "voice");
 
-            // Rebirth & Void Forge
-            setTxt("modalRebirthCount", formatNumber(state.rebirths));
-            setTxt("modalTranscendCount", formatNumber(state.transcendenceCount));
-            setTxt("rebirthCostText", formatNumber(getRebirthCost()));
+            // Rebirth & Void
+            document.getElementById("modalRebirthCount").textContent = formatNum(state.rebirths);
+            document.getElementById("rebirthCostText").textContent = formatNum(getRebirthCost());
+            document.getElementById("modalTranscendCount").textContent = formatNum(state.transcendenceCount);
             const rpGrid = document.getElementById("rpShopGrid");
             if (rpGrid) {
                 rpGrid.innerHTML = RP_UPGRADES_DATA.map(u => {
                     const lvl = state.rpUpgrades[u.id] || 0;
-                    return `<button type="button" onclick="buyRpUpgrade('${u.id}')" class="arcade-btn bg-slate-950/80 border border-cyan-400/25 rounded-2xl p-3 text-left flex justify-between items-center"><div><div class="text-xs font-extrabold text-white">${u.name} Lv.${lvl}</div><div class="text-[10px] text-slate-400">${u.desc}</div></div><span class="text-xs font-black text-cyan-300">${u.baseCost * (lvl + 1)} RP</span></button>`;
+                    const cost = u.baseCost * (lvl + 1);
+                    return `<div class="bg-slate-950/80 border border-white/10 rounded-2xl p-3 flex items-center justify-between"><div><div class="text-xs font-extrabold text-white">${u.name} (${lvl}/${u.max})</div><div class="text-[11px] text-slate-400">${u.desc}</div></div><button type="button" onclick="buyRpUpgrade('${u.id}')" class="arcade-btn bg-cyan-600 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold">${lvl >= u.max ? "MAX" : cost + " RP"}</button></div>`;
                 }).join("");
             }
-            const vfGrid = document.getElementById("voidForgeGrid");
-            if (vfGrid) {
-                vfGrid.innerHTML = VOID_UPGRADES_DATA.map(u => {
+            const voidGrid = document.getElementById("voidForgeGrid");
+            if (voidGrid) {
+                voidGrid.innerHTML = VOID_UPGRADES_DATA.map(u => {
                     const lvl = state.voidUpgrades[u.id] || 0;
-                    return `<button type="button" onclick="buyVoidUpgrade('${u.id}')" class="arcade-btn bg-slate-950/80 border border-purple-400/25 rounded-2xl p-3 text-left flex justify-between items-center"><div><div class="text-xs font-extrabold text-white">${u.name} Lv.${lvl}</div><div class="text-[10px] text-slate-400">${u.desc}</div></div><span class="text-xs font-black text-purple-300">${u.baseCost * (lvl + 1)} Shards</span></button>`;
+                    const cost = u.baseCost * (lvl + 1);
+                    return `<div class="bg-slate-950/80 border border-white/10 rounded-2xl p-3 flex items-center justify-between"><div><div class="text-xs font-extrabold text-white">${u.name} (${lvl}/${u.max})</div><div class="text-[11px] text-slate-400">${u.desc}</div></div><button type="button" onclick="buyVoidUpgrade('${u.id}')" class="arcade-btn bg-purple-600 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold">${lvl >= u.max ? "MAX" : cost + " Shards"}</button></div>`;
                 }).join("");
             }
 
-            // Skills, Alchemy, Dig, Mastery, Cards, Season Pass
-            const skGrid = document.getElementById("skillsGrid");
-            if (skGrid) {
-                skGrid.innerHTML = SKILLS_DATA.map(s => {
+            // Skills, Alchemy, Dig, Mastery, Cards, Boss & Season Pass
+            const skillsGrid = document.getElementById("skillsGrid");
+            if (skillsGrid) {
+                skillsGrid.innerHTML = SKILLS_DATA.map(s => {
                     const lvl = state.skills[s.id] || 0;
-                    return `<button type="button" onclick="buySkillNode('${s.id}')" class="arcade-btn bg-slate-950/80 border border-yellow-400/25 rounded-2xl p-3 text-left flex justify-between items-center"><div><div class="text-xs font-extrabold text-white">${s.name} Lv.${lvl}</div><div class="text-[10px] text-slate-400">${s.desc}</div></div><span class="text-xs font-black text-yellow-300">${s.cost * (lvl + 1)} Feathers</span></button>`;
+                    const cost = s.cost * (lvl + 1);
+                    return `<div class="bg-slate-950/80 border border-white/10 rounded-2xl p-3 flex items-center justify-between"><div><div class="text-xs font-extrabold text-white">${s.name} (${lvl}/${s.max})</div><div class="text-[11px] text-slate-400">${s.desc}</div></div><button type="button" onclick="buySkillNode('${s.id}')" class="arcade-btn bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black">${cost} Feathers</button></div>`;
                 }).join("");
             }
-            const alGrid = document.getElementById("alchemyGrid");
-            if (alGrid) {
-                alGrid.innerHTML = POTIONS_DATA.map(p => `<button type="button" onclick="brewPotion('${p.id}')" class="arcade-btn bg-slate-950/80 border border-fuchsia-400/25 rounded-2xl p-3 text-left flex justify-between items-center"><div><div class="text-xs font-extrabold text-white">${p.name}</div><div class="text-[10px] text-slate-400">${p.desc}</div></div><span class="text-xs font-black text-emerald-300">${p.cost} Gems</span></button>`).join("");
+
+            const alchemyGrid = document.getElementById("alchemyGrid");
+            if (alchemyGrid) {
+                alchemyGrid.innerHTML = POTIONS_DATA.map(p => `
+                    <div class="bg-slate-950/80 border border-white/10 rounded-2xl p-3.5 flex items-center justify-between">
+                        <div><div class="text-xs font-extrabold text-white">${p.name}</div><div class="text-[11px] text-slate-400">${p.desc}</div></div>
+                        <button type="button" onclick="brewPotion('${p.id}')" class="arcade-btn bg-fuchsia-600 text-white px-3 py-1.5 rounded-xl text-xs font-extrabold">${p.cost} Gems</button>
+                    </div>
+                `).join("");
             }
-            setTxt("digDepthText", formatNumber(state.digDepth));
-            const relGrid = document.getElementById("relicsGrid");
-            if (relGrid) {
-                relGrid.innerHTML = RELICS_DATA.map(r => {
-                    const has = state.unlockedRelics.includes(r.id);
-                    return `<div class="bg-slate-950/80 border ${has ? "border-amber-400/50" : "border-white/10"} rounded-2xl p-3"><div class="text-xs font-extrabold text-white">${r.name}</div><div class="text-[11px] font-bold ${has ? "text-emerald-400" : "text-slate-500"}">${has ? `Active (${r.mult}x)` : "Locked"}</div></div>`;
+
+            document.getElementById("digDepthText").textContent = formatNum(state.digDepth);
+            const relicsGrid = document.getElementById("relicsGrid");
+            if (relicsGrid) {
+                relicsGrid.innerHTML = RELICS_DATA.map(r => {
+                    const found = (state.unlockedRelics || []).includes(r.id);
+                    return `<div class="bg-slate-950/80 border ${found ? "border-orange-400/50" : "border-white/10 opacity-50"} rounded-2xl p-3 flex items-center justify-between"><span class="text-xs font-extrabold text-white">${r.name}</span><span class="text-xs font-black text-orange-300">${found ? r.mult + "x ACTIVE" : "Undiscovered"}</span></div>`;
                 }).join("");
             }
-            const mGrid = document.getElementById("masteryGrid");
-            if (mGrid) {
-                mGrid.innerHTML = MASTERIES_DATA.map(m => `<div class="bg-slate-950/80 border border-emerald-400/25 rounded-2xl p-3"><div class="text-xs font-extrabold text-white">${m.name} — Rank ${state.masteryLevels[m.id] || 1}</div><div class="text-[10px] text-slate-400 mt-1">${m.desc}</div></div>`).join("");
-            }
-            const cGrid = document.getElementById("cardsGrid");
-            if (cGrid) {
-                cGrid.innerHTML = CARDS_DATA.map(c => {
-                    const has = state.collectedCards.includes(c.id);
-                    return `<div class="bg-slate-950/80 border ${has ? "border-violet-400/50" : "border-white/10"} rounded-2xl p-3 text-center"><div class="text-xs font-extrabold text-white">${c.name}</div><div class="text-[10px] text-amber-300 mt-1">${has ? `${c.mult}x Owned` : "Uncollected"}</div></div>`;
+
+            const masteryGrid = document.getElementById("masteryGrid");
+            if (masteryGrid) {
+                masteryGrid.innerHTML = MASTERIES_DATA.map(m => {
+                    const lvl = state.masteryLevels[m.id] || 1;
+                    const xp = state.masteryXp[m.id] || 0;
+                    return `<div class="bg-slate-950/80 border border-white/10 rounded-2xl p-3.5"><div class="flex justify-between text-xs font-extrabold"><span class="text-white">${m.name}</span><span class="text-emerald-300">Lv.${lvl}</span></div><div class="text-[11px] text-slate-400 mt-1">${m.desc} (${xp}/${lvl * 100} XP)</div></div>`;
                 }).join("");
             }
-            const monGrid = document.getElementById("monumentsGrid");
-            if (monGrid) {
-                monGrid.innerHTML = MONUMENTS_DATA.map(m => {
-                    const built = state.builtMonuments.includes(m.id);
-                    return `<button type="button" onclick="buildMonument('${m.id}')" class="arcade-btn bg-slate-950/80 border border-amber-400/25 rounded-2xl p-3 text-left flex justify-between items-center"><div><div class="text-xs font-extrabold text-white">${m.name}</div><div class="text-[10px] text-slate-400">${m.mult}x Multiplier</div></div><span class="text-xs font-black text-emerald-300">${built ? "BUILT" : `${m.cost} Gems`}</span></button>`;
+
+            const cardsGrid = document.getElementById("cardsGrid");
+            if (cardsGrid) {
+                cardsGrid.innerHTML = CARDS_DATA.map(c => {
+                    const owned = (state.collectedCards || []).includes(c.id);
+                    return `<div class="bg-slate-950/80 border ${owned ? "border-violet-400/60" : "border-white/10 opacity-45"} rounded-2xl p-3 text-center"><div class="text-xs font-extrabold text-white">${c.name}</div><div class="text-[10px] text-violet-300 mt-1">${c.rarity} • ${c.mult}x</div></div>`;
                 }).join("");
             }
-            const unlockedTier = Math.min(50, Math.max(1, Math.floor(state.passXp / 100) + 1));
-            setTxt("passXpText", formatNumber(state.passXp));
-            setTxt("passTierText", `${unlockedTier} / 50`);
-            const spGrid = document.getElementById("seasonPassGrid");
-            if (spGrid) {
+
+            const monumentsGrid = document.getElementById("monumentsGrid");
+            if (monumentsGrid) {
+                monumentsGrid.innerHTML = MONUMENTS_DATA.map(m => {
+                    const built = (state.builtMonuments || []).includes(m.id);
+                    return `<div class="bg-slate-950/80 border border-white/10 rounded-2xl p-3 flex items-center justify-between"><div><div class="text-xs font-extrabold text-white">${m.name}</div><div class="text-[11px] text-amber-300">${m.mult}x All Quacks</div></div><button type="button" onclick="buildMonument('${m.id}')" ${built ? "disabled" : ""} class="arcade-btn bg-amber-500 text-slate-950 px-3 py-1.5 rounded-xl text-xs font-black">${built ? "Built" : m.cost + " Gems"}</button></div>`;
+                }).join("");
+            }
+
+            // Boss Raid UI
+            document.getElementById("bossLevelVal").textContent = state.bossLevel || 1;
+            document.getElementById("bossSlainVal").textContent = state.bossesSlain || 0;
+            document.getElementById("bossTimerVal").textContent = `${(bossTimeRemaining / 1000).toFixed(1)}s`;
+            const hpPct = Math.max(0, Math.min(100, (state.bossHp / state.bossMaxHp) * 100));
+            document.getElementById("bossHpBar").style.width = `${hpPct}%`;
+            document.getElementById("bossHpLabel").textContent = `${formatNum(state.bossHp)} / ${formatNum(state.bossMaxHp)} HP`;
+            const bossSvg = document.getElementById("bossSvgContainer");
+            if (bossSvg && !bossSvg.innerHTML) bossSvg.innerHTML = getBossSvg();
+
+            // Season Pass
+            const unlockedTier = Math.min(50, 1 + Math.floor((state.passXp || 0) / 100));
+            document.getElementById("passXpText").textContent = formatNum(state.passXp);
+            document.getElementById("passTierText").textContent = `${unlockedTier} / 50`;
+            const passGrid = document.getElementById("seasonPassGrid");
+            if (passGrid) {
                 let html = "";
                 for (let t = 1; t <= 50; t++) {
-                    const claimed = state.claimedPassTiers.includes(t);
-                    const ready = state.passXp >= t * 100;
-                    html += `<button type="button" onclick="claimSeasonTier(${t})" class="arcade-btn bg-slate-950/80 border ${claimed ? "border-emerald-400/50" : ready ? "border-amber-400" : "border-white/10"} rounded-xl p-2.5 text-center"><div class="text-[10px] font-black text-slate-400">Tier ${t}</div><div class="text-xs font-extrabold text-amber-300 mt-1">+${t * 25} Gems</div><div class="text-[9px] font-black mt-1 ${claimed ? "text-emerald-400" : ready ? "text-amber-300" : "text-slate-500"}">${claimed ? "CLAIMED" : ready ? "CLAIM" : `${t * 100} XP`}</div></button>`;
+                    const claimed = (state.claimedPassTiers || []).includes(t);
+                    const unlocked = t <= unlockedTier;
+                    html += `<button type="button" onclick="claimSeasonTier(${t})" ${!unlocked || claimed ? "disabled" : ""} class="arcade-btn rounded-2xl p-2.5 text-center border ${claimed ? "border-emerald-400/40 bg-emerald-950/30" : unlocked ? "border-amber-400 bg-slate-900" : "border-white/10 bg-slate-950/60"}"><div class="text-[10px] font-black text-slate-400">TIER ${t}</div><div class="text-xs font-extrabold text-amber-300 mt-1">${t % 5 === 0 ? "+2 Feathers" : "+" + (t * 20) + " Gems"}</div><div class="text-[9px] font-bold mt-1 ${claimed ? "text-emerald-300" : unlocked ? "text-white" : "text-slate-500"}">${claimed ? "CLAIMED" : unlocked ? "CLAIM" : "LOCKED"}</div></button>`;
                 }
-                spGrid.innerHTML = html;
+                passGrid.innerHTML = html;
             }
+
+            // Profile Preview & Name
+            const avatarPrev = document.getElementById("profileAvatarPreview");
+            if (avatarPrev) {
+                avatarPrev.innerHTML = state.profilePic
+                    ? `<img src="${state.profilePic}" alt="Avatar" class="w-full h-full object-cover">`
+                    : `<i class="fa-solid fa-duck text-2xl text-amber-400"></i>`;
+            }
+            const nameInput = document.getElementById("playerNameInput");
+            if (nameInput && document.activeElement !== nameInput) {
+                nameInput.value = state.playerName || "QuackCommander";
+            }
+
+            updateAudioIcons();
+            updateAdminUiState();
+            renderLeaderboard();
+        }
+
+        function renderCosmeticGrid(containerId, list, unlockedKey, equippedKey, category) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            const verifiedAdmin = isCurrentUserVerifiedAdmin();
+            el.innerHTML = list.filter(item => !item.adminOnly || verifiedAdmin).map(item => {
+                const unlocked = (state[unlockedKey] || []).includes(item.id);
+                const equipped = state[equippedKey] === item.id;
+                return `
+                    <button type="button" onclick="buyOrEquipCosmetic('${category}', '${item.id}')" class="arcade-btn rounded-2xl p-2.5 text-left border ${item.adminOnly ? "obsidian-neon-rainbow" : equipped ? "border-pink-400 bg-pink-950/30" : "border-white/10 bg-slate-950/80"}">
+                        <div class="text-xs font-extrabold text-white truncate">${item.name}</div>
+                        <div class="text-[10px] text-amber-300 font-bold mt-0.5">${item.mult ? item.mult + "x Boost" : "Custom Voice"}</div>
+                        <div class="text-[10px] font-black mt-1 ${equipped ? "text-emerald-300" : unlocked ? "text-sky-300" : "text-slate-400"}">
+                            ${equipped ? "EQUIPPED" : unlocked ? "Equip" : item.cost + " Gems"}
+                        </div>
+                    </button>
+                `;
+            }).join("");
         }
 
         /* =========================================================================
-           13. LASER CANVAS & 100MS MAIN SIMULATION LOOP
+           11. ORBITING PETS + LASER CANVAS & 100MS MAIN SIMULATION LOOP
            ========================================================================= */
-        function renderLaserCanvas() {
+        function animateStageLoop() {
+            petOrbitAngle += 0.022;
+            const orbitBox = document.getElementById("orbitingPetsContainer");
             const canvas = document.getElementById("petLaserCanvas");
-            if (!canvas) return;
-            if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
-                canvas.width = canvas.clientWidth;
-                canvas.height = canvas.clientHeight;
-            }
-            const ctx = canvas.getContext("2d");
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            if (activeLaserBeams.length === 0 || state.equippedPetIds.length === 0) return;
+            const equipped = (state.equippedPetIds || []).map(pid => state.pets.find(p => p.id === pid)).filter(Boolean);
 
-            const cx = canvas.width / 2;
-            const cy = canvas.height / 2;
-            for (let i = activeLaserBeams.length - 1; i >= 0; i--) {
-                const beam = activeLaserBeams[i];
-                ctx.strokeStyle = beam.color;
-                ctx.globalAlpha = beam.alpha;
-                ctx.lineWidth = 3;
-                state.equippedPetIds.forEach((_, idx) => {
-                    const ang = (idx / state.equippedPetIds.length) * Math.PI * 2;
-                    const px = cx + Math.cos(ang) * 115;
-                    const py = cy + Math.sin(ang) * 115;
-                    ctx.beginPath();
-                    ctx.moveTo(px, py);
-                    ctx.lineTo(cx, cy);
-                    ctx.stroke();
+            if (orbitBox) {
+                if (orbitBox.children.length !== equipped.length) {
+                    orbitBox.innerHTML = equipped.map(p => `<div class="orbit-pet-badge absolute">${getPetSvg(p.speciesId, p.tier, "w-9 h-9")}</div>`).join("");
+                }
+                const r = stageExpanded ? 165 : 120;
+                Array.from(orbitBox.children).forEach((node, idx) => {
+                    const a = petOrbitAngle + (idx * Math.PI * 2) / equipped.length;
+                    const x = 50 + (Math.cos(a) * r) / (stageExpanded ? 3.8 : 2.8);
+                    const y = 50 + (Math.sin(a) * r * 0.65) / (stageExpanded ? 3.8 : 2.8);
+                    node.style.left = `${x}%`;
+                    node.style.top = `${y}%`;
                 });
-                beam.alpha -= 0.12;
-                if (beam.alpha <= 0) activeLaserBeams.splice(i, 1);
             }
-            ctx.globalAlpha = 1;
+
+            if (canvas) {
+                if (canvas.width !== canvas.clientWidth || canvas.height !== canvas.clientHeight) {
+                    canvas.width = canvas.clientWidth;
+                    canvas.height = canvas.clientHeight;
+                }
+                const ctx = canvas.getContext("2d");
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                const cx = canvas.width / 2;
+                const cy = canvas.height / 2;
+                const r = stageExpanded ? 150 : 108;
+
+                for (let i = activeLaserBeams.length - 1; i >= 0; i--) {
+                    const b = activeLaserBeams[i];
+                    const sx = cx + Math.cos(b.angle) * r;
+                    const sy = cy + Math.sin(b.angle) * (r * 0.65);
+                    ctx.beginPath();
+                    ctx.moveTo(sx, sy);
+                    ctx.lineTo(cx, cy);
+                    ctx.strokeStyle = b.color;
+                    ctx.globalAlpha = b.alpha;
+                    ctx.lineWidth = 3;
+                    ctx.stroke();
+                    ctx.globalAlpha = 1;
+                    b.alpha -= 0.08;
+                    if (b.alpha <= 0) activeLaserBeams.splice(i, 1);
+                }
+            }
+            requestAnimationFrame(animateStageLoop);
         }
 
+        // 100ms Core Game Tick Loop
         setInterval(() => {
-            // Passive Quacks/sec
             const qps = getQuacksPerSec();
             if (qps > 0) {
                 const tickGain = qps / 10;
@@ -3002,54 +3359,82 @@
                 state.lifetimeQuacks += tickGain;
             }
 
-            // Automation triggers
+            if (comboDecayTimer > 0) {
+                comboDecayTimer -= 100;
+                if (comboDecayTimer <= 0) comboCount = 1.0;
+            }
+
+            if (feverActiveTimer > 0) {
+                feverActiveTimer -= 100;
+                if (feverActiveTimer <= 0) {
+                    feverActiveTimer = 0;
+                    feverCharge = 0;
+                }
+            }
+
+            // Weather Cycle & Interactive Sky Orbs
+            if (activeWeather.timer > 0) {
+                activeWeather.timer -= 100;
+                anomalySpawnAccumulator += 100;
+                if (anomalySpawnAccumulator >= 2200) {
+                    anomalySpawnAccumulator = 0;
+                    spawnFallingSkyAnomaly();
+                }
+                if (activeWeather.timer <= 0) {
+                    activeWeather = { id: "clear", name: "Clear Skies", mult: 1, timer: 0 };
+                    weatherCycleCooldown = 25000;
+                }
+            } else {
+                weatherCycleCooldown -= 100;
+                if (weatherCycleCooldown <= 0) {
+                    triggerRandomWeatherEvent();
+                }
+            }
+
+            // Boss Timer
+            bossTimeRemaining -= 100;
+            if (bossTimeRemaining <= 0) {
+                bossTimeRemaining = 30000;
+                state.bossHp = state.bossMaxHp;
+            }
+
+            // Automation Toggles
             if (state.autoClickerOn) {
-                window.onDuckClick(null, true);
+                const autoTapGain = getQuacksPerClick() * 0.5;
+                state.quacks += autoTapGain;
+                state.lifetimeQuacks += autoTapGain;
             }
             if (state.autoRebirthOn && state.quacks >= getRebirthCost()) {
                 performRebirth(true);
             }
             if (state.autoHatchOn) {
-                const affordable = [...EGGS_DATA].reverse().find(e => e.currency === "quacks" && state.quacks >= e.cost);
-                if (affordable) hatchEgg(affordable.id, true);
+                const affordableEgg = [...EGGS_DATA].reverse().find(e => e.currency === "quacks" && state.quacks >= e.cost);
+                if (affordableEgg) hatchEgg(affordableEgg.id, true);
             }
 
-            // Combo & Fever decay
-            if (comboDecayTimer > 0) {
-                comboDecayTimer -= 100;
-            } else if (comboCount > 1.0) {
-                comboCount = Math.max(1.0, +(comboCount - 0.1).toFixed(2));
-            }
-            if (feverActiveTimer > 0) {
-                feverActiveTimer = Math.max(0, feverActiveTimer - 100);
-                if (feverActiveTimer === 0) feverCharge = 0;
-            }
-            if (activeWeather.timer > 0) {
-                activeWeather.timer = Math.max(0, activeWeather.timer - 100);
-                if (activeWeather.timer === 0) {
-                    activeWeather = { name: "Clear Skies", icon: "☀️", mult: 1, timer: 0 };
-                }
-            }
-
-            const wPill = document.getElementById("weatherStatusPill");
-            if (wPill) wPill.textContent = `${activeWeather.icon} ${activeWeather.name} (${activeWeather.mult}x)`;
-
-            renderLaserCanvas();
-            updateHudFast();
+            renderAll();
         }, 100);
 
+        // Periodic Auto-Save & Leaderboard Sync
         setInterval(() => {
             saveGame();
             window.syncLeaderboardScore(false);
-        }, 3000);
+        }, 5000);
 
-        window.addEventListener("DOMContentLoaded", () => {
-            loadGame();
-            ensureAdminLeaderboardSeed();
-            updateAdminUiState();
-            renderAll();
-            window.syncLeaderboardScore(false);
+        // Cross-tab Community Admin Abuse & Leaderboard Listener
+        window.addEventListener("storage", (e) => {
+            if (e.key === "dqCommunityAdminAbuse" && e.newValue) {
+                try { applyAdminAbuseEvent(JSON.parse(e.newValue)); } catch (err) {}
+            }
+            if (e.key === LB_LOCAL_ARCHIVE_KEY) {
+                renderLeaderboard();
+            }
         });
+
+        // Boot Game
+        loadGame();
+        renderAll();
+        animateStageLoop();
     </script>
 </body>
 </html>
