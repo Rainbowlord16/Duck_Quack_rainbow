@@ -573,7 +573,7 @@
         const ADMIN_OWNER_NAME = "RainbowLord16";
         const ADMIN_SLOT_ID = "ADMIN_RAINBOWLORD16";
         const ADMIN_PASS_SHA256 = "8763e961665e2d56c2463d5148b70d44a63022a756c0d3d2f2b5a8b6f3773107";
-        let isAdminAuthenticated = false;
+        let isAdminAuthenticated = sessionStorage.getItem("dqAdminSessionActive") === "1" || localStorage.getItem("dqAdminUnlockedFlag") === "1";
         let lastHandledAdminEventId = localStorage.getItem("dqLastAdminEventId") || "";
         const adminBroadcastChannel = typeof BroadcastChannel !== "undefined" ? new BroadcastChannel("dq_community_admin_abuse") : null;
 
@@ -631,6 +631,10 @@
             }
 
             isAdminAuthenticated = true;
+            try {
+                sessionStorage.setItem("dqAdminSessionActive", "1");
+                localStorage.setItem("dqAdminUnlockedFlag", "1");
+            } catch (e) {}
             state.playerName = ADMIN_OWNER_NAME;
             state.accountSlotId = ADMIN_SLOT_ID;
             if (!state.unlockedWorlds.includes(21)) state.unlockedWorlds.push(21);
@@ -649,6 +653,10 @@
 
         function logoutAdminVault() {
             isAdminAuthenticated = false;
+            try {
+                sessionStorage.removeItem("dqAdminSessionActive");
+                localStorage.removeItem("dqAdminUnlockedFlag");
+            } catch (e) {}
             state.playerName = "DuckPlayer_" + Math.floor(100 + Math.random() * 899);
             state.accountSlotId = "SLOT_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
             state.currentWorld = Math.min(20, state.currentWorld);
@@ -727,7 +735,11 @@
             { id: "cyber", name: "Cyber Neon", body: "#06b6d4", belly: "#cffafe", beak: "#f43f5e", cost: 1200 },
             { id: "magma", name: "Molten Core", body: "#ef4444", belly: "#fde047", beak: "#1e293b", cost: 5000 },
             { id: "void", name: "Void Emperor", body: "#6b21a8", belly: "#e9d5ff", beak: "#22d3ee", cost: 25000 },
-            { id: "admin_neon_rainbow", name: "RainbowLord16 Prism", body: "#ec4899", belly: "#fef08a", beak: "#38bdf8", cost: 0, adminOnly: true }
+            { id: "royal_gold", name: "24K Solid Gold", body: "#fbbf24", belly: "#fffbeb", beak: "#d97706", cost: 75000 },
+            { id: "frost_titan", name: "Glacial Diamond", body: "#38bdf8", belly: "#f0f9ff", beak: "#0284c7", cost: 150000 },
+            { id: "admin_neon_rainbow", name: "RainbowLord16 Prism (Creator)", body: "#ec4899", belly: "#fef08a", beak: "#38bdf8", cost: 0, adminOnly: true },
+            { id: "admin_obsidian_eclipse", name: "Obsidian Eclipse (Creator)", body: "#0f172a", belly: "#c084fc", beak: "#f43f5e", cost: 0, adminOnly: true },
+            { id: "admin_celestial_nova", name: "Celestial Supernova (Creator)", body: "#f43f5e", belly: "#67e8f9", beak: "#facc15", cost: 0, adminOnly: true }
         ];
 
         const HATS = [
@@ -735,14 +747,14 @@
             { id: "propeller", name: "Propeller Cap", cost: 150 },
             { id: "crown", name: "Golden Crown", cost: 1500 },
             { id: "wizard", name: "Star Wizard Hat", cost: 8000 },
-            { id: "admin_neon_crown", name: "Prism Creator Crown", cost: 0, adminOnly: true }
+            { id: "admin_neon_crown", name: "Prism Creator Crown (Creator)", cost: 0, adminOnly: true }
         ];
 
         const SHADES = [
             { id: "none", name: "No Eyewear", cost: 0 },
             { id: "cool", name: "Cool Shades", cost: 300 },
             { id: "laser", name: "Cyber Visor", cost: 3500 },
-            { id: "admin_neon_visor", name: "RainbowLord16 Visor", cost: 0, adminOnly: true }
+            { id: "admin_neon_visor", name: "RainbowLord16 Visor (Creator)", cost: 0, adminOnly: true }
         ];
 
         const SKILL_NODES = [
@@ -753,9 +765,12 @@
         ];
 
         const PROMO_CODES = {
-            "QUACK2026": { gems: 250, quacks: 5000, label: "+250 Gems & +5,000 Quacks" },
-            "DUCKLORD": { gems: 1000, feathers: 2, label: "+1,000 Gems & +2 Feathers" },
-            "RAINBOW16": { gems: 2500, shards: 10, label: "+2,500 Gems & +10 Void Shards" }
+            "QUACK2026": { gems: 500, quacks: 25000, label: "+500 Gems & +25,000 Quacks" },
+            "DUCKLORD": { gems: 1500, feathers: 3, label: "+1,500 Gems & +3 Feathers" },
+            "RAINBOW16": { gems: 5000, shards: 15, label: "+5,000 Gems & +15 Void Shards" },
+            "MEGABREAD": { quacks: 250000, gems: 750, label: "+250,000 Quacks & +750 Gems" },
+            "VOIDDUCK": { shards: 25, relics: 5, label: "+25 Void Shards & +5 Relics" },
+            "OMNIVERSE": { gems: 10000, feathers: 5, shards: 20, label: "+10,000 Gems, +5 Feathers & +20 Shards" }
         };
 
         /* =========================================================================
@@ -825,8 +840,14 @@
                     state = { ...createDefaultState(), ...parsed };
                 }
             } catch (e) {}
-            // Never auto-authenticate admin on boot without passcode verification
-            if (state.playerName === ADMIN_OWNER_NAME && !isAdminAuthenticated) {
+            if (isAdminAuthenticated) {
+                state.playerName = ADMIN_OWNER_NAME;
+                state.accountSlotId = ADMIN_SLOT_ID;
+                if (!state.unlockedWorlds.includes(21)) state.unlockedWorlds.push(21);
+                SKINS.forEach(s => { if (s.adminOnly && !state.unlockedSkins.includes(s.id)) state.unlockedSkins.push(s.id); });
+                HATS.forEach(h => { if (h.adminOnly && !state.unlockedHats.includes(h.id)) state.unlockedHats.push(h.id); });
+                SHADES.forEach(sh => { if (sh.adminOnly && !state.unlockedShades.includes(sh.id)) state.unlockedShades.push(sh.id); });
+            } else if (state.playerName === ADMIN_OWNER_NAME) {
                 state.playerName = "DuckGuest_" + Math.floor(100 + Math.random() * 899);
                 state.accountSlotId = "SLOT_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
             }
@@ -982,7 +1003,7 @@
            ========================================================================= */
         function getHeroDuckSvg() {
             const skin = SKINS.find(s => s.id === state.skin) || SKINS[0];
-            const isPrism = skin.id === "admin_neon_rainbow";
+            const isPrism = skin.id === "admin_neon_rainbow" || skin.id === "admin_celestial_nova";
 
             let hatSvg = "";
             if (state.hat === "propeller") {
@@ -1406,6 +1427,9 @@
             } else if (cmd === "clear" || cmd === "clear_trolls") {
                 const tgt = resolveTarget(arg1);
                 triggerAdminAbuse("CLEAR_TROLLS", { targetPlayer: tgt, message: `Cleared all effects on ${tgt}!` });
+            } else if (cmd === "max" || cmd === "max_all" || cmd === "maxout") {
+                const tgt = resolveTarget(arg1);
+                triggerAdminAbuse("MAX_ALL", { targetPlayer: tgt, message: `RainbowLord16 MAXED OUT EVERYTHING for ${tgt}!` });
             } else if (cmd === "rainbow" || cmd === "rainbow_storm") {
                 triggerAdminAbuse("RAINBOW_STORM", { targetPlayer: "ALL", message: "100x RAINBOW STORM SUMMONED BY RAINBOWLORD16!" });
             } else {
@@ -1413,6 +1437,42 @@
             }
 
             if (input) input.value = "";
+        }
+
+        function adminMaxOutEverything() {
+            if (!isCurrentUserVerifiedAdmin()) {
+                return showToast("Unlock RainbowLord16 Admin Vault first!", "error");
+            }
+            state.quacks = 9.99e33;
+            state.lifetimeQuacks = Math.max(state.lifetimeQuacks, 9.99e33);
+            state.gems = 999999999;
+            state.rebirths = Math.max(state.rebirths, 99999);
+            state.feathers = Math.max(state.feathers, 99999);
+            state.shards = Math.max(state.shards, 99999);
+            state.relics = Math.max(state.relics, 99999);
+            state.unlockedWorlds = WORLDS.map(w => w.id);
+            state.currentWorld = 21;
+            UPGRADES.forEach(u => {
+                state.upgrades[u.id] = Math.max(state.upgrades[u.id] || 0, 250);
+            });
+            SKILL_NODES.forEach(sk => {
+                state.skills[sk.id] = sk.max;
+            });
+            state.unlockedSkins = SKINS.map(s => s.id);
+            state.unlockedHats = HATS.map(h => h.id);
+            state.unlockedShades = SHADES.map(sh => sh.id);
+            state.skin = "admin_neon_rainbow";
+            state.hat = "admin_neon_crown";
+            state.shades = "admin_neon_visor";
+            if (!state.pets.some(p => p.species === "rainbow_lord_pet")) {
+                const creatorPet = { uid: "pet_creator_prism_" + Date.now(), species: "rainbow_lord_pet", tier: "Void" };
+                state.pets.unshift(creatorPet);
+                state.equippedPetUids = [creatorPet.uid, ...state.equippedPetUids].slice(0, getMaxEquipSlots());
+            }
+            saveGame();
+            window.syncLeaderboardScore(true);
+            renderAll();
+            showToast("MAXED OUT EVERYTHING! All 21 Worlds, Upgrades, Skills, Gear & Creator Pet unlocked!", "success");
         }
 
         async function triggerAdminAbuse(type, customPayload = {}) {
@@ -1582,6 +1642,18 @@
                 setTimeout(() => { document.body.style.filter = ""; }, 12000);
             } else if (type === "CLEAR_TROLLS") {
                 clearDirectDuckTroll();
+            } else if (type === "MAX_ALL") {
+                state.quacks = 9.99e33;
+                state.lifetimeQuacks = Math.max(state.lifetimeQuacks, 9.99e33);
+                state.gems += 999999999;
+                state.rebirths += 99999;
+                state.feathers += 99999;
+                state.shards += 99999;
+                state.relics += 99999;
+                state.unlockedWorlds = WORLDS.map(w => w.id);
+                UPGRADES.forEach(u => { state.upgrades[u.id] = Math.max(state.upgrades[u.id] || 0, 250); });
+                SKILL_NODES.forEach(sk => { state.skills[sk.id] = sk.max; });
+                showToast("MAXED OUT EVERYTHING by RainbowLord16!", "success");
             } else if (type === "RAINBOW_STORM") {
                 state.weather = "rainbow";
                 state.weatherTimer = 60;
@@ -2077,33 +2149,75 @@
                         </div>
                     </div>`;
             } else if (id === "mastery" || id === "quests") {
-                title.textContent = "Quests & Season Mastery";
+                title.textContent = "Quests, Mastery Cards & Game Guide";
                 body.innerHTML = `
-                    <div class="space-y-2.5">
-                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 flex items-center justify-between">
-                            <div>
-                                <div class="text-xs font-black text-white">Tap Mastery (${formatNum(state.totalClicks)} / 250 Taps)</div>
-                                <div class="text-[11px] text-slate-400">Reward: +200 Gems</div>
+                    <div class="space-y-4">
+                        <div class="space-y-2">
+                            <h4 class="text-xs font-black uppercase text-amber-300">Active Quests & Milestones</h4>
+                            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-black text-white">Tap Mastery (${formatNum(state.totalClicks)} / 250 Taps)</div>
+                                    <div class="text-[11px] text-slate-400">Reward: +200 Gems</div>
+                                </div>
+                                <button onclick="claimQuickQuest('taps')" class="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-black text-xs">Claim</button>
                             </div>
-                            <button onclick="claimQuickQuest('taps')" class="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-black text-xs">Claim</button>
+                            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-black text-white">Hatch Mastery (${formatNum(state.eggsHatched)} / 10 Eggs)</div>
+                                    <div class="text-[11px] text-slate-400">Reward: +2 Feathers</div>
+                                </div>
+                                <button onclick="claimQuickQuest('eggs')" class="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-black text-xs">Claim</button>
+                            </div>
+                            <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 flex items-center justify-between">
+                                <div>
+                                    <div class="text-xs font-black text-white">Boss Slayer Mastery (${formatNum(state.bossesSlain)} / 3 Bosses)</div>
+                                    <div class="text-[11px] text-slate-400">Reward: +5 Void Shards</div>
+                                </div>
+                                <button onclick="claimQuickQuest('bosses')" class="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-black text-xs">Claim</button>
+                            </div>
                         </div>
-                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 flex items-center justify-between">
-                            <div>
-                                <div class="text-xs font-black text-white">Hatch Mastery (${formatNum(state.eggsHatched)} / 10 Eggs)</div>
-                                <div class="text-[11px] text-slate-400">Reward: +2 Feathers</div>
+
+                        <div>
+                            <h4 class="text-xs font-black uppercase text-cyan-300 mb-2">Collector Mastery Cards</h4>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                                <div class="bg-slate-950 border border-amber-500/40 rounded-2xl p-3">
+                                    <div class="text-xs font-black text-amber-300">Card I: Golden Beak</div>
+                                    <div class="text-[11px] text-slate-300 mt-1">Clicks: ${formatNum(state.totalClicks)}</div>
+                                    <div class="text-[10px] font-bold text-emerald-400 mt-1">Status: ${state.totalClicks >= 100 ? "UNLOCKED (+10% Tap)" : "Reach 100 Taps"}</div>
+                                </div>
+                                <div class="bg-slate-950 border border-purple-500/40 rounded-2xl p-3">
+                                    <div class="text-xs font-black text-purple-300">Card II: Pet Collector</div>
+                                    <div class="text-[11px] text-slate-300 mt-1">Owned Pets: ${state.pets.length}</div>
+                                    <div class="text-[10px] font-bold text-emerald-400 mt-1">Status: ${state.pets.length >= 5 ? "UNLOCKED (+15% Pet)" : "Own 5 Pets"}</div>
+                                </div>
+                                <div class="bg-slate-950 border border-sky-500/40 rounded-2xl p-3">
+                                    <div class="text-xs font-black text-sky-300">Card III: World Traveler</div>
+                                    <div class="text-[11px] text-slate-300 mt-1">Worlds: ${state.unlockedWorlds.length}/21</div>
+                                    <div class="text-[10px] font-bold text-emerald-400 mt-1">Status: ${state.unlockedWorlds.length >= 5 ? "UNLOCKED (+20% World)" : "Unlock 5 Worlds"}</div>
+                                </div>
                             </div>
-                            <button onclick="claimQuickQuest('eggs')" class="px-3 py-1.5 rounded-xl bg-amber-500 text-slate-950 font-black text-xs">Claim</button>
+                        </div>
+
+                        <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-2">
+                            <h4 class="text-xs font-black uppercase text-emerald-300">Simulator Quick Guide</h4>
+                            <ul class="text-xs text-slate-300 space-y-1.5 list-disc pl-4">
+                                <li><strong>Rapid Quacking:</strong> Hold your mouse button, finger, or <strong>Spacebar</strong> to continuously quack and build up to a 3.0x Combo and 4x Quack Fever!</li>
+                                <li><strong>Pets & Fusion:</strong> Hatch eggs in <em>Hatch Eggs</em>, equip your strongest pets, and fuse 3 identical pets in <em>Pet Craft</em> into Golden, Rainbow, and Void tiers.</li>
+                                <li><strong>Rebirths & Ascension:</strong> Rebirth for permanent multipliers and Gems, then Ascend at 5+ Rebirths for Golden Feathers to upgrade your Skill Tree.</li>
+                                <li><strong>Admin Vault (RainbowLord16):</strong> Open <em>Profile</em> to unlock the Creator Vault, trigger <strong>MAX OUT EVERYTHING</strong>, and run targeted commands like <code class="text-amber-300">nuke PlayerName</code> or <code class="text-amber-300">jail all</code>.</li>
+                            </ul>
                         </div>
                     </div>`;
             } else if (id === "codes") {
                 title.textContent = "Promo Codes";
                 body.innerHTML = `
                     <div class="bg-slate-950 border border-slate-800 rounded-2xl p-4 space-y-3">
-                        <p class="text-xs font-bold text-slate-400">Try codes: <span class="text-amber-300">QUACK2026</span>, <span class="text-amber-300">DUCKLORD</span>, <span class="text-amber-300">RAINBOW16</span></p>
+                        <p class="text-xs font-bold text-slate-400">Active Codes: <span class="text-amber-300">QUACK2026</span>, <span class="text-amber-300">DUCKLORD</span>, <span class="text-amber-300">RAINBOW16</span>, <span class="text-amber-300">MEGABREAD</span>, <span class="text-amber-300">VOIDDUCK</span>, <span class="text-amber-300">OMNIVERSE</span></p>
                         <div class="flex gap-2">
-                            <input id="promoCodeInput" type="text" placeholder="Enter code..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-black text-white uppercase"/>
+                            <input id="promoCodeInput" type="text" onkeydown="if(event.key==='Enter') redeemPromoCode()" placeholder="Enter code..." class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs font-black text-white uppercase"/>
                             <button onclick="redeemPromoCode()" class="px-4 py-2 rounded-xl bg-pink-500 text-white font-black text-xs uppercase">Redeem</button>
                         </div>
+                        <div class="text-[11px] font-bold text-slate-400">Redeemed (${state.redeemedCodes.length}/${Object.keys(PROMO_CODES).length}): <span class="text-emerald-300">${state.redeemedCodes.join(", ") || "None yet"}</span></div>
                     </div>`;
             } else if (id === "leaderboard") {
                 title.textContent = "Global Hall of Fame";
@@ -2184,6 +2298,9 @@
                                         <button onclick="triggerAdminAbuse('GLOBAL_GIFT')" class="py-1.5 rounded-xl bg-amber-600/80 hover:bg-amber-500 text-white font-black text-[10px]">GIFT ALL</button>
                                         <button onclick="triggerAdminAbuse('CLEAR_TROLLS')" class="py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-black text-[10px]">CLEAR ALL</button>
                                     </div>
+                                    <button onclick="adminMaxOutEverything()" class="w-full py-2 rounded-xl bg-gradient-to-r from-amber-400 via-fuchsia-500 to-cyan-400 hover:brightness-110 text-slate-950 font-black text-xs uppercase shadow-lg">
+                                        ⚡ MAX OUT EVERYTHING (W21 + ALL GEAR + PETS)
+                                    </button>
                                     <button onclick="logoutAdminVault()" class="w-full py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-[11px] font-black text-slate-400">Lock & Exit Admin Account</button>
                                 </div>
                             `}
@@ -2436,6 +2553,10 @@
                 state.eggsHatched -= 10;
                 state.feathers += 2;
                 showToast("Claimed +2 Golden Feathers!", "success");
+            } else if (kind === "bosses" && state.bossesSlain >= 3) {
+                state.bossesSlain -= 3;
+                state.shards += 5;
+                showToast("Claimed +5 Void Shards!", "success");
             } else {
                 showToast("Quest requirement not reached yet!", "error");
             }
