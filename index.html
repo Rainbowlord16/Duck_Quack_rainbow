@@ -2132,7 +2132,7 @@ for (const packet of bossPackets) {
         }
 
         function applyAdminAbuseEvent(evt, isVerifiedServerEvent = false) {
-            // MQTT and ntfy topics are public. Reject every remote admin/gift event until server signing exists.
+            // Only server-ledger events are trusted; public MQTT and ntfy event packets are ignored.
             if (state.safeVisualsMode || !isVerifiedServerEvent || !evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
             rememberBoundedId(processedAdminEventIds, evt.id);
 
