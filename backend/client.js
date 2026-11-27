@@ -10,6 +10,7 @@ export function createDuckQuackApi(baseUrl, storage = localStorage) {
     me(){return call("/api/me");},setUsername(username){return call("/api/me",{method:"POST",body:JSON.stringify({username})});},
     chatHistory(){return call("/api/chat");},chatUpdates(since){return call("/api/chat?since="+encodeURIComponent(String(since||0)));},sendChat(text){return call("/api/chat",{method:"POST",body:JSON.stringify({text})});},
     async leaderboard(){const r=await fetch(base+"/api/leaderboard",{cache:"no-store"});if(!r.ok)throw new Error("Leaderboard request failed");return r.json();},
+    gameState(){return call("/api/game/state");},gameClick(){return call("/api/game/click",{method:"POST",body:"{}"});},gameBuyUpgrade(upgrade){return call("/api/game/upgrade",{method:"POST",body:JSON.stringify({upgrade})});},gameRebirth(){return call("/api/game/rebirth",{method:"POST",body:"{}"});},
     getRecoveryCode(){return storage.getItem(RECOVERY)||"";},hasSession(){return Boolean(storage.getItem(SESSION));},clearSession(){storage.removeItem(SESSION);}
   };
 }

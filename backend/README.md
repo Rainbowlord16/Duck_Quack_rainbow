@@ -1,6 +1,6 @@
 # Trusted backend foundation
 
-Cloudflare Worker + D1 + Durable Objects. This first backend slice provides anonymous player identity, recovery, custom usernames, rate-limited chat, and a server-backed leaderboard read endpoint.
+Cloudflare Worker + D1 + Durable Objects. The backend provides anonymous player identity, recovery, custom usernames, rate-limited chat, and a server-authoritative progression ledger for leaderboard scoring.
 
 ## Anonymous identity
 
@@ -19,17 +19,21 @@ Cloudflare Worker + D1 + Durable Objects. This first backend slice provides anon
 - POST /api/me with { "username": "..." } and bearer session
 - GET/POST /api/chat with bearer session
 - GET /api/leaderboard
+- GET /api/game/state (authenticated; accrues at most 30 seconds of server-timed idle income)
+- POST /api/game/click (authenticated; server-calculated click score, rate-limited to 12 per second)
+- POST /api/game/upgrade with { "upgrade": "beak" } (server checks the balance and fixed upgrade catalogue)
+- POST /api/game/rebirth (server checks the rebirth threshold and resets verified upgrades)
 
 ## Deploy
 
 1. Create a Cloudflare D1 database named `duck-quack`.
 2. Replace `database_id` in wrangler.toml with its ID.
 3. Set FRONTEND_ORIGIN to the exact GitHub Pages origin.
-4. From this directory run `npx wrangler d1 migrations apply duck-quack --remote`.
+4. Apply both SQL migrations in order, including `migrations/0002_authoritative_game.sql`, to the remote D1 database. With Wrangler, run `npx wrangler d1 migrations apply duck-quack --remote`.
 5. Deploy using `npx wrangler deploy`.
 
 No secret or account-specific ID is committed. The public MQTT/ntfy relays remain untrusted presentation transports.
 
 ## Important limits
 
-The leaderboard endpoint only reads server-maintained rows. This slice deliberately does not accept browser-submitted totals or save files as authoritative scores. Since the current simulation runs client-side, accepting `lifetimeQuacks` from JavaScript would make cheating trivial. Game-specific score/reward validation must be implemented before the frontend writes leaderboard state. Creator authentication and admin authorization remain disabled until a separate Creator-only server auth method is configured.
+Leaderboard totals are written only by authenticated server game actions. Browser-reported `lifetimeQuacks`, imported saves, MQTT, and ntfy are never accepted as score writes. The verified ledger awards server-calculated click power, rate-limits clicks, validates upgrade purchases against server-owned balance and a fixed catalogue, and accrues passive income using server time (capped to 30 seconds per request). This is a deliberately narrow verified scoring track: other client-only reward sources, temporary multipliers, promo rewards, arcade rewards, and admin gifts do not increase the trusted leaderboard. Existing local save totals are not imported into the trusted score because they cannot be verified. The leaderboard therefore starts counting verified progression after this deployment. Creator authentication and admin authorization remain disabled until a separate Creator-only server auth method is configured.

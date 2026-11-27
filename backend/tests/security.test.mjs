@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 const worker = await readFile(new URL("../worker.js", import.meta.url), "utf8");
 const schema = await readFile(new URL("../migrations/0001_initial.sql", import.meta.url), "utf8");
+const gameSchema = await readFile(new URL("../migrations/0002_authoritative_game.sql", import.meta.url), "utf8");
 const client = await readFile(new URL("../client.js", import.meta.url), "utf8");
 
 test("anonymous identity is server-generated and recovery uses a high-entropy key", () => {
@@ -37,10 +38,26 @@ test("client adapter keeps credentials local and does not publish them to public
   assert.doesNotMatch(client, /ntfy\.sh|mqtt/);
 });
 
-test("browser-submitted totals are not accepted as leaderboard writes", () => {
-  assert.match(worker, /SELECT player_id,username,lifetime_quacks/);
-  assert.doesNotMatch(worker, /UPDATE leaderboard SET lifetime_quacks/);
-  assert.doesNotMatch(worker, /INSERT INTO leaderboard\(player_id,username,lifetime_quacks[^)]*\) VALUES\([^)]*body\./);
+test("leaderboard writes come from server-validated game actions, never browser totals", () => {
+  assert.ok(worker.includes('/api/game/click'));
+  assert.ok(worker.includes('gameclick:'));
+  assert.ok(worker.includes('gain=Math.max(1,g.clickPower)'));
+  assert.ok(worker.includes('UPDATE leaderboard SET lifetime_quacks='));
+  assert.ok(!worker.includes("body.lifetimeQuacks") && !worker.includes("body.lifetime_quacks"));
+  assert.ok(worker.includes('/api/game/upgrade'));
+  assert.ok(worker.includes('Not enough server-verified Quacks'));
+  assert.ok(worker.includes('/api/game/rebirth'));
+  assert.ok(client.includes('gameClick()'));
+  assert.ok(client.includes('gameBuyUpgrade(upgrade)'));
+  assert.ok(client.includes('gameRebirth()'));
+});
+
+test("authoritative progression uses bounded server-owned state", () => {
+  assert.ok(gameSchema.includes('CREATE TABLE IF NOT EXISTS player_game_state'));
+  assert.ok(gameSchema.includes('CHECK(quacks>=0)'));
+  assert.ok(gameSchema.includes('CHECK(lifetime_quacks>=0)'));
+  assert.ok(worker.includes('GAME_CAP=9007199254740991'));
+  assert.ok(worker.includes('Math.min(30,now-Number(g.last_accrual'));
 });
 
 test("chat polling uses a valid incremental query with bounded ascending results", () => {
