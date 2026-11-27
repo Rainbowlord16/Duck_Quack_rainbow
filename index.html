@@ -840,6 +840,24 @@
             "confetti", "hearts", "skull_rain", "matrix", "blur", "shake_screen", "reset_size", "clear"
         ];
 
+        function adminCommandIcon(command) {
+            const c = String(command || '').toLowerCase();
+            const groups = [
+                [['nuke','tsar_nuke','orbital_laser','supernova','armageddon','meteor','smite','anvil','lightning'], '<path d="M12 2v5m0 10v5M4.93 4.93l3.54 3.54m7.06 7.06 3.54 3.54M2 12h5m10 0h5M4.93 19.07l3.54-3.54m7.06-7.06 3.54-3.54"/><circle cx="12" cy="12" r="4"/>'],
+                [['jumpscare','screamer','demon_eyes','haunt','fake_ban','fake_hack','kick_warning','bsod'], '<path d="M4 20c1-5 3-8 8-8s7 3 8 8"/><circle cx="9" cy="9" r="2"/><circle cx="15" cy="9" r="2"/><path d="M9 16h6"/>'],
+                [['blackhole','zero_g','tornado_spin','spin','flip','giant','tiny','reset_size'], '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v5m9 4h-5M12 21v-5M3 12h5"/>'],
+                [['earthquake','shake_screen','jail','freeze','unfreeze','clear'], '<path d="M3 12h4l2-6 4 12 2-6h6"/>'],
+                [['glitch','static_crash','matrix','invert','acid','retro','disco','blind','blur'], '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 8h4m2 0h4M7 12h2m3 0h5M7 16h4m2 0h4"/>'],
+                [['rainbow_storm','mega_storm','rain_gems','rain_bread','confetti','hearts','skull_rain','clone_ducks','duck_stampede'], '<path d="M3 17a9 9 0 0 1 18 0"/><path d="M7 17a5 5 0 0 1 10 0M12 17v4"/><path d="M5 5l1 2m12-2-1 2"/>'],
+                [['airhorn','siren','vine_boom','sad_trombone','choir_blast','rickroll'], '<path d="M4 10v4h4l8 5V5l-8 5H4z"/><path d="M19 9a5 5 0 0 1 0 6m2-9a9 9 0 0 1 0 12"/>'],
+                [['rain_gems','gift_gems','gift_quacks','gift_eggs','give_pets','rich','rebirth_boost','void_boost','unlock_worlds','max_fever','tax','wipe_combo','heal_boss','slay_boss','set_weather_bread','set_weather_gem','set_weather_cyber','set_weather_void','say','announce'], '<path d="M4 7h16v13H4zM2 7l2-4h16l2 4"/><path d="M12 7v13m-4-9h8"/>']
+            ];
+            const match = groups.find(group => group[0].includes(c));
+            const path = match ? match[1] : '<circle cx="12" cy="12" r="9"/><path d="M12 7v10m-5-5h10"/>';
+            return '<svg viewBox="0 0 24 24" class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg>';
+        }
+
+
         const JUMPSCARE_IMAGE_URLS = ["./jumpscare.png"];
 
         /* =========================================================================
@@ -851,6 +869,7 @@
                 accountSlotId: "guest_" + Date.now().toString(36) + "_" + randId,
                 playerName: "DuckGuest_" + randId,
                 isAdminAuthenticated: false,
+                creatorMaxed: false,
                 profilePic: "",
                 tinyAvatar: "",
                 quacks: 0,
@@ -1179,6 +1198,14 @@
             } finally {
                 serverChatPollInFlight = false;
             }
+        }
+
+        function appendLocalChatMessage(sender, text, isSystem = true) {
+            const message = String(text || "").slice(0, 280);
+            if (!message) return;
+            globalChatMessages.push({ id: "local-admin-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8), sender: String(sender || "SYSTEM").slice(0, 22), text: message, timestamp: Date.now(), isSystem: Boolean(isSystem) });
+            globalChatMessages = globalChatMessages.slice(-60);
+            renderGlobalChat();
         }
 
         function renderGlobalChat() {
@@ -2030,13 +2057,40 @@ for (const packet of bossPackets) {
             return Boolean(sessionStorage.getItem("dq_creator_admin_session_v1"));
         }
 
+        async function applyCreatorPrivileges(identity = null, silent = false) {
+            if (identity?.player?.id) state.accountSlotId = identity.player.id;
+            state.playerName = CREATOR_USERNAME;
+            state.isAdminAuthenticated = true;
+            if (!state.creatorMaxed) {
+                adminMaxOutEverything(true);
+                state.creatorMaxed = true;
+            }
+            saveGame();
+            renderAll();
+            refreshServerLeaderboard(true);
+            if (!silent) showToast("Creator identity restored. RainbowLord16 privileges are active.", "success");
+        }
+
+        async function restoreCreatorSession() {
+            if (!window.DuckQuackApi?.creatorSession || !window.DuckQuackApi?.claimCreatorIdentity) return false;
+            try {
+                await window.DuckQuackApi.creatorSession();
+                const identity = await window.DuckQuackApi.claimCreatorIdentity();
+                await applyCreatorPrivileges(identity, true);
+                return true;
+            } catch (error) {
+                state.isAdminAuthenticated = false;
+                renderAll();
+                return false;
+            }
+        }
+
         async function unlockAdminVault() {
             if (!window.DuckQuackApi) { showToast("Secure backend is still connecting.", "error"); return; }
             try {
-                await window.DuckQuackApi.creatorLogin();
-                state.isAdminAuthenticated = true;
+                const result = await window.DuckQuackApi.creatorLogin();
+                await applyCreatorPrivileges(result.identity, false);
                 openModal("profile");
-                showToast("Creator passkey verified. Admin Vault unlocked.", "success");
             } catch (error) { showToast(error?.message || "Creator passkey login failed.", "error"); }
         }
 
@@ -2133,7 +2187,8 @@ for (const packet of bossPackets) {
 
         function applyAdminAbuseEvent(evt, isVerifiedServerEvent = false) {
             // Only server-ledger events are trusted; public MQTT and ntfy event packets are ignored.
-            if (state.safeVisualsMode || !isVerifiedServerEvent || !evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
+            const incomingType = String(evt?.type || "").toUpperCase();
+            if ((state.safeVisualsMode && incomingType !== "CLEAR") || !isVerifiedServerEvent || !evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
             rememberBoundedId(processedAdminEventIds, evt.id);
 
 
@@ -2218,15 +2273,33 @@ for (const packet of bossPackets) {
                     ice.classList.remove("hidden");
                     setTimeout(() => ice.classList.add("hidden"), 6000);
                 }
-            } else if (type === "UNFREEZE" || type === "CLEAR") {
+            } else if (type === "UNFREEZE") {
                 const jail = document.getElementById("duckJailOverlay");
                 const ice = document.getElementById("duckFreezeOverlay");
                 if (jail) jail.classList.add("hidden");
                 if (ice) ice.classList.add("hidden");
+            } else if (type === "CLEAR") {
+                ["duckJailOverlay", "duckFreezeOverlay", "jumpscareOverlay", "adminFxOverlay", "globalEventBanner"].forEach(id => {
+                    const node = document.getElementById(id);
+                    if (!node) return;
+                    node.classList.add("hidden");
+                    node.classList.remove("scare-active");
+                    if (id === "adminFxOverlay") node.innerHTML = "";
+                    if (id === "jumpscareOverlay") node.style.display = "none";
+                });
                 if (root) {
+                    root.classList.remove("screen-shaking", "admin-glitch-active", "admin-invert-active", "admin-acid-active", "admin-blind-active", "admin-retro-active");
                     root.style.transform = "";
-                    root.classList.remove("admin-glitch-active", "admin-invert-active", "admin-acid-active", "admin-blind-active", "admin-retro-active", "screen-shaking");
+                    root.style.filter = "";
+                    root.style.animation = "";
                 }
+                const duckBtn = document.getElementById("heroDuckBtn");
+                if (duckBtn) duckBtn.style.transform = "";
+                document.querySelectorAll(".rainbow-aura").forEach(node => node.classList.remove("rainbow-aura"));
+                state.adminServerMult = 1;
+                state.adminServerMultEndsAt = 0;
+                feverActive = false;
+                feverValue = 0;
             } else if (type === "FLIP") {
                 if (root) {
                     root.style.transition = "transform 0.5s ease";
@@ -2638,6 +2711,7 @@ for (const packet of bossPackets) {
             saveGame();
             renderAll();
             if (activeModalId === "profile") openModal("profile");
+            restoreCreatorSession();
         };
 
         async function copyPlayerRecoveryCode() {
@@ -2904,7 +2978,7 @@ for (const packet of bossPackets) {
             serverLeaderboardPollInFlight = true;
             lastServerLeaderboardFetchAt = Date.now();
             try {
-                await window.DuckQuackApi.gameState();
+                const ownState = await window.DuckQuackApi.gameState();
                 const result = await window.DuckQuackApi.leaderboard();
                 serverLeaderboardEntries = (Array.isArray(result.entries) ? result.entries : []).map(entry => ({
                     accountSlotId: String(entry.player_id || ""),
@@ -2915,6 +2989,11 @@ for (const packet of bossPackets) {
                     bossKills: 0,
                     profilePic: ""
                 })).filter(entry => entry.accountSlotId);
+                if (state.isAdminAuthenticated && state.accountSlotId) {
+                    const ownGame = ownState?.game || {};
+                    serverLeaderboardEntries = serverLeaderboardEntries.filter(entry => entry.accountSlotId !== state.accountSlotId);
+                    serverLeaderboardEntries.push({ accountSlotId: state.accountSlotId, playerName: CREATOR_USERNAME, lifetimeQuacks: Math.max(0, Number(ownGame.lifetimeQuacks) || 0), rebirths: Math.max(0, Number(ownGame.rebirths) || 0), currentWorld: 1, bossKills: 0, profilePic: "" });
+                }
                 serverLeaderboardStatus = "VERIFIED SERVER RANKINGS";
             } catch (error) {
                 serverLeaderboardStatus = "Leaderboard temporarily unavailable";
@@ -2925,11 +3004,20 @@ for (const packet of bossPackets) {
             }
         }
 
+        function getDisplayLeaderboardEntries() {
+            const entries = (serverLeaderboardEntries || []).slice().sort((a, b) => (b.lifetimeQuacks || 0) - (a.lifetimeQuacks || 0));
+            if (state.isAdminAuthenticated && state.accountSlotId) {
+                const creatorIndex = entries.findIndex(entry => entry.accountSlotId === state.accountSlotId);
+                if (creatorIndex >= 0) entries.unshift(entries.splice(creatorIndex, 1)[0]);
+            }
+            return entries;
+        }
+
         function renderLeaderboardModal() {
             const title = document.getElementById("systemModalTitle");
             const body = document.getElementById("systemModalBody");
             if (!title || !body) return;
-            const entries = serverLeaderboardEntries || [];
+            const entries = getDisplayLeaderboardEntries();
             title.textContent = "Global Hall of Fame";
             body.innerHTML = `<div class="space-y-2.5">
                 <div class="flex items-center justify-between text-xs gap-2">
@@ -2937,34 +3025,33 @@ for (const packet of bossPackets) {
                     <button onclick="refreshServerLeaderboard(true)" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold">↻ Refresh</button>
                 </div>
                 ${entries.length ? `<div class="space-y-1.5">
-                    ${entries.map((p, idx) => `<div class="p-3 rounded-2xl border panel-subcard flex items-center justify-between gap-3">
+                    ${entries.map((p, idx) => { const isCreator = state.isAdminAuthenticated && p.accountSlotId === state.accountSlotId; return `<div class="p-3 rounded-2xl border ${isCreator ? "rainbow-aura bg-gradient-to-r from-fuchsia-500/20 via-amber-400/10 to-cyan-400/20 border-amber-300/70 shadow-lg" : "panel-subcard"} flex items-center justify-between gap-3">
                         <div class="min-w-0">
-                            <div class="font-extrabold text-xs sm:text-sm truncate text-white">#${idx + 1} · ${escapeHtmlText(p.playerName)}</div>
+                            <div class="font-extrabold text-xs sm:text-sm truncate ${isCreator ? "creator-name-glow" : "text-white"}">#${idx + 1} · ${escapeHtmlText(isCreator ? CREATOR_USERNAME : p.playerName)} ${isCreator ? '<span class="ml-1 text-[9px] tracking-wider">CREATOR</span>' : ""}</div>
                             <div class="text-[10px] text-slate-400">Player ID: ${escapeHtmlText(p.accountSlotId)} · Rebirths: ${formatNum(p.rebirths)}</div>
                         </div>
                         <div class="text-right shrink-0">
                             <div class="font-display font-extrabold text-sm text-amber-300">${formatNum(p.lifetimeQuacks)}</div>
                             <div class="text-[10px] text-slate-400">Quacks</div>
                         </div>
-                    </div>`).join("")}
+                    </div>`; }).join("")}
                 </div>` : `<div class="panel-subcard rounded-xl p-4 text-xs text-slate-400">${escapeHtmlText(serverLeaderboardStatus)}. Scores appear here only after the server accepts validated game progress.</div>`}
             </div>`;
         }
 
         function renderLeaderboardUI() {
-            const entries = (serverLeaderboardEntries || []).slice().sort((a, b) => (b.lifetimeQuacks || 0) - (a.lifetimeQuacks || 0));
+            const entries = getDisplayLeaderboardEntries();
             const mini = document.getElementById("miniLeaderboardList");
             if (mini) {
                 mini.innerHTML = entries.length ? entries.slice(0, 5).map((p, idx) => {
-                    // Public roster fields are unverified and cannot grant creator styling.
-                    const isCreator = false;
-                    return `<div class="px-2.5 py-1.5 rounded-xl border ${isCreator ? "bg-gradient-to-r from-fuchsia-500/15 via-amber-500/10 to-cyan-500/15 border-amber-400/40" : "panel-subcard"} flex items-center justify-between gap-2 text-xs">
+                    const isCreator = state.isAdminAuthenticated && p.accountSlotId === state.accountSlotId;
+                    return `<div class="px-2.5 py-1.5 rounded-xl border ${isCreator ? "rainbow-aura bg-gradient-to-r from-fuchsia-500/20 via-amber-400/10 to-cyan-400/20 border-amber-300/70 shadow-lg" : "panel-subcard"} flex items-center justify-between gap-2 text-xs">
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="font-display font-extrabold text-[11px] ${idx === 0 ? "text-amber-300" : "text-slate-400"}">#${idx + 1}</span>
                             <span class="w-5 h-5 rounded-full overflow-hidden bg-slate-800 flex items-center justify-center shrink-0">
                                 ${safeAvatarDataUrl(p.profilePic) ? `<img src="${safeAvatarDataUrl(p.profilePic)}" alt="" class="w-full h-full object-cover">` : buildMiniDuckBadgeSvg(isCreator ? "#ec4899" : "#facc15", "#38bdf8", "w-4 h-4")}
                             </span>
-                            <span class="font-extrabold truncate ${isCreator ? "creator-name-glow" : "text-white"}">${escapeHtmlText(p.playerName)}</span>
+                            <span class="font-extrabold truncate ${isCreator ? "creator-name-glow" : "text-white"}">${escapeHtmlText(isCreator ? CREATOR_USERNAME : p.playerName)}</span>
                         </div>
                         <span class="font-display font-extrabold text-[11px] text-amber-300 shrink-0">${formatNum(p.lifetimeQuacks)}</span>
                     </div>`;
@@ -3337,59 +3424,59 @@ for (const packet of bossPackets) {
                         <p class="text-[11px] text-slate-400">Reduces motion and suppresses jumpscares, strobing, and full-screen flash effects on this device.</p>
                     </div>
                     <div class="panel-subcard rounded-2xl p-4 border border-amber-400/30 space-y-3">
-                        <div class="font-display font-extrabold text-sm text-amber-300">🔐 Creator Admin Vault</div>
+                        <div class="font-display font-extrabold text-sm text-amber-300">${adminCommandIcon("unlock")} Creator Admin Vault</div>
                         <p class="text-xs text-slate-300">Unlock with your registered Creator passkey. Ordinary players do not need to sign in.</p>
-                        <button onclick="unlockAdminVault()" class="w-full px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold">👑 Unlock with Passkey</button>
+                        <button onclick="unlockAdminVault()" class="w-full px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold">${adminCommandIcon("unlock")} Unlock with Passkey</button>
                         <details class="text-xs text-slate-400"><summary class="cursor-pointer font-bold">First-time Creator passkey setup</summary><p class="my-2">Paste the one-time secret configured in Cloudflare Worker secrets. It is sent only to the Worker and is not saved in this browser.</p><input id="creatorEnrollmentSecret" type="password" autocomplete="off" placeholder="One-time enrollment secret" class="w-full p-2 rounded-xl bg-slate-950 border border-slate-700 text-white"><button onclick="enrollCreatorPasskey()" class="w-full mt-2 px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold">Register this device passkey</button></details>
                     </div>
                     ${state.isAdminAuthenticated ? `
                         <div class="panel-subcard rounded-2xl p-4 border border-amber-400/50 space-y-3">
                             <div class="flex flex-wrap items-center justify-between gap-2">
-                                <div class="font-display font-extrabold text-sm creator-name-glow">👑 RAINBOWLORD16 CREATOR ADMIN VAULT</div>
+                                <div class="font-display font-extrabold text-sm creator-name-glow">${adminCommandIcon("unlock")} RAINBOWLORD16 CREATOR ADMIN VAULT</div>
                                 <div class="flex gap-2">
-                                    <button onclick="adminMaxOutEverything()" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-pink-500 text-slate-950 font-extrabold text-xs shadow-lg">⚡ MAX OUT EVERYTHING</button>
+                                    <button onclick="adminMaxOutEverything()" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-pink-500 text-slate-950 font-extrabold text-xs shadow-lg">${adminCommandIcon("rich")} MAX OUT EVERYTHING</button>
                                     <button onclick="lockAdminAccount()" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs">Lock & Exit</button>
                                 </div>
                             </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                 <select id="adminTargetSelect" onchange="state.adminTargetPlayer=this.value;saveGame();" class="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-bold">
-                                    <option value="ALL" ${state.adminTargetPlayer === "ALL" ? "selected" : ""}>🎯 Target: ALL PLAYERS</option>
-                                    ${entries.map(p => `<option value="${escapeHtmlText(p.playerName)}" ${state.adminTargetPlayer === p.playerName ? "selected" : ""}>🎯 ${escapeHtmlText(p.playerName)}</option>`).join("")}
+                                    <option value="ALL" ${state.adminTargetPlayer === "ALL" ? "selected" : ""}>Target: ALL PLAYERS</option>
+                                    ${entries.map(p => `<option value="${escapeHtmlText(p.playerName)}" ${state.adminTargetPlayer === p.playerName ? "selected" : ""}>${escapeHtmlText(p.playerName)}</option>`).join("")}
                                 </select>
                                 <input id="adminCommandInput" type="text" onkeydown="if(event.key==='Enter') executeAdminCommandLine()" placeholder="Type command e.g. /nuke or /jumpscare" class="sm:col-span-2 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white">
                             </div>
 
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                                <button onclick="triggerAdminCommand('nuke')" class="p-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs">☢️ NUKE</button>
-                                <button onclick="triggerAdminCommand('jumpscare')" class="p-2 rounded-xl bg-red-900 hover:bg-red-800 text-white font-extrabold text-xs">👻 JUMPSCARE</button>
-                                <button onclick="triggerAdminCommand('blackhole')" class="p-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-extrabold text-xs">🕳️ BLACK HOLE</button>
-                                <button onclick="triggerAdminCommand('earthquake')" class="p-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs">🌋 EARTHQUAKE</button>
-                                <button onclick="triggerAdminCommand('jail')" class="p-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-extrabold text-xs">⛓️ JAIL</button>
-                                <button onclick="triggerAdminCommand('freeze')" class="p-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs">🧊 FREEZE</button>
-                                <button onclick="triggerAdminCommand('flip')" class="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs">🙃 FLIP SCREEN</button>
-                                <button onclick="triggerAdminCommand('spin')" class="p-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-extrabold text-xs">🌀 BARREL SPIN</button>
-                                <button onclick="triggerAdminCommand('glitch')" class="p-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-extrabold text-xs">👾 CYBER GLITCH</button>
-                                <button onclick="triggerAdminCommand('flashbang')" class="p-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-xs">💥 FLASHBANG</button>
-                                <button onclick="triggerAdminCommand('mega_storm')" class="p-2 rounded-xl bg-gradient-to-r from-pink-500 to-cyan-400 text-slate-950 font-extrabold text-xs">🌈 10,000x STORM</button>
-                                <button onclick="triggerAdminCommand('clear')" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 font-extrabold text-xs">✨ CLEAR EFFECTS</button>
+                                <button onclick="triggerAdminCommand('nuke')" class="p-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("nuke")} NUKE</span></button>
+                                <button onclick="triggerAdminCommand('jumpscare')" class="p-2 rounded-xl bg-red-900 hover:bg-red-800 text-white font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("jumpscare")} JUMPSCARE</span></button>
+                                <button onclick="triggerAdminCommand('blackhole')" class="p-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("blackhole")} BLACK HOLE</span></button>
+                                <button onclick="triggerAdminCommand('earthquake')" class="p-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("earthquake")} EARTHQUAKE</span></button>
+                                <button onclick="triggerAdminCommand('jail')" class="p-2 rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("jail")} JAIL</span></button>
+                                <button onclick="triggerAdminCommand('freeze')" class="p-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("freeze")} FREEZE</span></button>
+                                <button onclick="triggerAdminCommand('flip')" class="p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("flip")} FLIP SCREEN</span></button>
+                                <button onclick="triggerAdminCommand('spin')" class="p-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("spin")} BARREL SPIN</span></button>
+                                <button onclick="triggerAdminCommand('glitch')" class="p-2 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("glitch")} CYBER GLITCH</span></button>
+                                <button onclick="triggerAdminCommand('flashbang')" class="p-2 rounded-xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("flashbang")} FLASHBANG</span></button>
+                                <button onclick="triggerAdminCommand('mega_storm')" class="p-2 rounded-xl bg-gradient-to-r from-pink-500 to-cyan-400 text-slate-950 font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("mega_storm")} 10,000x STORM</span></button>
+                                <button onclick="triggerAdminCommand('clear')" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-300 font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("clear")} CLEAR EFFECTS</span></button>
                             </div>
 
                             <div>
-                                <div class="text-[11px] font-bold text-slate-400 mb-1">🔊 Live Speaker Troll Soundboard</div>
+                                <div class="text-[11px] font-bold text-slate-400 mb-1">${adminCommandIcon("airhorn")} Live Speaker Troll Soundboard</div>
                                 <div class="flex flex-wrap gap-1.5">
-                                    <button onclick="triggerAdminCommand('airhorn')" class="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold">📯 Airhorn</button>
-                                    <button onclick="triggerAdminCommand('siren')" class="px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-400/40 text-rose-200 text-xs font-bold">🚨 Nuclear Siren</button>
-                                    <button onclick="triggerAdminCommand('vine_boom')" class="px-2.5 py-1 rounded-lg bg-purple-500/20 border border-purple-400/40 text-purple-200 text-xs font-bold">💥 Vine Boom</button>
-                                    <button onclick="triggerAdminCommand('sad_trombone')" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-xs font-bold">🎺 Sad Trombone</button>
-                                    <button onclick="triggerAdminCommand('choir_blast')" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs font-bold">🎶 Choir Blast</button>
+                                    <button onclick="triggerAdminCommand('airhorn')" class="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold"><span class="inline-flex items-center gap-2">${adminCommandIcon("airhorn")} Airhorn</span></button>
+                                    <button onclick="triggerAdminCommand('siren')" class="px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-400/40 text-rose-200 text-xs font-bold"><span class="inline-flex items-center gap-2">${adminCommandIcon("siren")} Nuclear Siren</span></button>
+                                    <button onclick="triggerAdminCommand('vine_boom')" class="px-2.5 py-1 rounded-lg bg-purple-500/20 border border-purple-400/40 text-purple-200 text-xs font-bold"><span class="inline-flex items-center gap-2">${adminCommandIcon("vine_boom")} Vine Boom</span></button>
+                                    <button onclick="triggerAdminCommand('sad_trombone')" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-cyan-200 text-xs font-bold"><span class="inline-flex items-center gap-2">${adminCommandIcon("sad_trombone")} Sad Trombone</span></button>
+                                    <button onclick="triggerAdminCommand('choir_blast')" class="px-2.5 py-1 rounded-lg bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 text-xs font-bold"><span class="inline-flex items-center gap-2">${adminCommandIcon("choir_blast")} Choir Blast</span></button>
                                 </div>
                             </div>
 
                             <div>
-                                <div class="text-[11px] font-bold text-slate-400 mb-1">📜 All ${ALL_ADMIN_COMMANDS.length} Quick-Click Commands</div>
+                                <div class="text-[11px] font-bold text-slate-400 mb-1">${adminCommandIcon("matrix")} All ${ALL_ADMIN_COMMANDS.length} Quick-Click Commands</div>
                                 <div class="flex flex-wrap gap-1 max-h-28 overflow-y-auto custom-scroll p-2 rounded-xl bg-slate-950/90 border border-slate-800">
-                                    ${ALL_ADMIN_COMMANDS.map(c => `<button onclick="triggerAdminCommand('${c}')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-fuchsia-600 text-[10px] font-bold text-slate-300 hover:text-white transition">/${c}</button>`).join("")}
+                                    ${ALL_ADMIN_COMMANDS.map(c => `<button onclick="triggerAdminCommand('${c}')" class="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-900 hover:bg-fuchsia-600 text-[10px] font-bold text-slate-300 hover:text-white transition">${adminCommandIcon(c)}<span>/${c}</span></button>`).join("")}
                                 </div>
                             </div>
                         </div>

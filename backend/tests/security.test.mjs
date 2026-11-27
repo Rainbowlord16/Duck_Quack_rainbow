@@ -119,3 +119,27 @@ test("every restored frontend abuse command is explicitly allowlisted by the Wor
   assert.deepEqual(serverCommands, uiCommands);
   assert.doesNotMatch(frontend, /target === state\.accountSlotId \|\|\s*isVerifiedServerEvent/);
 });
+
+
+test("Creator passkey sessions can be revalidated and bind the anonymous player identity", () => {
+  assert.match(worker, /\/api\/admin\/session/);
+  assert.match(worker, /\/api\/admin\/identity/);
+  assert.match(worker, /X-Player-Session/);
+  assert.match(worker, /authToken\(playerToken,env\)/);
+  assert.match(worker, /bind\("RainbowLord16",now,p\.player_id\)/);
+  assert.match(client, /creatorSession\(\)/);
+  assert.match(client, /claimCreatorIdentity\(\)/);
+  assert.match(frontend, /restoreCreatorSession\(\)/);
+});
+
+test("Creator admin UI has SVG command icons, a defined chat helper, and complete clear-effects behavior", () => {
+  assert.match(frontend, /function adminCommandIcon\(command\)/);
+  assert.match(frontend, /adminCommandIcon\(c\)/);
+  assert.match(frontend, /function appendLocalChatMessage\(/);
+  assert.match(frontend, /type === "CLEAR"/);
+  assert.match(frontend, /jumpscareOverlay/);
+  assert.match(frontend, /adminFxOverlay/);
+  assert.match(frontend, /creator-name-glow/);
+  assert.match(frontend, /getDisplayLeaderboardEntries\(\)/);
+  assert.match(frontend, /creatorMaxed/);
+});

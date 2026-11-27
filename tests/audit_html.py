@@ -92,7 +92,7 @@ for forbidden in (
     assert forbidden not in SOURCE, f"Forbidden client-side pattern remains: {forbidden}"
 
 assert "ADMIN_AUTH_BACKEND_ENABLED = true" in SOURCE
-assert "state.safeVisualsMode || !isVerifiedServerEvent" in SOURCE
+assert 'state.safeVisualsMode && incomingType !== "CLEAR"' in SOURCE
 assert "navigator.credentials.get" in (ROOT / "backend/client.js").read_text(encoding="utf-8")
 assert "refreshVerifiedAdminEvents" in SOURCE
 assert "target === state.accountSlotId" in SOURCE
