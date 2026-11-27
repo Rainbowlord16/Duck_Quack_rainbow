@@ -840,6 +840,24 @@
             "confetti", "hearts", "skull_rain", "matrix", "blur", "shake_screen", "reset_size", "clear"
         ];
 
+        function adminCommandIcon(command) {
+            const c = String(command || '').toLowerCase();
+            const groups = [
+                [['nuke','tsar_nuke','orbital_laser','supernova','armageddon','meteor','smite','anvil','lightning'], '<path d="M12 2v5m0 10v5M4.93 4.93l3.54 3.54m7.06 7.06 3.54 3.54M2 12h5m10 0h5M4.93 19.07l3.54-3.54m7.06-7.06 3.54-3.54"/><circle cx="12" cy="12" r="4"/>'],
+                [['jumpscare','screamer','demon_eyes','haunt','fake_ban','fake_hack','kick_warning','bsod'], '<path d="M4 20c1-5 3-8 8-8s7 3 8 8"/><circle cx="9" cy="9" r="2"/><circle cx="15" cy="9" r="2"/><path d="M9 16h6"/>'],
+                [['blackhole','zero_g','tornado_spin','spin','flip','giant','tiny','reset_size'], '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="M12 3v5m9 4h-5M12 21v-5M3 12h5"/>'],
+                [['earthquake','shake_screen','jail','freeze','unfreeze','clear'], '<path d="M3 12h4l2-6 4 12 2-6h6"/>'],
+                [['glitch','static_crash','matrix','invert','acid','retro','disco','blind','blur'], '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 8h4m2 0h4M7 12h2m3 0h5M7 16h4m2 0h4"/>'],
+                [['rainbow_storm','mega_storm','rain_gems','rain_bread','confetti','hearts','skull_rain','clone_ducks','duck_stampede'], '<path d="M3 17a9 9 0 0 1 18 0"/><path d="M7 17a5 5 0 0 1 10 0M12 17v4"/><path d="M5 5l1 2m12-2-1 2"/>'],
+                [['airhorn','siren','vine_boom','sad_trombone','choir_blast','rickroll'], '<path d="M4 10v4h4l8 5V5l-8 5H4z"/><path d="M19 9a5 5 0 0 1 0 6m2-9a9 9 0 0 1 0 12"/>'],
+                [['rain_gems','gift_gems','gift_quacks','gift_eggs','give_pets','rich','rebirth_boost','void_boost','unlock_worlds','max_fever','tax','wipe_combo','heal_boss','slay_boss','set_weather_bread','set_weather_gem','set_weather_cyber','set_weather_void','say','announce'], '<path d="M4 7h16v13H4zM2 7l2-4h16l2 4"/><path d="M12 7v13m-4-9h8"/>']
+            ];
+            const match = groups.find(group => group[0].includes(c));
+            const path = match ? match[1] : '<circle cx="12" cy="12" r="9"/><path d="M12 7v10m-5-5h10"/>';
+            return '<svg viewBox="0 0 24 24" class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg>';
+        }
+
+
         const JUMPSCARE_IMAGE_URLS = ["./jumpscare.png"];
 
         /* =========================================================================
@@ -851,6 +869,7 @@
                 accountSlotId: "guest_" + Date.now().toString(36) + "_" + randId,
                 playerName: "DuckGuest_" + randId,
                 isAdminAuthenticated: false,
+                creatorMaxed: false,
                 profilePic: "",
                 tinyAvatar: "",
                 quacks: 0,
@@ -1179,6 +1198,14 @@
             } finally {
                 serverChatPollInFlight = false;
             }
+        }
+
+        function appendLocalChatMessage(sender, text, isSystem = true) {
+            const message = String(text || "").slice(0, 280);
+            if (!message) return;
+            globalChatMessages.push({ id: "local-admin-" + Date.now() + "-" + Math.random().toString(36).slice(2, 8), sender: String(sender || "SYSTEM").slice(0, 22), text: message, timestamp: Date.now(), isSystem: Boolean(isSystem) });
+            globalChatMessages = globalChatMessages.slice(-60);
+            renderGlobalChat();
         }
 
         function renderGlobalChat() {
