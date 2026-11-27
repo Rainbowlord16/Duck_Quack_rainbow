@@ -20,6 +20,6 @@ jobs:
       - name: Run HTML, security, and JavaScript checks
         run: python tests/audit_html.py
       - name: Check backend JavaScript syntax
-        run: node --check backend/worker.js && node --check backend/client.js
+        run: node --input-type=module --check < backend/worker.js && node --input-type=module --check < backend/client.js
       - name: Run backend tests
         run: node --test backend/tests/*.test.mjs
