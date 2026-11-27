@@ -78,6 +78,9 @@ assert "safeAvatarDataUrl" in SOURCE
 assert "normalizePublicRosterEntry" in SOURCE
 assert "normalizePublicChatMessage" in SOURCE
 assert "Object.keys(liveHttpEntries).length >= 100" in SOURCE
+assert "allowIncomingChatPacket()" in SOURCE
+assert "rawStr.length > 16384" in SOURCE
+assert "storePublicRosterEntry(data, expectedSlotId)" in SOURCE
 assert 'file.size > 5 * 1024 * 1024' in SOURCE
 assert "Player gifting is paused until gifts can be verified" in SOURCE
 assert "const isCreator = false" in SOURCE
