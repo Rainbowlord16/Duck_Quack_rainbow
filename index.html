@@ -227,6 +227,29 @@
                 transition-duration: 0.01ms !important;
             }
         }
+
+        /* Smooth, consistent interaction and surface polish */
+        :root { color-scheme: dark; --dq-accent: #fbbf24; --dq-ease: cubic-bezier(.2,.75,.25,1); }
+        html { scroll-behavior: smooth; }
+        body { text-rendering: optimizeLegibility; -webkit-font-smoothing: antialiased; }
+        button, input, select, textarea, .panel-card, .panel-subcard, [role="button"] {
+            transition: background-color .18s var(--dq-ease), border-color .18s var(--dq-ease),
+                        color .18s var(--dq-ease), box-shadow .22s var(--dq-ease),
+                        transform .22s var(--dq-ease), opacity .18s var(--dq-ease);
+        }
+        button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active { transform: translateY(1px) scale(.985); }
+        button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+            outline: 2px solid var(--dq-accent); outline-offset: 3px;
+        }
+        .panel-card { border-color: rgba(148,163,184,.19); box-shadow: 0 16px 38px -22px rgba(0,0,0,.72); }
+        .panel-card:hover { border-color: rgba(148,163,184,.28); }
+        .panel-subcard { border-color: rgba(148,163,184,.16); }
+        input, select, textarea { border-radius: .8rem; }
+        ::selection { background: rgba(251,191,36,.35); color: #fff; }
+        @media (prefers-reduced-motion: reduce) {
+            html { scroll-behavior: auto; }
+            button:not(:disabled):active, [role="button"]:not([aria-disabled="true"]):active { transform: none; }
+        }
     </style>
 </head>
 <body class="antialiased selection:bg-amber-400 selection:text-slate-950">
@@ -2632,6 +2655,23 @@
             }
         }
 
+        async function logoutPlayerDevice() {
+            const code = window.DuckQuackApi?.getRecoveryCode?.() || "";
+            const warning = code
+                ? "Log out of this player on this device and switch to a new player? Make sure you have copied your recovery code first. This device's saved recovery code will be cleared."
+                : "Log out and switch to a new player? You do not currently have a saved recovery code for this player.";
+            if (!window.confirm(warning)) return;
+            try {
+                window.DuckQuackApi?.clearSession?.();
+                localStorage.removeItem("dq_recovery_code_v1");
+                localStorage.removeItem("dq_trusted_session_v1");
+                showToast("Logged out on this device. Creating a fresh player…", "success");
+                window.location.reload();
+            } catch (error) {
+                showToast("Could not complete logout on this device.", "error");
+            }
+        }
+
         async function recoverPlayerIdentity() {
             const input = document.getElementById("playerRecoveryCodeInput");
             const code = input?.value?.trim();
@@ -3272,6 +3312,8 @@
                             <div class="text-[11px] font-bold text-slate-300">Restore an existing Player ID</div>
                             <textarea id="playerRecoveryCodeInput" rows="2" autocomplete="off" spellcheck="false" placeholder="Paste your recovery code here..." class="w-full p-2 rounded-xl bg-slate-950 border border-slate-700 text-[11px] text-slate-200"></textarea>
                             <button onclick="recoverPlayerIdentity()" class="w-full px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold">Restore Player ID</button>
+                            <button onclick="logoutPlayerDevice()" class="w-full px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-400/35 text-rose-200 text-xs font-extrabold">Log Out &amp; Switch Player</button>
+                            <p class="text-[10px] text-slate-500">Before logging out, save your recovery code above. Logging out removes this device's saved session and recovery code.</p>
                         </div>
                         <p class="text-[10px] text-slate-500">Keep this code private. Anyone with it can recover your player account. It is separate from your Base64 game-save backup.</p>
                     </div>
