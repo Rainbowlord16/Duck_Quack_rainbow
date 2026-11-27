@@ -3434,15 +3434,15 @@ for (const packet of bossPackets) {
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <div class="font-display font-extrabold text-sm creator-name-glow">${adminCommandIcon("unlock")} RAINBOWLORD16 CREATOR ADMIN VAULT</div>
                                 <div class="flex gap-2">
-                                    <button onclick="adminMaxOutEverything()" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-pink-500 text-slate-950 font-extrabold text-xs shadow-lg">⚡ MAX OUT EVERYTHING</button>
+                                    <button onclick="adminMaxOutEverything()" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-pink-500 text-slate-950 font-extrabold text-xs shadow-lg">${adminCommandIcon("rich")} MAX OUT EVERYTHING</button>
                                     <button onclick="lockAdminAccount()" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs">Lock & Exit</button>
                                 </div>
                             </div>
 
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                 <select id="adminTargetSelect" onchange="state.adminTargetPlayer=this.value;saveGame();" class="px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white font-bold">
-                                    <option value="ALL" ${state.adminTargetPlayer === "ALL" ? "selected" : ""}>🎯 Target: ALL PLAYERS</option>
-                                    ${entries.map(p => `<option value="${escapeHtmlText(p.playerName)}" ${state.adminTargetPlayer === p.playerName ? "selected" : ""}>🎯 ${escapeHtmlText(p.playerName)}</option>`).join("")}
+                                    <option value="ALL" ${state.adminTargetPlayer === "ALL" ? "selected" : ""}>Target: ALL PLAYERS</option>
+                                    ${entries.map(p => `<option value="${escapeHtmlText(p.playerName)}" ${state.adminTargetPlayer === p.playerName ? "selected" : ""}>${escapeHtmlText(p.playerName)}</option>`).join("")}
                                 </select>
                                 <input id="adminCommandInput" type="text" onkeydown="if(event.key==='Enter') executeAdminCommandLine()" placeholder="Type command e.g. /nuke or /jumpscare" class="sm:col-span-2 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white">
                             </div>
