@@ -950,6 +950,8 @@
         let mqttReconnectTimer = null;
         let mqttReconnectAttempt = 0;
         let relayPollInFlight = false;
+        let pendingChatOutbox = [];
+        let chatFlushInFlight = false;
         let liveHttpEntries = Object.create(null);
         let globalChatMessages = [];
         let seenChatIds = new Set();
@@ -1070,6 +1072,8 @@
                     // Shared weather is deterministic from UTC; no public write topic is trusted.
 
                     window.syncLeaderboardScore(true);
+                    if (coopBossState.updatedAt > 0) publishMqttPacket("boss", coopBossState, true);
+                    flushPendingChatOutbox();
                     renderLeaderboardUI();
                 });
 
@@ -1134,6 +1138,7 @@
             connectGlobalMqttSync();
             window.syncLeaderboardScore(true);
             pullHttpCloudRosterAndEvents();
+            flushPendingChatOutbox();
         });
         window.addEventListener("pageshow", () => {
             if (!mqttClient || !mqttConnected) connectGlobalMqttSync();
@@ -1161,6 +1166,81 @@
                 </div>`;
             }).join("");
             feed.scrollTop = feed.scrollHeight;
+        }
+
+        function savePendingChatOutbox() {
+            try {
+                localStorage.setItem("dq_sync_chat_outbox_v1", JSON.stringify(pendingChatOutbox.slice(-50)));
+            } catch (e) {}
+        }
+
+        function queuePendingChatMessage(message) {
+            if (!message || !message.id || pendingChatOutbox.some(item => item.id === message.id)) return;
+            pendingChatOutbox.push({
+                id: String(message.id).slice(0, 100),
+                sender: String(message.sender || "DuckGuest").slice(0, 22),
+                text: String(message.text || "").slice(0, 280),
+                timestamp: Number(message.timestamp) || Date.now(),
+                isSystem: false,
+                isCreator: false
+            });
+            pendingChatOutbox = pendingChatOutbox.slice(-50);
+            savePendingChatOutbox();
+        }
+
+        function loadPendingChatOutbox() {
+            try {
+                const saved = JSON.parse(localStorage.getItem("dq_sync_chat_outbox_v1") || "[]");
+                pendingChatOutbox = Array.isArray(saved)
+                    ? saved.map(normalizePublicChatMessage).filter(Boolean).slice(-50)
+                    : [];
+                savePendingChatOutbox();
+            } catch (e) {
+                pendingChatOutbox = [];
+            }
+        }
+
+        async function flushPendingChatOutbox() {
+            if (chatFlushInFlight || !pendingChatOutbox.length || !navigator.onLine) return;
+            chatFlushInFlight = true;
+            try {
+                while (pendingChatOutbox.length) {
+                    const message = pendingChatOutbox[0];
+                    let delivered = false;
+                    if (mqttConnected && mqttClient) {
+                        delivered = await new Promise(resolve => {
+                            let settled = false;
+                            const finish = value => {
+                                if (settled) return;
+                                settled = true;
+                                clearTimeout(timeoutId);
+                                resolve(value);
+                            };
+                            const timeoutId = setTimeout(() => finish(false), 5000);
+                            try {
+                                mqttClient.publish(`${MQTT_BASE_TOPIC}/chat`, JSON.stringify(message), { qos: 1, retain: false }, error => finish(!error));
+                            } catch (e) {
+                                finish(false);
+                            }
+                        });
+                    } else {
+                        try {
+                            const response = await fetch("https://ntfy.sh/" + RELAY_TOPIC_CHAT, {
+                                method: "POST",
+                                body: JSON.stringify(message)
+                            });
+                            delivered = response.ok;
+                        } catch (e) {
+                            delivered = false;
+                        }
+                    }
+                    if (!delivered) break;
+                    pendingChatOutbox.shift();
+                    savePendingChatOutbox();
+                }
+            } finally {
+                chatFlushInFlight = false;
+            }
         }
 
         function appendLocalChatMessage(sender, text, isCreator = false, isSystem = false) {
@@ -1196,14 +1276,8 @@
             }
 
             const msgObj = appendLocalChatMessage(state.playerName, messageText, false, false);
-            if (mqttConnected) {
-                publishMqttPacket("chat", msgObj, false);
-            } else {
-                fetch("https://ntfy.sh/" + RELAY_TOPIC_CHAT, {
-                    method: "POST",
-                    body: JSON.stringify(msgObj)
-                }).catch(() => {});
-            }
+            queuePendingChatMessage(msgObj);
+            flushPendingChatOutbox();
         }
 
         function pushHttpCloudRoster(entry) {
@@ -3344,6 +3418,7 @@
            12. MAIN GAME LOOP & INITIALIZATION
            ========================================================================= */
         loadGame();
+        loadPendingChatOutbox();
         syncGlobalWeatherFromClock();
         document.body.classList.toggle("safe-visuals-mode", Boolean(state.safeVisualsMode));
         renderAll();
