@@ -1,0 +1,21 @@
+name: Duck Quack audit
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main, "audit/**"]
+permissions:
+  contents: read
+jobs:
+  static-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run HTML, security, and JavaScript checks
+        run: python tests/audit_html.py
