@@ -104,6 +104,16 @@ assert "Object.keys(liveHttpEntries).length >= 100" in SOURCE
 assert "allowIncomingChatPacket()" in SOURCE
 assert "rawStr.length > 16384" in SOURCE
 assert "storePublicRosterEntry(data, expectedSlotId)" in SOURCE
+for function_name, next_function in (
+    ("function sendGlobalChatMessage()", "function pushHttpCloudRoster"),
+    ("function pushHttpCloudRoster", "function pullHttpCloudRosterAndEvents"),
+    ("function broadcastSharedWorldWeather()", "function applySharedCoopBossUpdate"),
+    ("function attackCoopBoss()", "function sendPlayerGift"),
+):
+    start = SOURCE.index(function_name)
+    end = SOURCE.index(next_function, start + len(function_name))
+    body = SOURCE[start:end]
+    assert "if (mqttConnected)" in body, f"{function_name} must gate HTTP fallback on MQTT state"
 assert 'file.size > 5 * 1024 * 1024' in SOURCE
 assert "Player gifting is paused until gifts can be verified" in SOURCE
 assert "const isCreator = false" in SOURCE
