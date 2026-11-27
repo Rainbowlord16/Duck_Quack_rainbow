@@ -935,6 +935,9 @@
         let mqttClient = null;
         let mqttBrokerIndex = 0;
         let mqttConnected = false;
+        let mqttReconnectTimer = null;
+        let mqttReconnectAttempt = 0;
+        let relayPollInFlight = false;
         let liveHttpEntries = Object.create(null);
         let globalChatMessages = [];
         let seenChatIds = new Set();
@@ -985,13 +988,30 @@
         }
 
         function publishMqttPacket(subTopic, payloadObj, retain = false) {
-            if (!mqttClient || !mqttConnected) return;
+            if (!mqttClient || !mqttConnected) return false;
             try {
                 mqttClient.publish(`${MQTT_BASE_TOPIC}/${subTopic}`, JSON.stringify(payloadObj), {
                     qos: 1,
                     retain: Boolean(retain)
                 });
-            } catch (e) {}
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function scheduleMqttReconnect(failedClient) {
+            if (failedClient && mqttClient !== failedClient) return;
+            mqttConnected = false;
+            if (mqttReconnectTimer) return;
+            cloudSyncStatusText = "Global sync reconnecting...";
+            mqttBrokerIndex = (mqttBrokerIndex + 1) % MQTT_BROKERS.length;
+            const delay = Math.min(30000, 1500 * Math.pow(2, Math.min(mqttReconnectAttempt, 4)));
+            mqttReconnectAttempt++;
+            mqttReconnectTimer = setTimeout(() => {
+                mqttReconnectTimer = null;
+                connectGlobalMqttSync();
+            }, delay);
         }
 
         function connectGlobalMqttSync() {
