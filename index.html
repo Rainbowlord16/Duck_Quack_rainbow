@@ -2684,7 +2684,7 @@
             const box = document.getElementById("saveStringBox");
             if (!box || !box.value.trim()) { showToast("Paste a game save backup first.", "warn"); return; }
             try {
-                const decoded = JSON.parse(decodeURIComponent(escape(atob(box.value.trim())));
+                const decoded = JSON.parse(decodeURIComponent(escape(atob(box.value.trim()))));
                 if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) throw new Error("Invalid save");
                 const keepPlayerId = state.accountSlotId;
                 const keepName = state.playerName;
