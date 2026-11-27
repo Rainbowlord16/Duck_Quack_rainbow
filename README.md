@@ -6,7 +6,7 @@ A duck quack simulator.
 
 This is a static frontend, not a trusted game backend. Public sync data is untrusted, and client-side scores can be modified. Creator authentication, admin commands, and player gifting remain disabled until server-side identity, authorization, and authoritative score validation are implemented.
 
-See [SECURITY.md](SECURITY.md) for the current trust model and requirements before restoring privileged features.
+See [SECURITY.md](SECURITY.md) for the current trust model. A first Cloudflare backend implementation is being developed under [backend/](backend/README.md); it is not deployed or connected to the live frontend yet.
 
 ## Local regression checks
 
