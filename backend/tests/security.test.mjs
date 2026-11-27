@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const worker = await readFile(new URL("../worker.js", import.meta.url), "utf8");
 const schema = await readFile(new URL("../migrations/0001_initial.sql", import.meta.url), "utf8");
 const gameSchema = await readFile(new URL("../migrations/0002_authoritative_game.sql", import.meta.url), "utf8");
+const adminSchema = await readFile(new URL("../migrations/0003_creator_admin.sql", import.meta.url), "utf8");
 const client = await readFile(new URL("../client.js", import.meta.url), "utf8");
 
 test("anonymous identity is server-generated and recovery uses a high-entropy key", () => {
@@ -93,6 +94,8 @@ test("admin commands require a server Creator session and are persisted in the t
   assert.match(worker, /INSERT INTO admin_events/);
   assert.match(worker, /SELECT id,event_id AS eventId,type,arg,target_player_id/);
   assert.match(worker, /limit\(env,"admin-event",12,10\)/);
-  assert.match(worker, /CREATE TABLE IF NOT EXISTS admin_events/);
+  assert.match(adminSchema, /CREATE TABLE IF NOT EXISTS admin_events/);
+  assert.match(adminSchema, /slot INTEGER NOT NULL DEFAULT 1 UNIQUE/);
+  assert.match(adminSchema, /CREATE TABLE IF NOT EXISTS creator_passkeys/);
   assert.match(client, /adminCommand\(/);
 });
