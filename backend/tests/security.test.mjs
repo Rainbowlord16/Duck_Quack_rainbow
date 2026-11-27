@@ -176,3 +176,13 @@ test("leaderboard exposes current verified Quacks separately from lifetime Quack
   assert.match(frontend, /Current Quacks/);
   assert.match(frontend, /Lifetime:/);
 });
+
+
+test("Creator command arsenal exposes 512 distinct intensity variants and validates 1-5000", () => {
+  assert.match(worker, /const INTENSITY_COMMAND_MAX=5000/);
+  assert.match(worker, /Array.from\(\{length:512\}/);
+  assert.match(worker, /value<1\|\|value>INTENSITY_COMMAND_MAX/);
+  assert.match(frontend, /ALL_ADMIN_COMMANDS\.push\(\.\.\.INTENSITY_COMMAND_FAMILIES\.flatMap/);
+  assert.match(frontend, /adminIntensityInput/);
+  assert.match(frontend, /Math\.min\(5000, Number\.parseInt\(evt\.arg, 10\) \|\| 100\)/);
+});
