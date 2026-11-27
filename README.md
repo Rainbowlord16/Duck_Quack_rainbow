@@ -20,7 +20,7 @@ The GitHub Actions workflow runs the same checks on pushes to `main` and audit b
 
 ## Real-time world synchronization
 
-The browser client uses public MQTT over WSS as its primary transport and ntfy HTTP polling as a fallback. When MQTT is unavailable, the client polls bounded roster, chat, admin-event, and co-op boss feeds. Outgoing chat is held in a bounded local outbox and removed only after the active transport acknowledges delivery. Reconnect attempts use bounded backoff and broker failover.
+The browser client bridges public MQTT over WSS and ntfy HTTP in both directions. Clients publish roster, chat, and co-op boss updates to both relays and listen to both, so a player using HTTP fallback can still synchronize with players connected to MQTT. Duplicate deliveries are filtered by message IDs or monotonic timestamps. MQTT reconnect uses bounded exponential backoff and broker failover. Outgoing chat uses a bounded local outbox with separate MQTT and ntfy delivery acknowledgements. HTTP polling is bounded by response size, line count, and request timeouts.
 
 Shared weather is derived from a common UTC 45-second schedule, so clients independently arrive at the same weather state without trusting anonymous public weather writes. Online world avatars expire after 20 seconds without a roster heartbeat.
 
