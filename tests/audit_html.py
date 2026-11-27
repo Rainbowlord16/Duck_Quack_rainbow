@@ -96,6 +96,15 @@ assert "state.safeVisualsMode || !isSender" in SOURCE
 assert "Photosensitive / Safe Visuals Mode" in SOURCE
 assert "rememberBoundedId(seenChatIds, chatMessage.id)" in SOURCE
 assert "defeatEventId: \"\"" in SOURCE, "Remote boss events must not grant client-side rewards"
+boss_attack_start = SOURCE.index("function attackCoopBoss()")
+boss_attack_end = SOURCE.index("function sendPlayerGift", boss_attack_start)
+boss_attack = SOURCE[boss_attack_start:boss_attack_end]
+assert "state.gems +=" not in boss_attack
+assert "state.shards +=" not in boss_attack
+assert "state.bossKills++" not in boss_attack
+assert "Rewards are paused until a trusted server can verify the raid" in boss_attack
+assert "updatedAt > now + 10000" in SOURCE
+assert "incomingUpdatedAt > Date.now() + 10000" in SOURCE
 assert "Player gifting is paused until gifts can be verified" in SOURCE
 assert "safeAvatarDataUrl" in SOURCE
 assert "normalizePublicRosterEntry" in SOURCE
