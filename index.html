@@ -663,10 +663,10 @@
         }
 
         /* =========================================================================
-           ZERO-LOGIN MULTI-DEVICE CLOUD SYNC (GUNJS + HTTP CLOUD ROSTER)
+           ZERO-LOGIN MULTI-DEVICE CLOUD SYNC (GUNJS + CORS-OPEN RELAY + LOCAL)
            ========================================================================= */
-        const HTTP_CLOUD_ROSTER_URL = "https://kvdb.io/A9x7PqR2mL8nK4wZ6vB1/dq_roster_v1";
-        const HTTP_CLOUD_EVENT_URL = "https://kvdb.io/A9x7PqR2mL8nK4wZ6vB1/dq_admin_evt_v1";
+        const RELAY_TOPIC_ROSTER = "duck_quack_rainbowlord16_roster_v9";
+        const RELAY_TOPIC_EVENTS = "duck_quack_rainbowlord16_events_v9";
         let liveHttpEntries = {};
 
         let gunInstance = null;
@@ -681,44 +681,58 @@
                         "https://gundb-relay-mlccl.ondigitalocean.app/gun"
                     ]
                 });
-                gunLeaderboardNode = gunInstance.get("duck_quack_rainbowlord16_v2").get("leaderboard");
-                gunAdminEventNode = gunInstance.get("duck_quack_rainbowlord16_v2").get("admin_event");
+                gunLeaderboardNode = gunInstance.get("duck_quack_rainbowlord16_v3").get("leaderboard");
+                gunAdminEventNode = gunInstance.get("duck_quack_rainbowlord16_v3").get("admin_event");
             }
         } catch (e) {}
 
         async function pushHttpCloudRoster(entry) {
             try {
-                let merged = { ...liveHttpEntries };
-                try {
-                    const curRes = await fetch(HTTP_CLOUD_ROSTER_URL, { cache: "no-store" });
-                    if (curRes.ok) {
-                        const remote = await curRes.json();
-                        if (remote && typeof remote === "object") merged = { ...remote, ...merged };
-                    }
-                } catch (e) {}
-
-                merged[entry.accountSlotId] = entry;
-                const sortedKeys = Object.keys(merged)
-                    .sort((a, b) => (merged[b].updatedAt || 0) - (merged[a].updatedAt || 0))
-                    .slice(0, 40);
-                const trimmed = {};
-                sortedKeys.forEach(k => { trimmed[k] = merged[k]; });
-                liveHttpEntries = trimmed;
-                await fetch(HTTP_CLOUD_ROSTER_URL, {
+                liveHttpEntries[entry.accountSlotId] = entry;
+                const compactEntry = {
+                    accountSlotId: entry.accountSlotId,
+                    playerName: entry.playerName,
+                    isAdmin: Boolean(entry.isAdmin),
+                    lifetimeQuacks: entry.lifetimeQuacks || 0,
+                    rebirths: entry.rebirths || 0,
+                    bossKills: entry.bossKills || 0,
+                    eggsHatched: entry.eggsHatched || 0,
+                    currentWorld: entry.currentWorld || 1,
+                    skin: entry.skin || "classic",
+                    profilePic: (entry.profilePic && entry.profilePic.length < 18000) ? entry.profilePic : "",
+                    updatedAt: Date.now()
+                };
+                await fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}`, {
                     method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(trimmed)
+                    body: JSON.stringify(compactEntry)
                 });
             } catch (e) {}
         }
 
         async function pullHttpCloudRosterAndEvents() {
             try {
-                const res = await fetch(HTTP_CLOUD_ROSTER_URL, { cache: "no-store" });
+                const res = await fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}/json?poll=1&since=12h`, { cache: "no-store" });
                 if (res.ok) {
-                    const data = await res.json();
-                    if (data && typeof data === "object") {
-                        liveHttpEntries = data;
+                    const text = await res.text();
+                    const lines = text.trim().split("\n");
+                    let changed = false;
+                    lines.forEach(line => {
+                        if (!line) return;
+                        try {
+                            const wrapper = JSON.parse(line);
+                            if (wrapper && wrapper.message) {
+                                const row = JSON.parse(wrapper.message);
+                                if (row && row.accountSlotId) {
+                                    const prev = liveHttpEntries[row.accountSlotId];
+                                    if (!prev || (row.updatedAt || 0) >= (prev.updatedAt || 0)) {
+                                        liveHttpEntries[row.accountSlotId] = row;
+                                        changed = true;
+                                    }
+                                }
+                            }
+                        } catch (err) {}
+                    });
+                    if (changed) {
                         renderLeaderboardUI();
                         if (activeModalId === "profile") {
                             const sel = document.getElementById("adminTargetPlayerSelect");
@@ -736,10 +750,18 @@
             } catch (e) {}
 
             try {
-                const evRes = await fetch(HTTP_CLOUD_EVENT_URL, { cache: "no-store" });
+                const evRes = await fetch(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}/json?poll=1&since=2m`, { cache: "no-store" });
                 if (evRes.ok) {
-                    const evt = await evRes.json();
-                    if (evt && evt.id) applyAdminAbuseEvent(evt, false);
+                    const text = await evRes.text();
+                    const lines = text.trim().split("\n");
+                    const lastLine = lines[lines.length - 1];
+                    if (lastLine) {
+                        const wrapper = JSON.parse(lastLine);
+                        if (wrapper && wrapper.message) {
+                            const evt = JSON.parse(wrapper.message);
+                            if (evt && evt.id) applyAdminAbuseEvent(evt, false);
+                        }
+                    }
                 }
             } catch (e) {}
         }
@@ -1813,11 +1835,9 @@
             state.hat = "halo";
             state.shades = "prism_visor";
 
-            saveGame();
-            window.syncLeaderboardScore(true);
-            renderAll();
+            adminMaxOutEverything(true);
             openModal("profile");
-            showToast("Welcome back, RainbowLord16! Admin Vault unlocked.", "admin");
+            showToast("Welcome back, RainbowLord16! Account & Vault maxed to the absolute limit!", "admin");
         }
 
         function lockAdminAccount() {
@@ -1831,28 +1851,34 @@
             showToast("Exited RainbowLord16 Creator Session.", "info");
         }
 
-        function adminMaxOutEverything() {
+        function adminMaxOutEverything(silent = false) {
             if (!state.isAdminAuthenticated) return;
-            state.quacks = 9.99e18;
-            state.lifetimeQuacks = Math.max(state.lifetimeQuacks, 9.99e18);
-            state.gems = 999999999;
-            state.rebirths = 999;
-            state.voidAscensions = 99;
-            state.feathers = 999999;
-            state.shards = 999999;
-            state.relics = 999999;
-            state.skillPoints = 999;
+            state.quacks = 9.99e30;
+            state.lifetimeQuacks = Math.max(state.lifetimeQuacks, 9.99e30);
+            state.gems = 999999999999;
+            state.rebirths = 99999;
+            state.voidAscensions = 9999;
+            state.feathers = 99999999;
+            state.shards = 99999999;
+            state.relics = 99999999;
+            state.skillPoints = 9999;
+            state.wheelSpins = 9999;
             state.unlockedWorlds = WORLDS.map(w => w.id);
             state.currentWorld = 21;
-            CORE_UPGRADES.forEach(u => { state.upgrades[u.id] = 250; });
+            CORE_UPGRADES.forEach(u => { state.upgrades[u.id] = 999; });
             SKILL_NODES.forEach(sk => { state.skills[sk.id] = sk.max; });
             SKINS.forEach(s => { if (!state.unlockedSkins.includes(s.id)) state.unlockedSkins.push(s.id); });
             HATS.forEach(h => { if (!state.unlockedHats.includes(h.id)) state.unlockedHats.push(h.id); });
             SHADES.forEach(sh => { if (!state.unlockedShades.includes(sh.id)) state.unlockedShades.push(sh.id); });
+            state.pets = [
+                { id: "creator_pet_1", name: "Omniverse RainbowLord", rarity: "Creator", level: 999, mult: 999999, color: "#ec4899", equipped: true },
+                { id: "creator_pet_2", name: "Chronos Void Dragon", rarity: "Creator", level: 999, mult: 999999, color: "#38bdf8", equipped: true },
+                { id: "creator_pet_3", name: "Celestial Quack Titan", rarity: "Creator", level: 999, mult: 999999, color: "#fde047", equipped: true }
+            ];
             saveGame();
             window.syncLeaderboardScore(true);
             renderAll();
-            showToast("ALL WORLDS, STATS, SKINS & CURRENCIES MAXED OUT!", "admin");
+            if (!silent) showToast("ABSOLUTE LIMIT REACHED: 9.99No Quacks, Lv.999 Upgrades & 999,999x Creator Pets!", "admin");
         }
 
         const adminBroadcastChannel = (typeof BroadcastChannel !== "undefined")
@@ -1896,9 +1922,8 @@
             if (gunAdminEventNode) {
                 try { gunAdminEventNode.put({ payloadJson: JSON.stringify(payload), updatedAt: Date.now() }); } catch (e) {}
             }
-            fetch(HTTP_CLOUD_EVENT_URL, {
+            fetch(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             }).catch(() => {});
 
@@ -2077,37 +2102,63 @@
 
             const type = (evt.type || "").toUpperCase();
             if (type === "NUKE") {
-                playDramaticSfx("nuke");
+                // Incoming siren + whistling warhead drop + speaker-blasting nuclear detonation
+                try {
+                    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    if (audioCtx.state === "suspended") audioCtx.resume();
+                    const now = audioCtx.currentTime;
+                    const siren = audioCtx.createOscillator();
+                    const sGain = audioCtx.createGain();
+                    siren.type = "sawtooth";
+                    siren.frequency.setValueAtTime(420, now);
+                    siren.frequency.linearRampToValueAtTime(880, now + 0.45);
+                    siren.frequency.linearRampToValueAtTime(160, now + 0.95);
+                    sGain.gain.setValueAtTime(0.32, now);
+                    sGain.gain.exponentialRampToValueAtTime(0.01, now + 0.98);
+                    siren.connect(sGain);
+                    sGain.connect(audioCtx.destination);
+                    siren.start(now);
+                    siren.stop(now + 1.0);
+                } catch (e) {}
+
                 document.body.classList.add("screen-shaking");
                 const stage = document.getElementById("heroStageBox");
                 if (stage) {
                     const missile = document.createElement("div");
                     missile.className = "nuke-warhead-anim absolute top-0 left-1/2 z-40 pointer-events-none";
-                    missile.innerHTML = `<svg viewBox="0 0 40 80" width="44" height="88"><polygon points="20,78 8,54 32,54" fill="#ef4444"/><rect x="10" y="16" width="20" height="38" rx="4" fill="#334155"/><polygon points="20,2 10,16 30,16" fill="#facc15"/></svg>`;
+                    missile.innerHTML = `<svg viewBox="0 0 60 120" width="76" height="152"><polygon points="30,118 10,80 50,80" fill="#ef4444"/><rect x="14" y="24" width="32" height="56" rx="6" fill="#1e293b" stroke="#facc15" stroke-width="3"/><polygon points="30,2 14,24 46,24" fill="#facc15"/><circle cx="30" cy="52" r="9" fill="#facc15"/></svg>`;
                     stage.appendChild(missile);
-                    setTimeout(() => missile.remove(), 900);
+                    setTimeout(() => missile.remove(), 950);
                 }
+
                 setTimeout(() => {
+                    playDramaticSfx("nuke");
+                    const flash = document.createElement("div");
+                    flash.style.cssText = "position:fixed;inset:0;background:#ffffff;z-index:999998;pointer-events:none;transition:opacity 0.65s ease-out;";
+                    document.body.appendChild(flash);
+                    requestAnimationFrame(() => { flash.style.opacity = "0"; });
+                    setTimeout(() => flash.remove(), 700);
+
                     const ov = document.getElementById("adminCutsceneOverlay");
                     const art = document.getElementById("adminCutsceneArt");
                     const badge = document.getElementById("adminCutsceneBadge");
                     const title = document.getElementById("adminCutsceneTitle");
                     const sub = document.getElementById("adminCutsceneSubtitle");
                     if (ov && art && title && sub) {
-                        art.innerHTML = `<div class="mushroom-cloud-anim"><svg viewBox="0 0 140 120" width="140" height="120"><ellipse cx="70" cy="40" rx="58" ry="28" fill="#f97316"/><ellipse cx="70" cy="34" rx="42" ry="20" fill="#fde047"/><rect x="56" y="45" width="28" height="55" rx="8" fill="#ea580c"/><ellipse cx="70" cy="102" rx="48" ry="12" fill="#7c2d12"/></svg></div>`;
-                        if (badge) badge.textContent = "TACTICAL QUACK NUKE";
-                        title.textContent = "DIRECT HIT!";
-                        sub.textContent = "Fallout cleared! +500,000 Fallout Quacks collected.";
+                        art.innerHTML = `<div class="mushroom-cloud-anim"><svg viewBox="0 0 220 180" width="240" height="196"><circle cx="110" cy="80" r="88" fill="none" stroke="#fde047" stroke-width="6" opacity="0.8"/><ellipse cx="110" cy="58" rx="92" ry="44" fill="#ea580c"/><ellipse cx="110" cy="48" rx="68" ry="32" fill="#f97316"/><ellipse cx="110" cy="40" rx="44" ry="20" fill="#fef08a"/><rect x="86" y="66" width="48" height="86" rx="12" fill="#dc2626"/><ellipse cx="110" cy="154" rx="78" ry="18" fill="#7c2d12"/></svg></div>`;
+                        if (badge) badge.textContent = "THERMONUCLEAR QUACK STRIKE";
+                        title.textContent = "DIRECT HIT — GROUND ZERO!";
+                        sub.textContent = "Shockwave obliterated the pond! +5,000,000 Fallout Quacks collected.";
                         ov.classList.remove("hidden");
                     }
-                    state.quacks += 500000;
-                    state.lifetimeQuacks += 500000;
+                    state.quacks += 5000000;
+                    state.lifetimeQuacks += 5000000;
                     renderHudAndStats();
                     setTimeout(() => {
                         document.body.classList.remove("screen-shaking");
                         closeAdminCutscene();
-                    }, 3000);
-                }, 800);
+                    }, 3400);
+                }, 900);
             } else if (type === "JAIL") {
                 directDuckTrollMode = "jail";
                 directDuckTrollTapsLeft = 10;
@@ -2117,24 +2168,159 @@
                 directDuckTrollTapsLeft = 8;
                 renderDirectDuckTroll();
             } else if (type === "JUMPSCARE") {
+                triggerPhotoJumpscare(2800);
+            } else if (type === "FLIP") {
+                document.body.style.transition = "transform 0.5s ease";
+                document.body.style.transform = "rotate(180deg)";
+                setTimeout(() => { document.body.style.transform = ""; }, 7000);
+            } else if (type === "SPIN") {
+                document.body.style.transition = "transform 1.4s cubic-bezier(0.22, 1, 0.36, 1)";
+                document.body.style.transform = "rotate(1080deg)";
+                setTimeout(() => { document.body.style.transition = ""; document.body.style.transform = ""; }, 1500);
+            } else if (type === "GIANT") {
+                const wrap = document.getElementById("heroDuckSvgWrapper");
+                if (wrap) {
+                    wrap.style.transition = "transform 0.4s ease";
+                    wrap.style.transform = "scale(1.85)";
+                    setTimeout(() => { wrap.style.transform = ""; }, 8000);
+                }
+            } else if (type === "TINY") {
+                const wrap = document.getElementById("heroDuckSvgWrapper");
+                if (wrap) {
+                    wrap.style.transition = "transform 0.4s ease";
+                    wrap.style.transform = "scale(0.28)";
+                    setTimeout(() => { wrap.style.transform = ""; }, 8000);
+                }
+            } else if (type === "ZERO_G") {
+                const btn = document.getElementById("heroDuckBtn");
+                if (btn) {
+                    btn.classList.add("zero-g-duck");
+                    setTimeout(() => btn.classList.remove("zero-g-duck"), 9000);
+                }
+            } else if (type === "DISCO") {
+                document.body.classList.add("prism-aura");
+                setTimeout(() => document.body.classList.remove("prism-aura"), 9000);
+            } else if (type === "BLACKHOLE") {
+                playDramaticSfx("nuke");
+                document.body.classList.add("blackhole-vortex");
+                setTimeout(() => document.body.classList.remove("blackhole-vortex"), 6500);
+            } else if (type === "GLITCH") {
                 playDramaticSfx("jumpscare");
+                document.body.classList.add("cyber-glitch-mode");
+                setTimeout(() => document.body.classList.remove("cyber-glitch-mode"), 6000);
+            } else if (type === "INVERT") {
+                document.body.style.filter = "invert(1) hue-rotate(180deg)";
+                setTimeout(() => { document.body.style.filter = ""; }, 7500);
+            } else if (type === "EARTHQUAKE") {
+                playDramaticSfx("nuke");
                 document.body.classList.add("screen-shaking");
+                setTimeout(() => document.body.classList.remove("screen-shaking"), 6000);
+            } else if (type === "METEOR") {
+                for (let i = 0; i < 14; i++) {
+                    setTimeout(() => spawnFallingSkyAnomaly(i % 2 === 0 ? "gem" : "void"), i * 240);
+                }
+            } else if (type === "CLONE_DUCKS") {
+                for (let i = 0; i < 18; i++) {
+                    setTimeout(() => spawnFallingSkyAnomaly("bread"), i * 160);
+                }
+            } else if (type === "GIVE_PETS") {
+                state.pets.push({
+                    id: "creator_gift_" + Date.now(),
+                    name: "RainbowLord Blessings",
+                    rarity: "Creator",
+                    level: 100,
+                    mult: 250.0,
+                    color: "#ec4899",
+                    equipped: getEquippedPets().length < 3
+                });
+                renderAll();
+            } else if (type === "FAKE_BAN") {
                 const ov = document.getElementById("adminCutsceneOverlay");
                 const art = document.getElementById("adminCutsceneArt");
                 const badge = document.getElementById("adminCutsceneBadge");
                 const title = document.getElementById("adminCutsceneTitle");
                 const sub = document.getElementById("adminCutsceneSubtitle");
-                const closeBtn = document.getElementById("adminCutsceneCloseBtn");
                 if (ov && art && title && sub) {
-                    const JUMPSCARE_IMAGE_URLS = [
-                        "https://i.pinimg.com/564x/c3/fe/8a/c3fe8a0d6bcbcdeeb4d310e4f5e598e4.jpg",
-                        "https://i.pinimg.com/236x/47/f5/ed/47f5ed484f0bf76fbd1e618ac9b092c9.jpg",
-                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQPKh7st5AligOkK4BC1KSiXcXyE1ipH1N5qFz_FxJhfDfEmyi0gce7K0VT&s=10",
-                        "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlSrAFt6QKRmXtE2PZ9UnTaoz2jg1Y-vcnJIUaMzxt1-xBKZ8tVcmxcJcR&s=10",
-                        "./jumpscare.png"
-                    ];
+                    art.innerHTML = `<svg viewBox="0 0 100 100" width="96" height="96"><circle cx="50" cy="50" r="42" fill="#dc2626" stroke="#fff" stroke-width="5"/><line x1="26" y1="26" x2="74" y2="74" stroke="#fff" stroke-width="8" stroke-linecap="round"/><line x1="74" y1="26" x2="26" y2="74" stroke="#fff" stroke-width="8" stroke-linecap="round"/></svg>`;
+                    if (badge) badge.textContent = "SYSTEM MODERATION";
+                    title.textContent = "BANNED FOR EXCESSIVE QUACKING";
+                    sub.textContent = "Just kidding! RainbowLord16 trolled you — enjoy +250 Gems!";
+                    ov.classList.remove("hidden");
                 }
+                state.gems += 250;
+                renderHudAndStats();
+            } else if (type === "RAINBOW_STORM") {
+                adminGlobalBoostMult = 100;
+                adminGlobalBoostUntil = Date.now() + 60000;
+                renderHudAndStats();
+            } else if (type === "HYPER_FEVER") {
+                state.fever = 100;
+                renderHudAndStats();
+            } else if (type === "RAIN_EGGS") {
+                for (let i = 0; i < 10; i++) setTimeout(() => spawnFallingSkyAnomaly("egg"), i * 280);
+            } else if (type === "RAIN_GEMS") {
+                for (let i = 0; i < 12; i++) setTimeout(() => spawnFallingSkyAnomaly("gem"), i * 240);
+            } else if (type === "TP_WORLD") {
+                const wId = Math.min(21, Math.max(1, evt.worldId || 21));
+                if (!state.unlockedWorlds.includes(wId)) state.unlockedWorlds.push(wId);
+                state.currentWorld = wId;
+                renderAll();
+            } else if (type === "GIVE") {
+                const amt = Number(evt.amount) || 5000;
+                const cur = (evt.currency || "gems").toLowerCase();
+                if (cur.startsWith("quack")) { state.quacks += amt; state.lifetimeQuacks += amt; }
+                else if (cur.startsWith("feather")) state.feathers += amt;
+                else if (cur.startsWith("shard")) state.shards += amt;
+                else if (cur.startsWith("relic")) state.relics += amt;
+                else state.gems += amt;
+                renderHudAndStats();
+            } else if (type === "MAX_ALL") {
+                adminMaxOutEverything(false);
+            } else if (type === "CLEAR") {
+                clearDirectDuckTroll();
             }
+        }
+        let wheelCurrentDeg = 0;
+        let isWheelSpinning = false;
+
+        function spinPrizeWheel() {
+            if (isWheelSpinning) return;
+            if (state.wheelSpins <= 0 && state.gems < 50) { showToast("Need 1 Spin Ticket or 50 Gems!", "warn"); return; }
+            if (state.wheelSpins > 0) state.wheelSpins--;
+            else state.gems -= 50;
+
+            isWheelSpinning = true;
+            const prizes = [
+                { label: "+250 Gems", fn: () => { state.gems += 250; } },
+                { label: "+15 Void Shards", fn: () => { state.shards += 15; } },
+                { label: "+25 Feathers", fn: () => { state.feathers += 25; } },
+                { label: "+2 Ancient Relics", fn: () => { state.relics += 2; } },
+                { label: "100x Click Jackpot", fn: () => { const q = getClickPower() * 100; state.quacks += q; state.lifetimeQuacks += q; } },
+                { label: "Free Cyber Egg", fn: () => { hatchEggById("cyber_egg", true); } }
+            ];
+
+            const winIdx = Math.floor(Math.random() * prizes.length);
+            const sliceDeg = 360 / prizes.length;
+            const targetAngle = 360 - (winIdx * sliceDeg + sliceDeg / 2);
+            wheelCurrentDeg += 1440 + ((targetAngle - (wheelCurrentDeg % 360) + 360) % 360);
+
+            const wheelSvg = document.getElementById("fortuneWheelSvg");
+            if (wheelSvg) {
+                wheelSvg.style.transition = "transform 3.1s cubic-bezier(0.15, 0.85, 0.2, 1)";
+                wheelSvg.style.transform = `rotate(${wheelCurrentDeg}deg)`;
+            }
+            playQuackSound(520);
+            renderHudAndStats();
+
+            setTimeout(() => {
+                isWheelSpinning = false;
+                const won = prizes[winIdx];
+                won.fn();
+                playQuackSound(740);
+                showToast(`Wheel Prize: ${won.label}!`, "success");
+                renderAll();
+                if (activeModalId === "wheel") openModal("wheel");
+            }, 3150);
         }
 
         const JUMPSCARE_IMAGE_URLS = [
@@ -2151,15 +2337,15 @@
             const fallbackEl = document.getElementById("jumpscareSvgFallback");
             if (!overlay || !imgEl) return;
 
-            let idx = Math.floor(Math.random() * JUMPSCARE_IMAGE_URLS.length);
+            let idx = Math.floor(Math.random() * 4);
             const setPhoto = (url) => {
-                if (fallbackEl) fallbackEl.style.display = "none";
                 imgEl.style.display = "block";
+                if (fallbackEl) fallbackEl.style.display = "none";
                 imgEl.onerror = () => {
                     imgEl.style.display = "none";
                     if (fallbackEl) {
                         fallbackEl.style.display = "flex";
-                        fallbackEl.innerHTML = `<svg viewBox="0 0 320 320" class="w-[95vw] max-w-[560px] h-auto"><path d="M55,110 C50,35 270,35 265,110 C275,180 245,260 160,305 C75,260 45,180 55,110 Z" fill="#e7e5e4"/><ellipse cx="108" cy="122" rx="40" ry="32" fill="#000"/><ellipse cx="212" cy="122" rx="40" ry="32" fill="#000"/><circle cx="108" cy="122" r="20" fill="#ff0000"/><circle cx="212" cy="122" r="20" fill="#ff0000"/><path d="M84,195 C115,178 205,178 236,195 C248,250 215,296 160,300 C105,296 72,250 84,195 Z" fill="#000"/><polygon points="102,192 110,235 118,191" fill="#fff"/><polygon points="152,187 160,245 168,187" fill="#fff"/><polygon points="202,191 210,235 218,192" fill="#fff"/></svg>`;
+                        fallbackEl.innerHTML = `<svg viewBox="0 0 320 320" class="w-full h-full"><rect width="320" height="320" fill="#000"/><circle cx="160" cy="150" r="115" fill="#18181b" stroke="#ef4444" stroke-width="6"/><ellipse cx="115" cy="125" rx="28" ry="36" fill="#fff"/><circle cx="115" cy="125" r="12" fill="#dc2626"/><ellipse cx="205" cy="125" rx="28" ry="36" fill="#fff"/><circle cx="205" cy="125" r="12" fill="#dc2626"/><path d="M90,210 Q160,275 230,210 Q160,235 90,210 Z" fill="#dc2626" stroke="#fff" stroke-width="4"/></svg>`;
                     }
                 };
                 imgEl.src = url;
@@ -2178,7 +2364,7 @@
                 overlay.classList.add("scare-active");
 
                 const cycleTimer = setInterval(() => {
-                    idx = (idx + 1) % JUMPSCARE_IMAGE_URLS.length;
+                    idx = (idx + 1) % 4;
                     setPhoto(JUMPSCARE_IMAGE_URLS[idx]);
                 }, 480);
 
@@ -2420,25 +2606,6 @@
             if (activeModalId === "boss") openModal("boss");
         }
 
-        function spinPrizeWheel() {
-            if (state.wheelSpins <= 0 && state.gems < 50) { showToast("Need 1 Spin Ticket or 50 Gems!", "warn"); return; }
-            if (state.wheelSpins > 0) state.wheelSpins--;
-            else state.gems -= 50;
-
-            const prizes = [
-                { label: "+250 Gems", fn: () => { state.gems += 250; } },
-                { label: "+15 Void Shards", fn: () => { state.shards += 15; } },
-                { label: "+25 Golden Feathers", fn: () => { state.feathers += 25; } },
-                { label: "+2 Ancient Relics", fn: () => { state.relics += 2; } },
-                { label: "100x Click Quack Jackpot", fn: () => { const q = getClickPower() * 100; state.quacks += q; state.lifetimeQuacks += q; } }
-            ];
-            const won = prizes[Math.floor(Math.random() * prizes.length)];
-            won.fn();
-            showToast(`Wheel Prize: ${won.label}!`, "success");
-            renderAll();
-            if (activeModalId === "wheel") openModal("wheel");
-        }
-
         function playBreadCatch(choice) {
             const golden = Math.floor(Math.random() * 3);
             if (choice === golden) {
@@ -2650,12 +2817,44 @@
                         <button onclick="attackBoss()" class="px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-sm font-extrabold text-white shadow-lg">QUACK STRIKE (-${formatNum(Math.max(10, getClickPower() * 2))} HP)</button>
                     </div>`;
             } else if (id === "wheel") {
+                const wheelSlices = [
+                    { label: "250 Gems", color: "#0284c7" },
+                    { label: "15 Shards", color: "#7e22ce" },
+                    { label: "25 Feathers", color: "#ea580c" },
+                    { label: "2 Relics", color: "#e11d48" },
+                    { label: "100x Jackpot", color: "#d97706" },
+                    { label: "Cyber Egg", color: "#059669" }
+                ];
                 titleEl.textContent = `Fortune Spin Wheel (${state.wheelSpins} Free Spins)`;
                 bodyEl.innerHTML = `
-                    <div class="text-center py-4 space-y-3">
-                        <p class="text-xs text-slate-300">Spin to win Gems, Void Shards, Golden Feathers, Relics, or a 100x Click Jackpot!</p>
-                        <button onclick="spinPrizeWheel()" class="px-6 py-3 rounded-2xl bg-indigo-500 hover:bg-indigo-400 text-sm font-extrabold text-white shadow-lg">
-                            ${state.wheelSpins > 0 ? `Use Free Spin (${state.wheelSpins} left)` : "Spin for 50 Gems"}
+                    <div class="flex flex-col items-center text-center py-2 space-y-4">
+                        <div class="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center">
+                            <!-- Top Pointer Needle -->
+                            <div class="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
+                                <svg viewBox="0 0 32 36" width="32" height="36"><polygon points="16,34 4,4 28,4" fill="#facc15" stroke="#0f172a" stroke-width="3"/></svg>
+                            </div>
+                            <!-- Rotating Multi-Slice SVG Wheel -->
+                            <svg id="fortuneWheelSvg" viewBox="0 0 240 240" style="transform: rotate(${wheelCurrentDeg}deg);" class="w-full h-full rounded-full shadow-2xl border-4 border-amber-400">
+                                ${wheelSlices.map((s, idx) => {
+                                    const startAngle = (idx * 60 - 90) * (Math.PI / 180);
+                                    const endAngle = ((idx + 1) * 60 - 90) * (Math.PI / 180);
+                                    const x1 = 120 + 114 * Math.cos(startAngle);
+                                    const y1 = 120 + 114 * Math.sin(startAngle);
+                                    const x2 = 120 + 114 * Math.cos(endAngle);
+                                    const y2 = 120 + 114 * Math.sin(endAngle);
+                                    const midAngle = idx * 60 - 60;
+                                    return `<g>
+                                        <path d="M120,120 L${x1},${y1} A114,114 0 0,1 ${x2},${y2} Z" fill="${s.color}" stroke="#0f172a" stroke-width="2.5"/>
+                                        <text x="120" y="120" fill="#ffffff" font-size="10.5" font-weight="800" text-anchor="middle" transform="rotate(${midAngle + 90} 120 120) translate(0, -68)">${s.label}</text>
+                                    </g>`;
+                                }).join("")}
+                                <circle cx="120" cy="120" r="22" fill="#0f172a" stroke="#facc15" stroke-width="4"/>
+                                <circle cx="120" cy="120" r="8" fill="#facc15"/>
+                            </svg>
+                        </div>
+                        <p class="text-xs text-slate-300">Spin the wheel to win Gems, Void Shards, Golden Feathers, Ancient Relics, Cyber Eggs, or a 100x Click Jackpot!</p>
+                        <button onclick="spinPrizeWheel()" class="px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-amber-500 hover:brightness-110 text-sm font-extrabold text-white shadow-lg">
+                            ${state.wheelSpins > 0 ? `Spin Wheel (${state.wheelSpins} Free Left)` : "Spin Wheel (50 Gems)"}
                         </button>
                     </div>`;
             } else if (id === "arcade") {
