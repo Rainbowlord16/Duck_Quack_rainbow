@@ -205,6 +205,28 @@
         .choir-singing {
             animation: choirDuckSing 0.34s cubic-bezier(0.22, 1, 0.36, 1);
         }
+        body.safe-visuals-mode #jumpscareOverlay,
+        body.safe-visuals-mode #adminFxOverlay {
+            display: none !important;
+            animation: none !important;
+            filter: none !important;
+        }
+        body.safe-visuals-mode .screen-shaking,
+        body.safe-visuals-mode .admin-glitch-active,
+        body.safe-visuals-mode .admin-acid-active,
+        body.safe-visuals-mode .scare-active {
+            animation: none !important;
+            filter: none !important;
+            transform: none !important;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                scroll-behavior: auto !important;
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body class="antialiased selection:bg-amber-400 selection:text-slate-950">
@@ -584,10 +606,10 @@
 
     <!-- UNIVERSAL SYSTEM MODAL BACKDROP -->
     <div id="systemModalBackdrop" onclick="if(event.target===this) closeModal()" class="hidden fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
-        <div class="panel-card w-full max-w-3xl max-h-[88dvh] rounded-3xl border border-slate-700/80 shadow-2xl flex flex-col overflow-hidden">
+        <div role="dialog" aria-modal="true" aria-labelledby="systemModalTitle" class="panel-card w-full max-w-3xl max-h-[88dvh] rounded-3xl border border-slate-700/80 shadow-2xl flex flex-col overflow-hidden">
             <div class="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
                 <h3 id="systemModalTitle" class="font-display font-extrabold text-base sm:text-lg text-white">System</h3>
-                <button onclick="closeModal()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold flex items-center justify-center transition">✕</button>
+                <button id="systemModalCloseBtn" type="button" aria-label="Close dialog" onclick="closeModal()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold flex items-center justify-center transition">✕</button>
             </div>
             <div id="systemModalBody" class="p-4 sm:p-5 overflow-y-auto custom-scroll space-y-4 text-sm"></div>
         </div>
@@ -795,6 +817,7 @@
                 autoTap: false,
                 autoHatch: false,
                 soundOn: true,
+                safeVisualsMode: false,
                 compactStage: true,
                 buyMult: 1,
                 adminTargetPlayer: "ALL",
@@ -812,6 +835,7 @@
         let currentWeather = WEATHERS[0];
         let weatherTimer = 45;
         let activeModalId = null;
+        let modalPreviousFocus = null;
         let wheelAngle = 0;
         let isWheelSpinning = false;
         let cloudSyncStatusText = "Connecting Global WSS...";
@@ -1135,97 +1159,6 @@
                     });
                 })
                 .catch(() => {});
-        }
-
-        function startInstantRealtimeStreams() {
-            try {
-                const evtStream = new EventSource(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}/sse`);
-                evtStream.onmessage = (e) => {
-                    try {
-                        const wrapper = JSON.parse(e.data);
-                        if (!wrapper.message) return;
-                        const evt = JSON.parse(wrapper.message);
-                        if (evt && evt.id) applyAdminAbuseEvent(evt, false);
-                    } catch (err) {}
-                };
-            } catch (e) {}
-
-            try {
-                const chatStream = new EventSource(`https://ntfy.sh/${RELAY_TOPIC_CHAT}/sse`);
-                chatStream.onmessage = (e) => {
-                    try {
-                        const wrapper = JSON.parse(e.data);
-                        if (!wrapper.message) return;
-                        const msg = JSON.parse(wrapper.message);
-                        if (msg && msg.id && !seenChatIds.has(msg.id)) {
-                            rememberBoundedId(seenChatIds, msg.id);
-                            globalChatMessages.push(msg);
-                            globalChatMessages = globalChatMessages.slice(-60);
-                            renderGlobalChat();
-                        }
-                    } catch (err) {}
-                };
-            } catch (e) {}
-
-            try {
-                const rosterStream = new EventSource(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}/sse`);
-                rosterStream.onmessage = (e) => {
-                    try {
-                        const wrapper = JSON.parse(e.data);
-                        if (!wrapper.message) return;
-                        const card = JSON.parse(wrapper.message);
-                        if (card && card.accountSlotId) {
-                            const prev = liveHttpEntries[card.accountSlotId];
-                            if (!prev || (card.updatedAt || 0) >= (prev.updatedAt || 0)) {
-                                liveHttpEntries[card.accountSlotId] = { ...prev, ...card };
-                                renderLeaderboardUI();
-                                renderWorldLivePlayers();
-                            }
-                        }
-                    } catch (err) {}
-                };
-            } catch (e) {}
-
-            try {
-                const bossStream = new EventSource(`https://ntfy.sh/${RELAY_TOPIC_BOSS}/sse`);
-                bossStream.onmessage = (e) => {
-                    try {
-                        const wrapper = JSON.parse(e.data);
-                        if (!wrapper.message) return;
-                        const bossData = JSON.parse(wrapper.message);
-                        if (bossData && (bossData.updatedAt || 0) > coopBossState.updatedAt) {
-                            applySharedCoopBossUpdate(bossData);
-                        }
-                    } catch (err) {}
-                };
-            } catch (e) {}
-
-            if (gunLeaderboardNode) {
-                try {
-                    gunLeaderboardNode.map().on((data) => {
-                        if (data && data.accountSlotId) {
-                            const prev = liveHttpEntries[data.accountSlotId];
-                            if (!prev || (data.updatedAt || 0) > (prev.updatedAt || 0)) {
-                                liveHttpEntries[data.accountSlotId] = { ...prev, ...data };
-                                renderLeaderboardUI();
-                            }
-                        }
-                    });
-                } catch (e) {}
-            }
-
-            if (gunAdminEventNode) {
-                try {
-                    gunAdminEventNode.on((data) => {
-                        if (data && data.payloadJson) {
-                            try {
-                                const evt = JSON.parse(data.payloadJson);
-                                if (evt && evt.id) applyAdminAbuseEvent(evt, false);
-                            } catch (e) {}
-                        }
-                    });
-                } catch (e) {}
-            }
         }
 
         function broadcastSharedWorldWeather() {
@@ -1818,29 +1751,30 @@
             </svg>`;
         }
 
+        let lastFaviconKey = "";
+
         function updateDynamicFavicon(isHorror = false) {
             try {
                 const link = document.getElementById("dynamicFavicon");
-                if (!link) return;
+                const skin = SKINS.find(s => s.id === state.skin) || SKINS[0];
+                const titleText = `${formatNum(state.quacks)} Quacks — Duck Quack Simulator`;
+                if (document.title !== titleText) document.title = titleText;
+                const rainbowPhase = skin.id === "rainbow_creator" ? Math.floor(Date.now() / 1500) : 0;
+                const key = [skin.id, skin.body, skin.beak, feverActive, Boolean(isHorror), rainbowPhase, formatNum(state.quacks)].join("|");
+                if (!link || key === lastFaviconKey) return;
+
                 const canvas = document.createElement("canvas");
                 canvas.width = 64;
                 canvas.height = 64;
                 const ctx = canvas.getContext("2d");
-                const skin = SKINS.find(s => s.id === state.skin) || SKINS[0];
-
+                if (!ctx) return;
                 ctx.clearRect(0, 0, 64, 64);
                 ctx.beginPath();
                 ctx.arc(32, 34, 24, 0, Math.PI * 2);
-                if (isHorror) {
-                    ctx.fillStyle = "#dc2626";
-                } else if (feverActive) {
-                    ctx.fillStyle = "#f97316";
-                } else if (skin.id === "rainbow_creator") {
-                    const hue = Math.floor((Date.now() / 15) % 360);
-                    ctx.fillStyle = `hsl(${hue}, 90%, 60%)`;
-                } else {
-                    ctx.fillStyle = skin.body;
-                }
+                if (isHorror) ctx.fillStyle = "#dc2626";
+                else if (feverActive) ctx.fillStyle = "#f97316";
+                else if (skin.id === "rainbow_creator") ctx.fillStyle = `hsl(${(rainbowPhase * 24) % 360}, 90%, 60%)`;
+                else ctx.fillStyle = skin.body;
                 ctx.fill();
                 ctx.lineWidth = 4;
                 ctx.strokeStyle = "#0f172a";
@@ -1860,7 +1794,7 @@
                 ctx.fill();
 
                 link.href = canvas.toDataURL("image/png");
-                document.title = `${formatNum(state.quacks)} Quacks — Duck Quack Simulator`;
+                lastFaviconKey = key;
             } catch (e) {}
         }
 
@@ -2756,12 +2690,15 @@
         }
 
         function openModal(id) {
-            activeModalId = id;
             const backdrop = document.getElementById("systemModalBackdrop");
+            if (backdrop && backdrop.classList.contains("hidden")) modalPreviousFocus = document.activeElement;
+            activeModalId = id;
             const title = document.getElementById("systemModalTitle");
             const body = document.getElementById("systemModalBody");
             if (!backdrop || !title || !body) return;
             backdrop.classList.remove("hidden");
+            const closeButton = document.getElementById("systemModalCloseBtn");
+            if (closeButton) closeButton.focus();
 
             if (id === "eggs") {
                 title.textContent = "Hatch Duck Eggs";
@@ -3102,6 +3039,13 @@
                         </div>
                     </div>
 
+                    <div class="panel-subcard rounded-2xl p-4 border border-cyan-400/25 space-y-2">
+                        <label class="flex items-center justify-between gap-3 text-xs font-bold text-slate-200" for="safeVisualsModeToggle">
+                            <span>🛡️ Photosensitive / Safe Visuals Mode</span>
+                            <input id="safeVisualsModeToggle" type="checkbox" ${state.safeVisualsMode ? "checked" : ""} onchange="toggleSafeVisualsMode(this.checked)" class="w-5 h-5 accent-cyan-400">
+                        </label>
+                        <p class="text-[11px] text-slate-400">Reduces motion and suppresses jumpscares, strobing, and full-screen flash effects on this device.</p>
+                    </div>
                     <div class="panel-subcard rounded-2xl p-4 border border-amber-400/30 space-y-2">
                         <div class="font-display font-extrabold text-sm text-amber-300">🔐 Creator Admin Vault</div>
                         <p class="text-xs text-slate-300">Admin controls are disabled until server-side authentication and signed event authorization are configured. This browser cannot securely verify a creator passcode.</p>
@@ -3166,7 +3110,45 @@
             activeModalId = null;
             const backdrop = document.getElementById("systemModalBackdrop");
             if (backdrop) backdrop.classList.add("hidden");
+            if (modalPreviousFocus && typeof modalPreviousFocus.focus === "function") modalPreviousFocus.focus();
+            modalPreviousFocus = null;
         }
+
+        function toggleSafeVisualsMode(enabled) {
+            state.safeVisualsMode = Boolean(enabled);
+            document.body.classList.toggle("safe-visuals-mode", state.safeVisualsMode);
+            saveGame();
+            if (activeModalId === "profile") openModal("profile");
+            showToast(state.safeVisualsMode ? "Safe Visuals Mode enabled." : "Safe Visuals Mode disabled.", "success");
+        }
+
+        document.addEventListener("keydown", (event) => {
+            const backdrop = document.getElementById("systemModalBackdrop");
+            if (!backdrop || backdrop.classList.contains("hidden")) return;
+            if (event.key === "Escape") {
+                event.preventDefault();
+                closeModal();
+                return;
+            }
+            if (event.key !== "Tab") return;
+            const dialog = backdrop.querySelector('[role="dialog"]');
+            if (!dialog) return;
+            const focusable = Array.from(dialog.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+                .filter(el => el.offsetParent !== null);
+            if (!focusable.length) {
+                event.preventDefault();
+                return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
 
         function equipOrBuySkin(skinId) {
             const s = SKINS.find(item => item.id === skinId);
@@ -3283,6 +3265,7 @@
            12. MAIN GAME LOOP & INITIALIZATION
            ========================================================================= */
         loadGame();
+        document.body.classList.toggle("safe-visuals-mode", Boolean(state.safeVisualsMode));
         renderAll();
         renderGlobalChat();
         connectGlobalMqttSync();
