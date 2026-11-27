@@ -497,7 +497,7 @@
                         type="text"
                         maxlength="280"
                         onkeydown="if(event.key==='Enter') sendGlobalChatMessage()"
-                        placeholder="Chat globally or type /nuke, /jumpscare, /jail, /say..."
+                        placeholder="Message the global pond chat..."
                         class="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700/90 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
                     >
                     <button onclick="sendGlobalChatMessage()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-cyan-500 to-indigo-500 hover:brightness-110 text-slate-950 font-extrabold text-xs transition">
@@ -942,6 +942,7 @@
         let globalChatMessages = [];
         let seenChatIds = new Set();
         let serverChatStatus = "Connecting to secure chat...";
+        let serverIdentityReady = false;
         let serverChatPollInFlight = false;
         let serverLeaderboardEntries = null;
         let serverLeaderboardStatus = "Connecting to verified leaderboard...";
@@ -1136,7 +1137,7 @@
         }
 
         async function refreshServerChat() {
-            if (!window.DuckQuackApi || serverChatPollInFlight || !navigator.onLine) return;
+            if (!window.DuckQuackApi || !serverIdentityReady || serverChatPollInFlight || !navigator.onLine) return;
             serverChatPollInFlight = true;
             try {
                 const result = await window.DuckQuackApi.chatHistory();
@@ -1197,8 +1198,8 @@
                 return;
             }
 
-            if (!window.DuckQuackApi) {
-                showToast("Secure chat is still connecting. Please try again in a moment.", "error");
+            if (!window.DuckQuackApi || !serverIdentityReady) {
+                showToast("Your player identity is still connecting. Please try again in a moment.", "error");
                 return;
             }
             try {
@@ -2841,7 +2842,7 @@
         }
 
         async function refreshServerLeaderboard(force = false) {
-            if (!window.DuckQuackApi || serverLeaderboardPollInFlight || !navigator.onLine) return;
+            if (!window.DuckQuackApi || !serverIdentityReady || serverLeaderboardPollInFlight || !navigator.onLine) return;
             if (!force && Date.now() - lastServerLeaderboardFetchAt < 12000) return;
             serverLeaderboardPollInFlight = true;
             lastServerLeaderboardFetchAt = Date.now();
@@ -3499,11 +3500,13 @@
         renderAll();
         renderGlobalChat();
         window.addEventListener("duckquack:connected", () => {
+            serverIdentityReady = true;
             serverChatStatus = "SECURE SERVER CHAT";
             refreshServerChat();
             refreshServerLeaderboard(true);
         });
         window.addEventListener("duckquack:connection-error", () => {
+            serverIdentityReady = false;
             serverChatStatus = "Secure chat connection failed";
             serverLeaderboardStatus = "Backend connection failed";
             renderGlobalChat();
