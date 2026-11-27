@@ -1017,8 +1017,14 @@
         function connectGlobalMqttSync() {
             if (typeof mqtt === "undefined") return;
             try {
+                if (mqttReconnectTimer) {
+                    clearTimeout(mqttReconnectTimer);
+                    mqttReconnectTimer = null;
+                }
                 if (mqttClient) {
-                    try { mqttClient.end(true); } catch (e) {}
+                    const previousClient = mqttClient;
+                    mqttClient = null;
+                    try { previousClient.end(true); } catch (e) {}
                 }
                 const brokerUrl = MQTT_BROKERS[mqttBrokerIndex % MQTT_BROKERS.length];
                 const clientId = "dq_" + (state.accountSlotId || "guest").slice(0, 14) + "_" + Math.random().toString(36).slice(2, 7);
