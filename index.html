@@ -1459,20 +1459,12 @@
             let nextHp = coopBossState.hp - dmg;
             let nextStage = coopBossState.stage;
             let nextMaxHp = coopBossState.maxHp;
-            let defeatEventId = coopBossState.defeatEventId || "";
-
             if (nextHp <= 0) {
-                state.bossKills++;
-                nextStage++;
-                nextMaxHp = Math.floor(5000 * Math.pow(2.2, nextStage));
+                nextStage = Math.min(100000, nextStage + 1);
+                nextMaxHp = Math.min(1e12, Math.floor(5000 * Math.pow(2.2, nextStage)));
                 nextHp = nextMaxHp;
-                defeatEventId = "boss_kill_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
-                const gemReward = 150 + nextStage * 50;
-                const shardReward = 15 + nextStage * 5;
-                state.gems += gemReward;
-                state.shards += shardReward;
                 playQuackSound(1.45);
-                showToast(`CO-OP BOSS SLAIN! +${gemReward} Gems & +${shardReward} Shards!`, "success");
+                showToast("CO-OP BOSS DEFEATED! Rewards are paused until a trusted server can verify the raid.", "info");
             } else {
                 playQuackSound(1.1);
             }
@@ -1482,7 +1474,7 @@
                 hp: nextHp,
                 maxHp: nextMaxHp,
                 lastAttacker: state.playerName,
-                defeatEventId,
+                defeatEventId: "",
                 updatedAt: Date.now()
             };
             coopBossState = syncPayload;
