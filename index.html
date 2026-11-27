@@ -2084,7 +2084,7 @@ for (const packet of bossPackets) {
             state.playerName = CREATOR_USERNAME;
             state.isAdminAuthenticated = true;
             if (!state.creatorMaxed) {
-                adminMaxOutEverything(true);
+                await adminMaxOutEverything(true);
                 state.creatorMaxed = true;
             }
             saveGame();
@@ -3366,10 +3366,14 @@ for (const packet of bossPackets) {
                     <div class="text-xs text-slate-400">Active Codes: <span class="text-purple-300 font-bold">${Object.keys(PROMO_CODES).join(", ")}</span></div>
                 </div>`;
             } else if (id === "trade") {
+                title.textContent = "👑 Creator Gift Console";
+                if (!state.isAdminAuthenticated) {
+                    body.innerHTML = `<div class="panel-subcard rounded-xl p-5 text-center text-sm text-slate-300">This console is restricted to RainbowLord16. Unlock the Creator passkey to access it.</div>`;
+                    return;
+                }
                 const others = getMergedLeaderboardEntries().filter(p => p.accountSlotId !== state.accountSlotId);
-                title.textContent = "🤝 Duck Trading & Gift Plaza";
                 body.innerHTML = `<div class="space-y-3">
-                    <p class="text-xs text-slate-300">${state.isAdminAuthenticated ? "👑 Creator Infinite Gift Spawner Active — send free massive gifts to any player!" : "Send Gems, Quacks, or Cyber Eggs to any live synced player!"}</p>
+                    <p class="text-xs text-slate-300">👑 Creator-only gift controls. Transfers remain paused until secure server-side gift transactions are implemented.</p>
                     ${others.length === 0
                         ? `<div class="panel-subcard rounded-xl p-4 text-xs text-slate-400 text-center">Open the game on another device or tab to see live players here!</div>`
                         : others.map(p => `<div class="panel-subcard rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
@@ -3570,9 +3574,10 @@ for (const packet of bossPackets) {
             }
         });
 
-        function equipOrBuySkin(skinId) {
+        async function equipOrBuySkin(skinId) {
             const s = SKINS.find(item => item.id === skinId);
             if (!s) return;
+            if (s.creatorOnly && (!state.isAdminAuthenticated || !await requireCreatorSession())) return;
             if (s.creatorOnly && !state.isAdminAuthenticated) {
                 showToast("Creator Skin reserved for RainbowLord16!", "error");
                 return;
@@ -3592,10 +3597,10 @@ for (const packet of bossPackets) {
             openModal("skins");
         }
 
-        function equipOrBuyHat(hatId) {
+        async function equipOrBuyHat(hatId) {
             const h = HATS.find(item => item.id === hatId);
             if (!h) return;
-            if (h.creatorOnly && !state.isAdminAuthenticated) return;
+            if (h.creatorOnly && (!state.isAdminAuthenticated || !await requireCreatorSession())) return;
             if (!state.unlockedHats.includes(hatId)) {
                 if (state.gems < h.cost) { showToast(`Need ${h.cost} Gems!`, "error"); return; }
                 state.gems -= h.cost;
@@ -3607,10 +3612,10 @@ for (const packet of bossPackets) {
             openModal("skins");
         }
 
-        function equipOrBuyVisor(visorId) {
+        async function equipOrBuyVisor(visorId) {
             const v = VISORS.find(item => item.id === visorId);
             if (!v) return;
-            if (v.creatorOnly && !state.isAdminAuthenticated) return;
+            if (v.creatorOnly && (!state.isAdminAuthenticated || !await requireCreatorSession())) return;
             if (!state.unlockedVisors.includes(visorId)) {
                 if (state.gems < v.cost) { showToast(`Need ${v.cost} Gems!`, "error"); return; }
                 state.gems -= v.cost;
