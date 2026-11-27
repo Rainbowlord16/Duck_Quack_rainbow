@@ -105,6 +105,10 @@ assert "allowIncomingChatPacket()" in SOURCE
 assert "rawStr.length > 16384" in SOURCE
 assert "storePublicRosterEntry(data, expectedSlotId)" in SOURCE
 assert "function scheduleMqttReconnect" in SOURCE
+assert "gag_sync_v12" in SOURCE
+assert "roster_v12" in SOURCE
+assert "chat_v12" in SOURCE
+assert "boss_v12" in SOURCE
 assert "reconnectPeriod: 0" in SOURCE
 assert "mqttReconnectAttempt" in SOURCE
 assert "relayPollInFlight" in SOURCE
