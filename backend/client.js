@@ -6,7 +6,7 @@ export function createDuckQuackApi(baseUrl, storage = localStorage) {
   return {
     async bootstrap(){const d=await call("/api/session",{method:"POST",body:"{}"});save(d.session);if(d.recoveryCode)storage.setItem(RECOVERY,d.recoveryCode);return d;},
     async recover(recoveryCode){const d=await call("/api/session/recover",{method:"POST",body:JSON.stringify({recoveryCode})});save(d.session);storage.setItem(RECOVERY,recoveryCode);return d;},
-    async ensureIdentity(){if(this.hasSession()){try{return await this.me();}catch{}}const recovery=this.getRecoveryCode();if(recovery){const restored=await this.recover(recovery);return restored.player;}const created=await this.bootstrap();return created.player;},
+    async ensureIdentity(){if(this.hasSession()){try{return (await this.me()).player;}catch{}}const recovery=this.getRecoveryCode();if(recovery){const restored=await this.recover(recovery);return restored.player;}const created=await this.bootstrap();return created.player;},
     me(){return call("/api/me");},setUsername(username){return call("/api/me",{method:"POST",body:JSON.stringify({username})});},
     chatHistory(){return call("/api/chat");},chatUpdates(since){return call("/api/chat?since="+encodeURIComponent(String(since||0)));},sendChat(text){return call("/api/chat",{method:"POST",body:JSON.stringify({text})});},
     async leaderboard(){const r=await fetch(base+"/api/leaderboard",{cache:"no-store"});if(!r.ok)throw new Error("Leaderboard request failed");return r.json();},
