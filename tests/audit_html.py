@@ -64,6 +64,8 @@ assert "state.safeVisualsMode || !isSender" in SOURCE
 assert "Photosensitive / Safe Visuals Mode" in SOURCE
 assert "rememberBoundedId(seenChatIds, data.id)" in SOURCE
 assert "defeatEventId: \"\"" in SOURCE, "Remote boss events must not grant client-side rewards"
+assert "Player gifting is paused until gifts can be verified" in SOURCE
+assert "safeAvatarDataUrl" in SOURCE
 assert "Permanent Untouchable #1" not in SOURCE
 
 assert len(parser.inline_scripts) == 1, f"Expected one inline app script, found {len(parser.inline_scripts)}"
