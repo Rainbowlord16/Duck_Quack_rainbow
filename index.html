@@ -128,6 +128,46 @@
             100% { transform: scale(1.65); opacity: 0; }
         }
         .mushroom-cloud-anim { animation: mushroomExpand 1.4s ease-out forwards; }
+        @keyframes shockwaveRingExpand {
+            0% { transform: translate(-50%, -50%) scale(0.05); opacity: 1; border-width: 18px; }
+            100% { transform: translate(-50%, -50%) scale(3.2); opacity: 0; border-width: 2px; }
+        }
+        .nuke-shockwave-ring {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            width: 50vw;
+            height: 50vw;
+            border-radius: 9999px;
+            border: 14px solid #fef08a;
+            box-shadow: 0 0 80px #f97316, inset 0 0 60px #ef4444;
+            pointer-events: none;
+            z-index: 999997;
+            animation: shockwaveRingExpand 1.15s cubic-bezier(0.12, 0.85, 0.25, 1) forwards;
+        }
+        @keyframes extremeSeizureShake {
+            0%, 100% { transform: translate(0, 0) rotate(0deg) scale(1); }
+            10% { transform: translate(-22px, 16px) rotate(-2.8deg) scale(1.03); }
+            20% { transform: translate(24px, -18px) rotate(2.8deg) scale(0.98); }
+            30% { transform: translate(-20px, -14px) rotate(-2.2deg) scale(1.04); }
+            40% { transform: translate(22px, 18px) rotate(2.4deg) scale(0.97); }
+            50% { transform: translate(-18px, 12px) rotate(-1.8deg) scale(1.02); }
+            60% { transform: translate(18px, -12px) rotate(1.8deg) scale(0.99); }
+            70% { transform: translate(-14px, -10px) rotate(-1.4deg) scale(1.02); }
+            80% { transform: translate(14px, 10px) rotate(1.4deg) scale(0.99); }
+            90% { transform: translate(-8px, 6px) rotate(-0.8deg) scale(1.01); }
+        }
+        .extreme-nuke-shake { animation: extremeSeizureShake 0.28s linear infinite; }
+        @keyframes barrelRollSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .duck-barrel-roll { animation: barrelRollSpin 0.65s linear infinite; }
+        @keyframes rainbowHueCycle {
+            0% { filter: hue-rotate(0deg) saturate(2.2); }
+            100% { filter: hue-rotate(360deg) saturate(2.2); }
+        }
+        .acid-trip-mode { animation: rainbowHueCycle 1.2s linear infinite; }
         @keyframes jumpscareFlash {
             0%, 100% { transform: scale(1.08) rotate(-2deg); filter: contrast(1.8) saturate(2); }
             15% { transform: scale(1.42) rotate(3.5deg); filter: invert(1) contrast(2.4); }
@@ -1340,64 +1380,107 @@
                 if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 if (audioCtx.state === "suspended") audioCtx.resume();
                 const now = audioCtx.currentTime;
-                if (mode === "nuke") {
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = "sawtooth";
-                    osc.frequency.setValueAtTime(160, now);
-                    osc.frequency.exponentialRampToValueAtTime(22, now + 1.6);
-                    gain.gain.setValueAtTime(0.42, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.65);
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start(now);
-                    osc.stop(now + 1.7);
 
-                    const bufferSize = audioCtx.sampleRate * 1.5;
+                const comp = audioCtx.createDynamicsCompressor();
+                comp.threshold.setValueAtTime(-10, now);
+                comp.knee.setValueAtTime(12, now);
+                comp.ratio.setValueAtTime(12, now);
+                comp.attack.setValueAtTime(0.002, now);
+                comp.release.setValueAtTime(0.25, now);
+                comp.connect(audioCtx.destination);
+
+                if (mode === "nuke") {
+                    // 1. Massive Sub-Bass Earthquake Drop (180Hz -> 18Hz)
+                    [180, 135, 90].forEach((startF, i) => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = i === 0 ? "sawtooth" : "sine";
+                        osc.frequency.setValueAtTime(startF, now);
+                        osc.frequency.exponentialRampToValueAtTime(18 + i * 4, now + 2.4);
+                        gain.gain.setValueAtTime(0.55, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 2.5);
+                        osc.connect(gain);
+                        gain.connect(comp);
+                        osc.start(now);
+                        osc.stop(now + 2.55);
+                    });
+
+                    // 2. Thermonuclear Blast Roar & Shockwave Crackle
+                    const bufferSize = Math.floor(audioCtx.sampleRate * 2.6);
                     const noiseBuffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
                     const output = noiseBuffer.getChannelData(0);
-                    for (let i = 0; i < bufferSize; i++) output[i] = Math.random() * 2 - 1;
+                    for (let i = 0; i < bufferSize; i++) {
+                        output[i] = (Math.random() * 2 - 1) * (Math.random() < 0.08 ? 1.4 : 0.85);
+                    }
                     const whiteNoise = audioCtx.createBufferSource();
                     whiteNoise.buffer = noiseBuffer;
                     const filter = audioCtx.createBiquadFilter();
                     filter.type = "lowpass";
-                    filter.frequency.setValueAtTime(650, now);
-                    filter.frequency.exponentialRampToValueAtTime(60, now + 1.5);
+                    filter.frequency.setValueAtTime(1400, now);
+                    filter.frequency.exponentialRampToValueAtTime(48, now + 2.5);
                     const nGain = audioCtx.createGain();
-                    nGain.gain.setValueAtTime(0.45, now);
-                    nGain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+                    nGain.gain.setValueAtTime(0.85, now);
+                    nGain.gain.exponentialRampToValueAtTime(0.001, now + 2.55);
                     whiteNoise.connect(filter);
                     filter.connect(nGain);
-                    nGain.connect(audioCtx.destination);
+                    nGain.connect(comp);
                     whiteNoise.start(now);
+
+                    // 3. Secondary Delayed Shockwave Boom (+0.45s)
+                    const boom2 = audioCtx.createOscillator();
+                    const b2Gain = audioCtx.createGain();
+                    boom2.type = "triangle";
+                    boom2.frequency.setValueAtTime(110, now + 0.45);
+                    boom2.frequency.exponentialRampToValueAtTime(20, now + 2.2);
+                    b2Gain.gain.setValueAtTime(0.001, now);
+                    b2Gain.gain.setValueAtTime(0.7, now + 0.45);
+                    b2Gain.gain.exponentialRampToValueAtTime(0.001, now + 2.25);
+                    boom2.connect(b2Gain);
+                    b2Gain.connect(comp);
+                    boom2.start(now + 0.45);
+                    boom2.stop(now + 2.3);
+                } else if (mode === "laser") {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = "sawtooth";
+                    osc.frequency.setValueAtTime(1600, now);
+                    osc.frequency.exponentialRampToValueAtTime(65, now + 0.55);
+                    gain.gain.setValueAtTime(0.45, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                    osc.connect(gain);
+                    gain.connect(comp);
+                    osc.start(now);
+                    osc.stop(now + 0.62);
+                } else if (mode === "thunder") {
+                    playDramaticSfx("nuke");
                 } else {
                     // Terrifying layered dissonant horror scream + sub-bass slam + static burst
                     const sub = audioCtx.createOscillator();
                     const subGain = audioCtx.createGain();
                     sub.type = "sine";
-                    sub.frequency.setValueAtTime(110, now);
-                    sub.frequency.exponentialRampToValueAtTime(28, now + 0.9);
-                    subGain.gain.setValueAtTime(0.55, now);
-                    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.95);
+                    sub.frequency.setValueAtTime(130, now);
+                    sub.frequency.exponentialRampToValueAtTime(24, now + 1.1);
+                    subGain.gain.setValueAtTime(0.75, now);
+                    subGain.gain.exponentialRampToValueAtTime(0.001, now + 1.15);
                     sub.connect(subGain);
-                    subGain.connect(audioCtx.destination);
+                    subGain.connect(comp);
                     sub.start(now);
-                    sub.stop(now + 1.0);
+                    sub.stop(now + 1.2);
 
-                    const basePitch = 175 + Math.random() * 90;
-                    [basePitch, basePitch * 1.06, basePitch * 2.83, basePitch * 4.19, basePitch * 6.37].forEach((freq, idx) => {
+                    const basePitch = 185 + Math.random() * 110;
+                    [basePitch, basePitch * 1.07, basePitch * 2.83, basePitch * 4.19, basePitch * 6.37, basePitch * 8.11].forEach((freq, idx) => {
                         const osc = audioCtx.createOscillator();
                         const gain = audioCtx.createGain();
                         osc.type = idx % 2 === 0 ? "sawtooth" : "square";
                         osc.frequency.setValueAtTime(freq * 0.85, now);
-                        osc.frequency.linearRampToValueAtTime(freq * 1.48, now + 0.14);
-                        osc.frequency.exponentialRampToValueAtTime(freq * 0.45, now + 1.25);
-                        gain.gain.setValueAtTime(0.26, now);
-                        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.3);
+                        osc.frequency.linearRampToValueAtTime(freq * 1.55, now + 0.14);
+                        osc.frequency.exponentialRampToValueAtTime(freq * 0.42, now + 1.4);
+                        gain.gain.setValueAtTime(0.32, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 1.45);
                         osc.connect(gain);
-                        gain.connect(audioCtx.destination);
+                        gain.connect(comp);
                         osc.start(now);
-                        osc.stop(now + 1.35);
+                        osc.stop(now + 1.5);
                     });
                 }
             } catch (e) {}
@@ -2244,73 +2327,107 @@
 
             const tPlayer = resolveTarget(targetArg) || undefined;
 
-            if (cmd === "nuke") {
-                triggerAdminAbuse("NUKE", `RainbowLord16 launched a TACTICAL QUACK NUKE at ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer });
-            } else if (cmd === "jail" || cmd === "jail_all") {
-                triggerAdminAbuse("JAIL", `RainbowLord16 locked ${tPlayer || "EVERYONE"} in Laser Duck Jail!`, { targetPlayer: tPlayer });
-            } else if (cmd === "freeze" || cmd === "freeze_all") {
-                triggerAdminAbuse("FREEZE", `RainbowLord16 flash-froze ${tPlayer || "EVERYONE"} in solid ice!`, { targetPlayer: tPlayer });
-            } else if (cmd === "jumpscare") {
-                triggerAdminAbuse("JUMPSCARE", `RainbowLord16 jumpscared ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer });
-            } else if (cmd === "flip" || cmd === "flip_screen") {
-                triggerAdminAbuse("FLIP", `RainbowLord16 flipped ${tPlayer || "EVERYONE"}'s world upside down!`, { targetPlayer: tPlayer });
-            } else if (cmd === "spin" || cmd === "barrel_roll") {
-                triggerAdminAbuse("SPIN", `RainbowLord16 hit ${tPlayer || "EVERYONE"} with a 360° Barrel Roll!`, { targetPlayer: tPlayer });
-            } else if (cmd === "giant" || cmd === "giant_duck") {
-                triggerAdminAbuse("GIANT", `RainbowLord16 turned ${tPlayer || "EVERYONE"} into a COLOSSAL TITAN DUCK!`, { targetPlayer: tPlayer });
-            } else if (cmd === "tiny" || cmd === "tiny_duck") {
-                triggerAdminAbuse("TINY", `RainbowLord16 shrunk ${tPlayer || "EVERYONE"} to microscopic size!`, { targetPlayer: tPlayer });
-            } else if (cmd === "zerog" || cmd === "zero_gravity") {
-                triggerAdminAbuse("ZERO_G", `RainbowLord16 disabled gravity for ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer });
-            } else if (cmd === "disco" || cmd === "disco_party") {
-                triggerAdminAbuse("DISCO", `RainbowLord16 started a Server-Wide Rainbow Disco Party!`, { targetPlayer: tPlayer });
-            } else if (cmd === "blackhole" || cmd === "vortex") {
-                triggerAdminAbuse("BLACKHOLE", `RainbowLord16 opened a SINGULARITY BLACK HOLE on ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer });
-            } else if (cmd === "glitch") {
-                triggerAdminAbuse("GLITCH", `RainbowLord16 corrupted ${tPlayer || "EVERYONE"}'s reality matrix!`, { targetPlayer: tPlayer });
-            } else if (cmd === "invert") {
-                triggerAdminAbuse("INVERT", `RainbowLord16 inverted ${tPlayer || "EVERYONE"}'s colors into the Shadow Realm!`, { targetPlayer: tPlayer });
-            } else if (cmd === "earthquake" || cmd === "quake") {
-                triggerAdminAbuse("EARTHQUAKE", `RainbowLord16 triggered a MAGNITUDE 12 QUACKQUAKE!`, { targetPlayer: tPlayer });
-            } else if (cmd === "meteor" || cmd === "apocalypse") {
-                triggerAdminAbuse("METEOR", `RainbowLord16 summoned an APOCALYPTIC METEOR SHOWER!`, { targetPlayer: tPlayer });
-            } else if (cmd === "clone" || cmd === "clone_ducks") {
-                triggerAdminAbuse("CLONE_DUCKS", `RainbowLord16 unleashed a 50-DUCK STAMPEDE on ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer });
-            } else if (cmd === "pets" || cmd === "give_all_pets") {
-                triggerAdminAbuse("GIVE_PETS", `RainbowLord16 bestowed MYTHIC CREATOR PETS on ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer });
-            } else if (cmd === "ban" || cmd === "fake_ban") {
-                triggerAdminAbuse("FAKE_BAN", `RainbowLord16 issued a Troll Ban Hammer on ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer });
-            } else if (cmd === "clear" || cmd === "clear_trolls") {
-                triggerAdminAbuse("CLEAR", `RainbowLord16 cleared all active trolls on ${tPlayer || "EVERYONE"}.`, { targetPlayer: tPlayer });
-            } else if (cmd === "storm" || cmd === "rainbow_storm") {
-                triggerAdminAbuse("RAINBOW_STORM", "RainbowLord16 summoned a 100x RAINBOW QUACK STORM for everyone!", { targetPlayer: "ALL" });
-            } else if (cmd === "fever" || cmd === "hyper_fever") {
-                triggerAdminAbuse("HYPER_FEVER", "RainbowLord16 triggered INSTANT 100% QUACK FEVER!", { targetPlayer: "ALL" });
-            } else if (cmd === "eggs" || cmd === "rain_eggs") {
-                triggerAdminAbuse("RAIN_EGGS", "RainbowLord16 made Cyber Eggs rain from the sky!", { targetPlayer: tPlayer });
-            } else if (cmd === "gems" || cmd === "rain_gems") {
-                triggerAdminAbuse("RAIN_GEMS", "RainbowLord16 summoned a Diamond Sky Shower!", { targetPlayer: tPlayer });
-            } else if (cmd === "cutscene") {
-                const theme = (targetArg || "rainbow").toLowerCase();
-                triggerAdminAbuse("CUTSCENE", `RainbowLord16 triggered the ${theme.toUpperCase()} Cinematic Cutscene!`, { theme, targetPlayer: "ALL" });
-            } else if (cmd === "summon") {
-                const bossName = rest || "Abyssal Void Leviathan";
-                triggerAdminAbuse("SUMMON", `RainbowLord16 summoned ${bossName} into the arena!`, { bossName, targetPlayer: "ALL" });
-            } else if (cmd === "tp" || cmd === "tp_world") {
-                const isWorldOnly = parts.length === 2 && !isNaN(parseInt(parts[1], 10));
-                const wNum = Math.min(21, Math.max(1, parseInt(isWorldOnly ? parts[1] : (parts[2] || "21"), 10)));
-                const target = isWorldOnly ? undefined : resolveTarget(parts[1]);
-                triggerAdminAbuse("TP_WORLD", `RainbowLord16 teleported ${target || "EVERYONE"} to World ${wNum}!`, { worldId: wNum, targetPlayer: target });
-            } else if (cmd === "give") {
-                const target = resolveTarget(parts[1]) || "ALL";
-                const currency = (parts[2] || "gems").toLowerCase();
-                const amount = parseFloat(parts[3] || "5000") || 5000;
-                triggerAdminAbuse("GIVE", `RainbowLord16 gifted ${formatNum(amount)} ${currency.toUpperCase()} to ${target}!`, { targetPlayer: target, currency, amount });
-            } else if (cmd === "max" || cmd === "max_all") {
-                triggerAdminAbuse("MAX_ALL", `RainbowLord16 MAXED OUT ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer });
-            } else if (cmd === "say") {
-                const msg = rest || "QUACK FOR RAINBOWLORD16!";
-                triggerAdminAbuse("SAY", `RainbowLord16: "${msg}"`, { targetPlayer: "ALL" });
+            const COMMAND_DISPATCH = {
+                // 1-15: Destruction & Extreme Chaos
+                nuke: () => triggerAdminAbuse("NUKE", `RainbowLord16 launched a THERMONUCLEAR QUACK WARHEAD at ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+                tsar_nuke: () => triggerAdminAbuse("NUKE", `RainbowLord16 detonated the 100-MEGATON TSAR DUCK BOMBA!`, { targetPlayer: tPlayer }),
+                orbital_laser: () => triggerAdminAbuse("ORBITAL_LASER", `RainbowLord16 fired an ORBITAL ION CANNON at ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+                blackhole: () => triggerAdminAbuse("BLACKHOLE", `RainbowLord16 opened a SINGULARITY BLACK HOLE on ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+                vortex: () => triggerAdminAbuse("BLACKHOLE", `RainbowLord16 trapped ${tPlayer || "EVERYONE"} in a Gravity Vortex!`, { targetPlayer: tPlayer }),
+                supernova: () => triggerAdminAbuse("SUPERNOVA", `RainbowLord16 triggered a BLINDING SUPERNOVA EXPLOSION!`, { targetPlayer: tPlayer }),
+                earthquake: () => triggerAdminAbuse("EARTHQUAKE", `RainbowLord16 unleashed a MAGNITUDE 12 QUACKQUAKE!`, { targetPlayer: tPlayer }),
+                quake: () => triggerAdminAbuse("EARTHQUAKE", `RainbowLord16 shook the entire server!`, { targetPlayer: tPlayer }),
+                meteor: () => triggerAdminAbuse("METEOR", `RainbowLord16 summoned an APOCALYPTIC METEOR SHOWER!`, { targetPlayer: tPlayer }),
+                apocalypse: () => triggerAdminAbuse("METEOR", `RainbowLord16 started the Duck Apocalypse!`, { targetPlayer: tPlayer }),
+                lightning: () => triggerAdminAbuse("LIGHTNING", `RainbowLord16 smote ${tPlayer || "EVERYONE"} with Zeus Thunderbolts!`, { targetPlayer: tPlayer }),
+                smite: () => triggerAdminAbuse("LIGHTNING", `RainbowLord16 smote ${tPlayer || "EVERYONE"} from the heavens!`, { targetPlayer: tPlayer }),
+                explode: () => triggerAdminAbuse("EXPLODE", `RainbowLord16 rigged ${tPlayer || "EVERYONE"} with TNT!`, { targetPlayer: tPlayer }),
+                tnt: () => triggerAdminAbuse("EXPLODE", `RainbowLord16 dropped Mega TNT on ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+                armageddon: () => triggerAdminAbuse("ARMAGEDDON", `RainbowLord16 activated TOTAL ARMAGEDDON MODE!`, { targetPlayer: "ALL" }),
+
+                // 16-35: Horror & Screen/Physics Trolls
+                jumpscare: () => triggerAdminAbuse("JUMPSCARE", `RainbowLord16 jumpscared ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+                screamer: () => triggerAdminAbuse("JUMPSCARE", `RainbowLord16 unleashed a Full-Screen Screamer!`, { targetPlayer: tPlayer }),
+                jail: () => triggerAdminAbuse("JAIL", `RainbowLord16 locked ${tPlayer || "EVERYONE"} in Laser Duck Jail!`, { targetPlayer: tPlayer }),
+                jail_all: () => triggerAdminAbuse("JAIL", `RainbowLord16 jailed the entire server!`, { targetPlayer: "ALL" }),
+                freeze: () => triggerAdminAbuse("FREEZE", `RainbowLord16 flash-froze ${tPlayer || "EVERYONE"} in solid ice!`, { targetPlayer: tPlayer }),
+                freeze_all: () => triggerAdminAbuse("FREEZE", `RainbowLord16 triggered an Ice Age!`, { targetPlayer: "ALL" }),
+                flip: () => triggerAdminAbuse("FLIP", `RainbowLord16 flipped ${tPlayer || "EVERYONE"}'s world upside down!`, { targetPlayer: tPlayer }),
+                upside_down: () => triggerAdminAbuse("FLIP", `RainbowLord16 inverted gravity!`, { targetPlayer: tPlayer }),
+                spin: () => triggerAdminAbuse("SPIN", `RainbowLord16 hit ${tPlayer || "EVERYONE"} with a 1080° Barrel Roll!`, { targetPlayer: tPlayer }),
+                tornado_spin: () => triggerAdminAbuse("TORNADO_SPIN", `RainbowLord16 trapped ${tPlayer || "EVERYONE"} in a Continuous Tornado Spin!`, { targetPlayer: tPlayer }),
+                giant: () => triggerAdminAbuse("GIANT", `RainbowLord16 turned ${tPlayer || "EVERYONE"} into a COLOSSAL TITAN DUCK!`, { targetPlayer: tPlayer }),
+                titan: () => triggerAdminAbuse("GIANT", `RainbowLord16 spawned Titan Ducks!`, { targetPlayer: tPlayer }),
+                tiny: () => triggerAdminAbuse("TINY", `RainbowLord16 shrunk ${tPlayer || "EVERYONE"} to microscopic size!`, { targetPlayer: tPlayer }),
+                ant: () => triggerAdminAbuse("TINY", `RainbowLord16 shrunk ${tPlayer || "EVERYONE"} to ant size!`, { targetPlayer: tPlayer }),
+                zerog: () => triggerAdminAbuse("ZERO_G", `RainbowLord16 disabled gravity for ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+                float: () => triggerAdminAbuse("ZERO_G", `RainbowLord16 made ${tPlayer || "EVERYONE"} float into space!`, { targetPlayer: tPlayer }),
+                glitch: () => triggerAdminAbuse("GLITCH", `RainbowLord16 corrupted ${tPlayer || "EVERYONE"}'s reality matrix!`, { targetPlayer: tPlayer }),
+                matrix: () => triggerAdminAbuse("GLITCH", `RainbowLord16 hacked the Matrix!`, { targetPlayer: tPlayer }),
+                invert: () => triggerAdminAbuse("INVERT", `RainbowLord16 sent ${tPlayer || "EVERYONE"} to the Inverted Shadow Realm!`, { targetPlayer: tPlayer }),
+                shadow_realm: () => triggerAdminAbuse("INVERT", `RainbowLord16 banished ${tPlayer || "EVERYONE"} to the Shadow Realm!`, { targetPlayer: tPlayer }),
+
+                // 36-52: Visual Filters, Fake Alerts & Troll Traps
+                disco: () => triggerAdminAbuse("DISCO", `RainbowLord16 started a Server-Wide Rainbow Disco Party!`, { targetPlayer: tPlayer }),
+                acid: () => triggerAdminAbuse("ACID", `RainbowLord16 activated Hyper Acid Rainbow Vision!`, { targetPlayer: tPlayer }),
+                blur: () => triggerAdminAbuse("BLUR", `RainbowLord16 stole ${tPlayer || "EVERYONE"}'s glasses!`, { targetPlayer: tPlayer }),
+                blind: () => triggerAdminAbuse("BLIND", `RainbowLord16 turned off the lights for ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+                darkness: () => triggerAdminAbuse("BLIND", `RainbowLord16 plunged the pond into total darkness!`, { targetPlayer: tPlayer }),
+                flashbang: () => triggerAdminAbuse("FLASHBANG", `RainbowLord16 threw a FLASHBANG at ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+                pixelate: () => triggerAdminAbuse("PIXELATE", `RainbowLord16 downgraded ${tPlayer || "EVERYONE"} to 1995 CRT mode!`, { targetPlayer: tPlayer }),
+                mirror: () => triggerAdminAbuse("MIRROR", `RainbowLord16 horizontally mirrored ${tPlayer || "EVERYONE"}'s screen!`, { targetPlayer: tPlayer }),
+                ban: () => triggerAdminAbuse("FAKE_BAN", `RainbowLord16 issued a Troll Ban Hammer on ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+                fake_ban: () => triggerAdminAbuse("FAKE_BAN", `RainbowLord16 swung the Fake Ban Hammer!`, { targetPlayer: tPlayer }),
+                fake_error: () => triggerAdminAbuse("FAKE_ERROR", `RainbowLord16 triggered a Fake Blue Screen Crash on ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+                bsod: () => triggerAdminAbuse("FAKE_ERROR", `RainbowLord16 crashed ${tPlayer || "EVERYONE"} with a Duck BSOD!`, { targetPlayer: tPlayer }),
+                fake_wipe: () => triggerAdminAbuse("FAKE_WIPE", `RainbowLord16 pretended to wipe ${tPlayer || "EVERYONE"}'s save!`, { targetPlayer: tPlayer }),
+                rickroll: () => triggerAdminAbuse("RICKROLL", `RainbowLord16 RICKROLLED ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+                clone: () => triggerAdminAbuse("CLONE_DUCKS", `RainbowLord16 unleashed a 50-DUCK STAMPEDE!`, { targetPlayer: tPlayer }),
+                stampede: () => triggerAdminAbuse("CLONE_DUCKS", `RainbowLord16 summoned a Duck Stampede!`, { targetPlayer: tPlayer }),
+                clear: () => triggerAdminAbuse("CLEAR", `RainbowLord16 cleared all active trolls on ${tPlayer || "EVERYONE"}.`, { targetPlayer: tPlayer }),
+
+                // 53-66: Blessings, Loot, Worlds & Multipliers
+                storm: () => triggerAdminAbuse("RAINBOW_STORM", `RainbowLord16 summoned a 100x RAINBOW QUACK STORM!`, { targetPlayer: "ALL" }),
+                mega_storm: () => triggerAdminAbuse("MEGA_STORM", `RainbowLord16 unleashed a 10,000x CREATOR GOD STORM!`, { targetPlayer: "ALL" }),
+                fever: () => triggerAdminAbuse("HYPER_FEVER", `RainbowLord16 triggered INSTANT 100% QUACK FEVER!`, { targetPlayer: "ALL" }),
+                eggs: () => triggerAdminAbuse("RAIN_EGGS", `RainbowLord16 made Cyber Eggs rain from the sky!`, { targetPlayer: tPlayer }),
+                rain_eggs: () => triggerAdminAbuse("RAIN_EGGS", `RainbowLord16 triggered an Egg Storm!`, { targetPlayer: tPlayer }),
+                gems: () => triggerAdminAbuse("RAIN_GEMS", `RainbowLord16 summoned a Diamond Sky Shower!`, { targetPlayer: tPlayer }),
+                rain_gems: () => triggerAdminAbuse("RAIN_GEMS", `RainbowLord16 made Gems rain from the sky!`, { targetPlayer: tPlayer }),
+                rain_shards: () => triggerAdminAbuse("RAIN_SHARDS", `RainbowLord16 summoned a Void Shard Meteor Rain!`, { targetPlayer: tPlayer }),
+                pets: () => triggerAdminAbuse("GIVE_PETS", `RainbowLord16 bestowed a 250x MYTHIC CREATOR PET on ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+                give_pets: () => triggerAdminAbuse("GIVE_PETS", `RainbowLord16 gifted Mythic Creator Pets!`, { targetPlayer: tPlayer }),
+                rich: () => triggerAdminAbuse("GIVE", `RainbowLord16 made ${tPlayer || "EVERYONE"} a Quintillionaire!`, { targetPlayer: tPlayer, currency: "quacks", amount: 1e18 }),
+                gems_drop: () => triggerAdminAbuse("GIVE", `RainbowLord16 dropped +100,000 Gems to ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer, currency: "gems", amount: 100000 }),
+                rebirth_boost: () => triggerAdminAbuse("REBIRTH_BOOST", `RainbowLord16 granted +50 Rebirths to ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+                max: () => triggerAdminAbuse("MAX_ALL", `RainbowLord16 MAXED OUT ${tPlayer || "EVERYONE"}!`, { targetPlayer: tPlayer }),
+
+                // 67-75: Soundboard, Cutscenes, Teleport & Announcements
+                airhorn: () => triggerAdminAbuse("SOUNDBOARD", `RainbowLord16 blasted an MLG AIRHORN at ${tPlayer || "EVERYONE"}!`, { soundId: "airhorn", targetPlayer: tPlayer }),
+                siren: () => triggerAdminAbuse("SOUNDBOARD", `RainbowLord16 triggered a NUCLEAR SIREN!`, { soundId: "siren", targetPlayer: tPlayer }),
+                vine_boom: () => triggerAdminAbuse("SOUNDBOARD", `RainbowLord16 dropped a MEGA VINE BOOM!`, { soundId: "vine_boom", targetPlayer: tPlayer }),
+                scream: () => triggerAdminAbuse("SOUNDBOARD", `RainbowLord16 blasted a HORROR SCREAM!`, { soundId: "scream", targetPlayer: tPlayer }),
+                choir: () => triggerAdminAbuse("SOUNDBOARD", `RainbowLord16 played the 12-Duck Choir Chord!`, { soundId: "choir_chord", targetPlayer: tPlayer }),
+                trombone: () => triggerAdminAbuse("SOUNDBOARD", `RainbowLord16 played the Sad Trombone Troll!`, { soundId: "troll_fanfare", targetPlayer: tPlayer }),
+                cutscene: () => triggerAdminAbuse("CUTSCENE", `RainbowLord16 triggered the ${(targetArg || "RAINBOW").toUpperCase()} Cinematic Cutscene!`, { theme: (targetArg || "rainbow").toLowerCase(), targetPlayer: "ALL" }),
+                summon: () => triggerAdminAbuse("SUMMON", `RainbowLord16 summoned ${rest || "Abyssal Void Leviathan"} into the arena!`, { bossName: rest || "Abyssal Void Leviathan", targetPlayer: "ALL" }),
+                tp: () => {
+                    const isWorldOnly = parts.length === 2 && !isNaN(parseInt(parts[1], 10));
+                    const wNum = Math.min(21, Math.max(1, parseInt(isWorldOnly ? parts[1] : (parts[2] || "21"), 10)));
+                    const target = isWorldOnly ? undefined : resolveTarget(parts[1]);
+                    triggerAdminAbuse("TP_WORLD", `RainbowLord16 teleported ${target || "EVERYONE"} to World ${wNum}!`, { worldId: wNum, targetPlayer: target });
+                },
+                give: () => {
+                    const target = resolveTarget(parts[1]) || "ALL";
+                    const currency = (parts[2] || "gems").toLowerCase();
+                    const amount = parseFloat(parts[3] || "5000") || 5000;
+                    triggerAdminAbuse("GIVE", `RainbowLord16 gifted ${formatNum(amount)} ${currency.toUpperCase()} to ${target}!`, { targetPlayer: target, currency, amount });
+                },
+                say: () => triggerAdminAbuse("SAY", `RainbowLord16: "${rest || "QUACK FOR RAINBOWLORD16!"}"`, { targetPlayer: "ALL" })
+            };
+
+            if (COMMAND_DISPATCH[cmd]) {
+                COMMAND_DISPATCH[cmd]();
             } else {
                 triggerAdminAbuse("SAY", `RainbowLord16: "${raw}"`, { targetPlayer: "ALL" });
             }
@@ -2345,12 +2462,15 @@
                 layer.innerHTML = "";
             }
             const wrap = document.getElementById("heroDuckSvgWrapper");
-            if (wrap) wrap.style.transform = "";
+            if (wrap) {
+                wrap.style.transform = "";
+                wrap.classList.remove("duck-barrel-roll");
+            }
             const btn = document.getElementById("heroDuckBtn");
             if (btn) btn.classList.remove("zero-g-duck");
             document.body.style.transform = "";
             document.body.style.filter = "";
-            document.body.classList.remove("prism-aura", "screen-shaking", "blackhole-vortex", "cyber-glitch-mode");
+            document.body.classList.remove("prism-aura", "screen-shaking", "extreme-nuke-shake", "blackhole-vortex", "cyber-glitch-mode", "acid-trip-mode");
         }
 
         function renderDirectDuckTroll() {
@@ -2391,42 +2511,45 @@
 
             const type = (evt.type || "").toUpperCase();
             if (type === "NUKE") {
-                // Incoming siren + whistling warhead drop + speaker-blasting nuclear detonation
-                try {
-                    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-                    if (audioCtx.state === "suspended") audioCtx.resume();
-                    const now = audioCtx.currentTime;
-                    const siren = audioCtx.createOscillator();
-                    const sGain = audioCtx.createGain();
-                    siren.type = "sawtooth";
-                    siren.frequency.setValueAtTime(420, now);
-                    siren.frequency.linearRampToValueAtTime(880, now + 0.45);
-                    siren.frequency.linearRampToValueAtTime(160, now + 0.95);
-                    sGain.gain.setValueAtTime(0.32, now);
-                    sGain.gain.exponentialRampToValueAtTime(0.01, now + 0.98);
-                    siren.connect(sGain);
-                    sGain.connect(audioCtx.destination);
-                    siren.start(now);
-                    siren.stop(now + 1.0);
-                } catch (e) {}
+                // Phase 1: Emergency Nuclear Broadcast Siren + Falling Warhead
+                playSoundboardTone("siren");
+                document.body.classList.add("extreme-nuke-shake");
 
-                document.body.classList.add("screen-shaking");
                 const stage = document.getElementById("heroStageBox");
                 if (stage) {
                     const missile = document.createElement("div");
                     missile.className = "nuke-warhead-anim absolute top-0 left-1/2 z-40 pointer-events-none";
-                    missile.innerHTML = `<svg viewBox="0 0 60 120" width="76" height="152"><polygon points="30,118 10,80 50,80" fill="#ef4444"/><rect x="14" y="24" width="32" height="56" rx="6" fill="#1e293b" stroke="#facc15" stroke-width="3"/><polygon points="30,2 14,24 46,24" fill="#facc15"/><circle cx="30" cy="52" r="9" fill="#facc15"/></svg>`;
+                    missile.innerHTML = `<svg viewBox="0 0 60 120" width="90" height="180"><polygon points="30,118 8,76 52,76" fill="#ef4444"/><rect x="12" y="22" width="36" height="54" rx="6" fill="#090d16" stroke="#facc15" stroke-width="3.5"/><polygon points="30,2 12,22 48,22" fill="#facc15"/><circle cx="30" cy="48" r="11" fill="#facc15"/><text x="30" y="52" font-size="11" font-weight="900" text-anchor="middle" fill="#090d16">☢</text></svg>`;
                     stage.appendChild(missile);
                     setTimeout(() => missile.remove(), 950);
                 }
 
+                // Phase 2: Thermonuclear Detonation + Twin Shockwaves + Speaker Sub-Bass Explosion
                 setTimeout(() => {
                     playDramaticSfx("nuke");
+
+                    // Blinding Thermal Whiteout Flash
                     const flash = document.createElement("div");
-                    flash.style.cssText = "position:fixed;inset:0;background:#ffffff;z-index:999998;pointer-events:none;transition:opacity 0.65s ease-out;";
+                    flash.style.cssText = "position:fixed;inset:0;background:#ffffff;z-index:999999;pointer-events:none;transition:opacity 0.9s ease-out;";
                     document.body.appendChild(flash);
                     requestAnimationFrame(() => { flash.style.opacity = "0"; });
-                    setTimeout(() => flash.remove(), 700);
+                    setTimeout(() => flash.remove(), 950);
+
+                    // Expanding Plasma Shockwave Rings
+                    for (let r = 0; r < 2; r++) {
+                        setTimeout(() => {
+                            const ring = document.createElement("div");
+                            ring.className = "nuke-shockwave-ring";
+                            document.body.appendChild(ring);
+                            setTimeout(() => ring.remove(), 1200);
+                        }, r * 260);
+                    }
+
+                    // Inverted Thermal Fallout Filter
+                    document.body.style.filter = "invert(1) contrast(2.2) saturate(2.5)";
+                    setTimeout(() => {
+                        document.body.style.filter = "sepia(0.85) contrast(1.5) brightness(0.75)";
+                    }, 350);
 
                     const ov = document.getElementById("adminCutsceneOverlay");
                     const art = document.getElementById("adminCutsceneArt");
@@ -2434,20 +2557,123 @@
                     const title = document.getElementById("adminCutsceneTitle");
                     const sub = document.getElementById("adminCutsceneSubtitle");
                     if (ov && art && title && sub) {
-                        art.innerHTML = `<div class="mushroom-cloud-anim"><svg viewBox="0 0 220 180" width="240" height="196"><circle cx="110" cy="80" r="88" fill="none" stroke="#fde047" stroke-width="6" opacity="0.8"/><ellipse cx="110" cy="58" rx="92" ry="44" fill="#ea580c"/><ellipse cx="110" cy="48" rx="68" ry="32" fill="#f97316"/><ellipse cx="110" cy="40" rx="44" ry="20" fill="#fef08a"/><rect x="86" y="66" width="48" height="86" rx="12" fill="#dc2626"/><ellipse cx="110" cy="154" rx="78" ry="18" fill="#7c2d12"/></svg></div>`;
-                        if (badge) badge.textContent = "THERMONUCLEAR QUACK STRIKE";
-                        title.textContent = "DIRECT HIT — GROUND ZERO!";
-                        sub.textContent = "Shockwave obliterated the pond! +5,000,000 Fallout Quacks collected.";
+                        art.innerHTML = `<div class="mushroom-cloud-anim"><svg viewBox="0 0 240 200" width="280" height="230"><circle cx="120" cy="85" r="98" fill="none" stroke="#fef08a" stroke-width="8" opacity="0.9"/><circle cx="120" cy="85" r="78" fill="none" stroke="#f97316" stroke-width="5" opacity="0.7"/><ellipse cx="120" cy="60" rx="102" ry="48" fill="#dc2626"/><ellipse cx="120" cy="50" rx="76" ry="36" fill="#f97316"/><ellipse cx="120" cy="40" rx="48" ry="22" fill="#fef08a"/><rect x="92" y="68" width="56" height="96" rx="14" fill="#b91c1c"/><ellipse cx="120" cy="168" rx="88" ry="20" fill="#451a03"/></svg></div>`;
+                        if (badge) badge.textContent = "DEFCON 1 // THERMONUCLEAR DETONATION";
+                        title.textContent = "GROUND ZERO — TOTAL ANNIHILATION!";
+                        sub.textContent = "Shockwave obliterated the entire pond! +25,000,000 Fallout Quacks & +500 Gems collected.";
                         ov.classList.remove("hidden");
                     }
-                    state.quacks += 5000000;
-                    state.lifetimeQuacks += 5000000;
+                    state.quacks += 25000000;
+                    state.lifetimeQuacks += 25000000;
+                    state.gems += 500;
                     renderHudAndStats();
+
                     setTimeout(() => {
-                        document.body.classList.remove("screen-shaking");
+                        document.body.classList.remove("extreme-nuke-shake");
+                        document.body.style.filter = "";
                         closeAdminCutscene();
-                    }, 3400);
-                }, 900);
+                    }, 3800);
+                }, 850);
+            } else if (type === "ORBITAL_LASER") {
+                playDramaticSfx("laser");
+                document.body.classList.add("extreme-nuke-shake");
+                const beam = document.createElement("div");
+                beam.style.cssText = "position:fixed;top:0;bottom:0;left:50%;transform:translateX(-50%);width:140px;background:linear-gradient(90deg,transparent,#06b6d4,#ffffff,#06b6d4,transparent);box-shadow:0 0 120px 40px #22d3ee;z-index:999998;pointer-events:none;";
+                document.body.appendChild(beam);
+                setTimeout(() => {
+                    beam.remove();
+                    document.body.classList.remove("extreme-nuke-shake");
+                }, 1400);
+            } else if (type === "SUPERNOVA" || type === "FLASHBANG") {
+                playDramaticSfx("nuke");
+                const flash = document.createElement("div");
+                flash.style.cssText = "position:fixed;inset:0;background:#ffffff;z-index:999999;pointer-events:none;transition:opacity 2.4s ease-out;";
+                document.body.appendChild(flash);
+                setTimeout(() => { flash.style.opacity = "0"; }, 300);
+                setTimeout(() => flash.remove(), 2750);
+            } else if (type === "LIGHTNING") {
+                playDramaticSfx("thunder");
+                document.body.style.filter = "invert(1) brightness(2)";
+                document.body.classList.add("screen-shaking");
+                setTimeout(() => {
+                    document.body.style.filter = "";
+                    document.body.classList.remove("screen-shaking");
+                }, 950);
+            } else if (type === "EXPLODE") {
+                playDramaticSfx("nuke");
+                document.body.classList.add("extreme-nuke-shake");
+                setTimeout(() => document.body.classList.remove("extreme-nuke-shake"), 1200);
+            } else if (type === "ARMAGEDDON") {
+                applyAdminAbuseEvent({ ...evt, id: evt.id + "_sub1", type: "NUKE" }, isSender);
+                for (let i = 0; i < 16; i++) setTimeout(() => spawnFallingSkyAnomaly("void"), i * 200);
+            } else if (type === "TORNADO_SPIN") {
+                const wrap = document.getElementById("heroDuckSvgWrapper");
+                if (wrap) {
+                    wrap.classList.add("duck-barrel-roll");
+                    setTimeout(() => wrap.classList.remove("duck-barrel-roll"), 7000);
+                }
+            } else if (type === "ACID") {
+                document.body.classList.add("acid-trip-mode");
+                setTimeout(() => document.body.classList.remove("acid-trip-mode"), 8000);
+            } else if (type === "BLUR") {
+                document.body.style.filter = "blur(6px)";
+                setTimeout(() => { document.body.style.filter = ""; }, 6500);
+            } else if (type === "BLIND") {
+                const dark = document.createElement("div");
+                dark.style.cssText = "position:fixed;inset:0;background:radial-gradient(circle at 50% 50%, transparent 65px, #000000 140px);z-index:99990;pointer-events:none;";
+                document.body.appendChild(dark);
+                setTimeout(() => dark.remove(), 6500);
+            } else if (type === "PIXELATE") {
+                document.body.style.filter = "contrast(2.6) saturate(3) sepia(0.35)";
+                setTimeout(() => { document.body.style.filter = ""; }, 7000);
+            } else if (type === "MIRROR") {
+                document.body.style.transform = "scaleX(-1)";
+                setTimeout(() => { document.body.style.transform = ""; }, 7500);
+            } else if (type === "FAKE_ERROR") {
+                const ov = document.getElementById("adminCutsceneOverlay");
+                const art = document.getElementById("adminCutsceneArt");
+                const badge = document.getElementById("adminCutsceneBadge");
+                const title = document.getElementById("adminCutsceneTitle");
+                const sub = document.getElementById("adminCutsceneSubtitle");
+                if (ov && art && title && sub) {
+                    art.innerHTML = `<div class="text-6xl font-mono font-extrabold text-sky-400">:(</div>`;
+                    if (badge) badge.textContent = "FATAL DUCK KERNEL PANIC // 0x000QUACK";
+                    title.textContent = "YOUR DUCK RAN INTO A PROBLEM";
+                    sub.textContent = "RainbowLord16 triggered a fake Blue Screen! Restarting Pond OS...";
+                    ov.classList.remove("hidden");
+                    setTimeout(() => closeAdminCutscene(), 3500);
+                }
+            } else if (type === "FAKE_WIPE") {
+                showToast("WARNING: Save Data Resetting to 0 Quacks... (Trolled by RainbowLord16!)", "warn");
+                playSoundboardTone("troll_fanfare");
+            } else if (type === "RICKROLL") {
+                playSoundboardTone("troll_fanfare");
+                showAdminBanner("NEVER GONNA QUACK YOU UP", "RainbowLord16 just Rickrolled the entire server!");
+            } else if (type === "MEGA_STORM") {
+                adminGlobalBoostMult = 10000;
+                adminGlobalBoostUntil = Date.now() + 60000;
+                renderHudAndStats();
+            } else if (type === "RAIN_SHARDS") {
+                for (let i = 0; i < 12; i++) setTimeout(() => spawnFallingSkyAnomaly("void"), i * 220);
+            } else if (type === "REBIRTH_BOOST") {
+                state.rebirths += 50;
+                renderHudAndStats();
+            } else if (type === "CUTSCENE") {
+                const ov = document.getElementById("adminCutsceneOverlay");
+                const art = document.getElementById("adminCutsceneArt");
+                const badge = document.getElementById("adminCutsceneBadge");
+                const title = document.getElementById("adminCutsceneTitle");
+                const sub = document.getElementById("adminCutsceneSubtitle");
+                if (ov && art && title && sub) {
+                    art.innerHTML = getHeroDuckSvg();
+                    if (badge) badge.textContent = "CREATOR CINEMATIC EVENT";
+                    title.textContent = "RAINBOWLORD16 DESCENDS";
+                    sub.textContent = evt.message || "The sky splits open with prismatic energy!";
+                    ov.classList.remove("hidden");
+                }
+            } else if (type === "SUMMON") {
+                state.bossHp = BOSSES[state.bossStage % BOSSES.length].maxHp;
+                openModal("boss");
             } else if (type === "JAIL") {
                 directDuckTrollMode = "jail";
                 directDuckTrollTapsLeft = 10;
@@ -3438,6 +3664,23 @@
                                     <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 played a Horror Scream!',{soundId:'scream'})" class="py-2 px-2 rounded-xl bg-red-600/30 border border-red-400/50 text-[11px] font-extrabold text-red-200">Horror Scream</button>
                                     <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 played the 12-Duck Choir Chord!',{soundId:'choir_chord'})" class="py-2 px-2 rounded-xl bg-emerald-500/25 border border-emerald-400/50 text-[11px] font-extrabold text-emerald-200">Duck Choir Chord</button>
                                     <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 played the Sad Trombone Troll!',{soundId:'troll_fanfare'})" class="py-2 px-2 rounded-xl bg-sky-500/25 border border-sky-400/50 text-[11px] font-extrabold text-sky-200">Sad Trombone</button>
+                                </div>
+                            </div>
+
+                            <!-- 75+ Clickable Admin Commands Directory -->
+                            <div class="pt-2 border-t border-white/10">
+                                <div class="text-[11px] font-extrabold uppercase tracking-wider text-cyan-300 mb-1.5">All 75+ Admin Commands (Click Any Chip to Fire Immediately)</div>
+                                <div class="flex flex-wrap gap-1 max-h-36 overflow-y-auto p-2 rounded-xl bg-slate-950/90 border border-slate-800">
+                                    ${[
+                                        "nuke","tsar_nuke","orbital_laser","blackhole","vortex","supernova","earthquake","quake","meteor","apocalypse",
+                                        "lightning","smite","explode","tnt","armageddon","jumpscare","screamer","jail","jail_all","freeze",
+                                        "freeze_all","flip","upside_down","spin","tornado_spin","giant","titan","tiny","ant","zerog",
+                                        "float","glitch","matrix","invert","shadow_realm","disco","acid","blur","blind","darkness",
+                                        "flashbang","pixelate","mirror","ban","fake_ban","fake_error","bsod","fake_wipe","rickroll","clone",
+                                        "stampede","clear","storm","mega_storm","fever","eggs","rain_eggs","gems","rain_gems","rain_shards",
+                                        "pets","give_pets","rich","gems_drop","rebirth_boost","max","airhorn","siren","vine_boom","scream",
+                                        "choir","trombone","cutscene","summon","tp 21","give all gems 50000","say QUACK!"
+                                    ].map(c => `<button onclick="const inp=document.getElementById('adminCommandInput'); if(inp){inp.value='/${c}'; executeAdminCommandLine();}" class="px-2 py-0.5 rounded-md bg-slate-900 hover:bg-fuchsia-600/40 border border-slate-700 text-[10px] font-mono font-bold text-slate-200 transition">/${c}</button>`).join("")}
                                 </div>
                             </div>
                         </div>` : `
