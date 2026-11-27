@@ -104,10 +104,22 @@ assert "Object.keys(liveHttpEntries).length >= 100" in SOURCE
 assert "allowIncomingChatPacket()" in SOURCE
 assert "rawStr.length > 16384" in SOURCE
 assert "storePublicRosterEntry(data, expectedSlotId)" in SOURCE
+assert "function scheduleMqttReconnect" in SOURCE
+assert "reconnectPeriod: 0" in SOURCE
+assert "mqttReconnectAttempt" in SOURCE
+assert "relayPollInFlight" in SOURCE
+assert "AbortController" in SOURCE
+assert "fetchNtfyRelayMessages(RELAY_TOPIC_CHAT, \"15s\")" in SOURCE
+assert "fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, \"24h\"" in SOURCE
+assert "if (mqttConnected) return" in SOURCE
+assert "function syncGlobalWeatherFromClock" in SOURCE
+assert "Math.floor(now / 45000)" in SOURCE
+assert "mqttClient.subscribe(`${MQTT_BASE_TOPIC}/world`" not in SOURCE
+assert 'publishMqttPacket("world"' not in SOURCE
+assert "now - Number(e.updatedAt) <= 20000" in SOURCE
 for function_name, next_function in (
     ("function sendGlobalChatMessage()", "function pushHttpCloudRoster"),
-    ("function pushHttpCloudRoster", "function pullHttpCloudRosterAndEvents"),
-    ("function broadcastSharedWorldWeather()", "function applySharedCoopBossUpdate"),
+    ("function pushHttpCloudRoster", "async function fetchNtfyRelayMessages"),
     ("function attackCoopBoss()", "function sendPlayerGift"),
 ):
     start = SOURCE.index(function_name)
