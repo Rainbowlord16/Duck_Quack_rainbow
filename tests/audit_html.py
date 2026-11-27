@@ -121,6 +121,9 @@ assert "boss_v12" in SOURCE
 assert "reconnectPeriod: 0" in SOURCE
 assert "mqttReconnectAttempt" in SOURCE
 assert "relayPollInFlight" in SOURCE
+assert "relayLastSuccessAt" in SOURCE
+assert '"HTTP RELAY SYNC" : "SYNC OFFLINE"' in SOURCE
+assert 'cloudSyncStatusText = "GLOBAL SYNC LIVE"' in SOURCE
 assert "AbortController" in SOURCE
 assert "response.body.getReader()" in SOURCE
 assert "body.length > maxChars" in SOURCE
