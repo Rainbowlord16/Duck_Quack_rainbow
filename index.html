@@ -363,12 +363,13 @@
             <div class="panel-card rounded-2xl p-3.5">
                 <div class="flex items-center justify-between mb-2.5">
                     <h2 class="font-display font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 text-amber-400" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                        Core Upgrades
+                        <span class="text-amber-400">⚡</span> Core Upgrades
                     </h2>
-                </div>
-            </div>
-
+                    <div class="flex items-center gap-1 bg-slate-950/90 p-0.5 rounded-lg border border-slate-800">
+                        <button onclick="setBuyMultiplier(1)" id="buyMult1" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-400 text-slate-950">1x</button>
+                        <button onclick="setBuyMultiplier(10)" id="buyMult10" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold text-slate-400 hover:text-white">10x</button>
+                        <button onclick="setBuyMultiplier(50)" id="buyMult50" class="px-2 py-0.5 rounded-md text-[10px] font-extrabold text-slate-400 hover:text-white">50x</button>
+                    </div>
                 </div>
                 <div id="upgradesList" class="space-y-2 max-h-[340px] overflow-y-auto custom-scroll pr-1"></div>
             </div>
