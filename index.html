@@ -3598,14 +3598,6 @@
             flushPendingChatOutbox();
         }, 4000);
     </script>
-    <script type="module">
-        // Set this to the deployed Cloudflare Worker URL after deployment.
-        window.DUCK_QUACK_API_URL = window.DUCK_QUACK_API_URL || "";
-        if (window.DUCK_QUACK_API_URL) {
-            import("./backend/client.js").then(({ createDuckQuackApi }) => {
-                window.DuckQuackApi = createDuckQuackApi(window.DUCK_QUACK_API_URL);
-            }).catch(() => console.error("Duck Quack API client could not be loaded."));
-        }
-    </script>
+    <script type="module" src="./backend/recovery-bridge.js"></script>
 </body>
 </html>
