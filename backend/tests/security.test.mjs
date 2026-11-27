@@ -186,3 +186,17 @@ test("Creator command arsenal exposes 512 distinct intensity variants and valida
   assert.match(frontend, /adminIntensityInput/);
   assert.match(frontend, /Math\.min\(5000, Number\.parseInt\(evt\.arg, 10\) \|\| 100\)/);
 });
+
+
+test("Creator-only controls require a live server-verified passkey session", () => {
+  assert.match(frontend, /async function requireCreatorSession\(silent = false\)/);
+  assert.match(frontend, /window\.DuckQuackApi\.creatorSession\(\)/);
+  assert.match(frontend, /async function adminMaxOutEverything\(silent = false\) \{\s*if \(!state\.isAdminAuthenticated \|\| !await requireCreatorSession\(silent\)\) return;/);
+  assert.match(frontend, /async function triggerAdminCommand\(cmdType, customArg = ""\) \{\s*if \(!state\.isAdminAuthenticated \|\| !ADMIN_AUTH_BACKEND_ENABLED \|\| !await requireCreatorSession\(\)\) return;/);
+  assert.match(frontend, /id="hudAdminBtn"/);
+  assert.match(frontend, /id="giftPlazaButton"/);
+  assert.match(frontend, /giftButton\.classList\.toggle\("hidden", !state\.isAdminAuthenticated\)/);
+  assert.match(frontend, /This console is restricted to RainbowLord16/);
+  assert.match(frontend, /async function sendPlayerGift\(targetSlotId, targetName, giftType\) \{\s*if \(!state\.isAdminAuthenticated \|\| !await requireCreatorSession\(\)\) return;/);
+  assert.match(frontend, /Transfers remain paused until the server-backed gift ledger is implemented/);
+});
