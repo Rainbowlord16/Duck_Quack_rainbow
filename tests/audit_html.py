@@ -124,6 +124,8 @@ assert "relayPollInFlight" in SOURCE
 assert "relayLastSuccessAt" in SOURCE
 assert '"HTTP RELAY SYNC" : "SYNC OFFLINE"' in SOURCE
 assert 'cloudSyncStatusText = "GLOBAL SYNC LIVE"' in SOURCE
+assert 'cloudSyncStatusText = "SYNC OFFLINE"' in SOURCE
+assert 'cloudSyncStatusText = "Reconnecting global sync..."' in SOURCE
 assert "AbortController" in SOURCE
 assert "response.body.getReader()" in SOURCE
 assert "body.length > maxChars" in SOURCE
