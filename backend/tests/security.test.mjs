@@ -8,7 +8,7 @@ const client = await readFile(new URL("../client.js", import.meta.url), "utf8");
 
 test("anonymous identity is server-generated and recovery uses a high-entropy key", () => {
   assert.match(worker, /crypto\.getRandomValues/);
-  assert.match(worker, /PLY-\[\^?\]/);
+  assert.match(worker, /PLY-\[A-F0-9\]\{16\}/);
   assert.match(worker, /recovery_hash/);
   assert.match(worker, /SESSION_TTL_SECONDS/);
   assert.match(worker, /api\/session\/recover/);
@@ -26,7 +26,7 @@ test("player identity and username are not trusted from client fields", () => {
 
 test("chat is bounded, persisted, and rate limited", () => {
   assert.match(worker, /text\.length>280/);
-  assert.match(worker, /chat:\\"\+p\.player_id/);
+  assert.match(worker, /limit\(env,"chat:"\+p\.player_id/);
   assert.match(worker, /INSERT INTO chat_messages/);
   assert.match(schema, /CHECK\(length\(body\) BETWEEN 1 AND 280\)/);
 });
