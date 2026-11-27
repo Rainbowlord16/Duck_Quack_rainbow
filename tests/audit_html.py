@@ -72,6 +72,10 @@ sidebar_parser.feed(sidebar)
 assert not sidebar_parser.stack, f"Unclosed sidebar containers: {sidebar_parser.stack}"
 assert (ROOT / "jumpscare.png").is_file(), "Expected local jumpscare asset is missing"
 
+workflow = (ROOT / ".github/workflows/audit.yml").read_text(encoding="utf-8")
+for action in ("actions/checkout", "actions/setup-python", "actions/setup-node"):
+    assert __import__("re").search(rf"uses: {action}@[0-9a-f]{{40}}", workflow), f"Workflow action is not SHA-pinned: {action}"
+
 for forbidden in (
     "CREATOR_PASSCODE_HASH",
     "ABC202616Rainbow_AI@129",
