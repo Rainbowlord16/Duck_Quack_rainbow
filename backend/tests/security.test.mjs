@@ -150,7 +150,7 @@ test("infinite Creator leaderboard stats are issued only for the passkey-bound C
   assert.match(creatorStatsSchema, /ALTER TABLE creator_passkeys ADD COLUMN player_id TEXT REFERENCES players\(player_id\)/);
   assert.match(worker, /UPDATE creator_passkeys SET player_id=\? WHERE slot=1/);
   assert.match(worker, /FROM creator_passkeys c JOIN players p ON p\.player_id=c\.player_id/);
-  assert.match(worker, /1\.0e300 AS lifetime_quacks,1\.0e300 AS rebirths/);
+  assert.match(worker, /9007199254740991 AS quacks,9007199254740991 AS lifetime_quacks,9007199254740991 AS rebirths/);
   assert.match(worker, /1 AS creator/);
   assert.match(frontend, /isCreator: entry\.creator === 1 \|\| entry\.creator === true/);
   assert.match(frontend, /entry\.isCreator/);
