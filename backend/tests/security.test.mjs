@@ -150,7 +150,7 @@ test("infinite Creator leaderboard stats are issued only for the passkey-bound C
   assert.match(creatorStatsSchema, /ALTER TABLE creator_passkeys ADD COLUMN player_id TEXT REFERENCES players\(player_id\)/);
   assert.match(worker, /UPDATE creator_passkeys SET player_id=\? WHERE slot=1/);
   assert.match(worker, /FROM creator_passkeys c JOIN players p ON p\.player_id=c\.player_id/);
-  assert.match(worker, /1\.0e300 AS lifetime_quacks,1\.0e300 AS rebirths/);
+  assert.match(worker, /9007199254740991 AS quacks,9007199254740991 AS lifetime_quacks,9007199254740991 AS rebirths/);
   assert.match(worker, /1 AS creator/);
   assert.match(frontend, /isCreator: entry\.creator === 1 \|\| entry\.creator === true/);
   assert.match(frontend, /entry\.isCreator/);
@@ -166,4 +166,13 @@ test("Creator game API returns capped maximum stats only for the passkey-bound p
   assert.match(worker, /quacks:GAME_CAP,lifetimeQuacks:GAME_CAP,rebirths:GAME_CAP/);
   assert.match(worker, /upgrades,upgradesJson:JSON\.stringify\(upgrades\),clickPower:GAME_CAP,cps:GAME_CAP,creator:true/);
   assert.match(worker, /if\(\(u\.pathname==="\/api\/game\/upgrade"\|\|u\.pathname==="\/api\/game\/rebirth"\)&&req\.method==="POST"\)return reply\(\{game\}\)/);
+});
+
+
+test("leaderboard exposes current verified Quacks separately from lifetime Quacks", () => {
+  assert.match(worker, /COALESCE\(g\.quacks,0\) AS quacks,l\.lifetime_quacks/);
+  assert.match(worker, /LEFT JOIN player_game_state g ON g\.player_id=l\.player_id/);
+  assert.match(frontend, /quacks: Math\.max\(0, Number\(entry\.quacks\) \|\| 0\)/);
+  assert.match(frontend, /Current Quacks/);
+  assert.match(frontend, /Lifetime:/);
 });
