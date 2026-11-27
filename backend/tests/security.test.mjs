@@ -41,7 +41,7 @@ test("client adapter keeps credentials local and does not publish them to public
 test("leaderboard writes come from server-validated game actions, never browser totals", () => {
   assert.ok(worker.includes('/api/game/click'));
   assert.ok(worker.includes('gameclick:'));
-  assert.ok(worker.includes('const gain=Math.max(1,g.clickPower)'));
+  assert.ok(worker.includes('gain=Math.max(1,g.clickPower)'));
   assert.ok(worker.includes('UPDATE leaderboard SET lifetime_quacks='));
   assert.ok(!worker.includes("body.lifetimeQuacks") && !worker.includes("body.lifetime_quacks"));
   assert.ok(worker.includes('/api/game/upgrade'));
