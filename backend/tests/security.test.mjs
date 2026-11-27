@@ -72,3 +72,27 @@ test("D1 migration creates all tables and required chat polling index", () => {
   assert.match(schema, /CREATE TABLE IF NOT EXISTS leaderboard/);
   assert.match(schema, /CREATE INDEX IF NOT EXISTS chat_created_idx ON chat_messages\(created_at DESC\)/);
 });
+
+test("Creator passkey enrollment is secret-gated and WebAuthn assertions are verified server-side", () => {
+  assert.match(worker, /CREATOR_ENROLLMENT_SECRET/);
+  assert.match(worker, /webauthn\.create/);
+  assert.match(worker, /webauthn\.get/);
+  assert.match(worker, /crypto\.subtle\.verify/);
+  assert.match(worker, /ADMIN_RP_ID/);
+  assert.match(worker, /ADMIN_ORIGIN/);
+  assert.match(worker, /admin_sessions/);
+  assert.match(worker, /DELETE FROM admin_challenges WHERE challenge_hash=\? AND purpose=\? AND expires_at>=\? RETURNING/);
+  assert.match(client, /navigator\.credentials\.create/);
+  assert.match(client, /navigator\.credentials\.get/);
+});
+
+test("admin commands require a server Creator session and are persisted in the trusted event ledger", () => {
+  assert.match(worker, /getAdminSession\(req,env\)/);
+  assert.match(worker, /Creator passkey authentication required/);
+  assert.match(worker, /ADMIN_COMMANDS\.has\(type\)/);
+  assert.match(worker, /INSERT INTO admin_events/);
+  assert.match(worker, /SELECT id,event_id AS eventId,type,arg,target_player_id/);
+  assert.match(worker, /limit\(env,"admin-event",12,10\)/);
+  assert.match(worker, /CREATE TABLE IF NOT EXISTS admin_events/);
+  assert.match(client, /adminCommand\(/);
+});
