@@ -1,3 +1,4 @@
+
 name = "duck-quack-api"
 main = "worker.js"
 compatibility_date = "2026-11-27"
@@ -5,16 +6,5 @@ compatibility_date = "2026-11-27"
 [[d1_databases]]
 binding = "DB"
 database_name = "duck-quack"
-database_id = "REPLACE_WITH_CLOUDFLARE_D1_DATABASE_ID"
+database_id = "237e7a50-e621-4400-a5c3-ad0372615ecc"
 migrations_dir = "migrations"
-
-[[durable_objects.bindings]]
-name = "RATE_LIMITER"
-class_name = "RateLimiter"
-
-[[migrations]]
-tag = "v1"
-new_sqlite_classes = ["RateLimiter"]
-
-[vars]
-FRONTEND_ORIGIN = "https://rainbowlord16.github.io"
