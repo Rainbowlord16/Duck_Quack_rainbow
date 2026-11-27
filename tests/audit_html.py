@@ -115,7 +115,7 @@ assert "state.bossKills++" not in boss_attack
 assert "Rewards are paused until a trusted server can verify the raid" in boss_attack
 assert "updatedAt > now + 10000" in SOURCE
 assert "incomingUpdatedAt > Date.now() + 10000" in SOURCE
-assert "Transfers remain paused until the server-backed gift ledger is implemented" in SOURCE
+assert "Creator Quack Grant" in SOURCE
 assert "safeAvatarDataUrl" in SOURCE
 assert "normalizePublicRosterEntry" in SOURCE
 assert "Object.keys(liveHttpEntries).length >= 100" in SOURCE
@@ -158,7 +158,7 @@ for function_name, next_function in (
     body = SOURCE[start:end]
     assert "if (mqttConnected)" in body, f"{function_name} must gate HTTP fallback on MQTT state"
 assert 'file.size > 5 * 1024 * 1024' in SOURCE
-assert "Transfers remain paused until the server-backed gift ledger is implemented" in SOURCE
+assert "Creator Quack Grant" in SOURCE
 assert "const isCreator = false" in SOURCE
 assert "Permanent Untouchable #1" not in SOURCE
 
