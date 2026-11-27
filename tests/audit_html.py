@@ -90,7 +90,7 @@ for forbidden in (
 assert "ADMIN_AUTH_BACKEND_ENABLED = false" in SOURCE
 assert "state.safeVisualsMode || !isSender" in SOURCE
 assert "Photosensitive / Safe Visuals Mode" in SOURCE
-assert "rememberBoundedId(seenChatIds, data.id)" in SOURCE
+assert "rememberBoundedId(seenChatIds, chatMessage.id)" in SOURCE
 assert "defeatEventId: \"\"" in SOURCE, "Remote boss events must not grant client-side rewards"
 assert "Player gifting is paused until gifts can be verified" in SOURCE
 assert "safeAvatarDataUrl" in SOURCE
