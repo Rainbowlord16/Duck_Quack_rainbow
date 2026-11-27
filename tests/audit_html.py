@@ -109,6 +109,9 @@ assert "reconnectPeriod: 0" in SOURCE
 assert "mqttReconnectAttempt" in SOURCE
 assert "relayPollInFlight" in SOURCE
 assert "AbortController" in SOURCE
+assert "response.body.getReader()" in SOURCE
+assert "body.length > maxChars" in SOURCE
+assert "message.timestamp >= Date.now() - 86400000" in SOURCE
 assert "fetchNtfyRelayMessages(RELAY_TOPIC_CHAT, \"15s\")" in SOURCE
 assert "fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, \"24h\"" in SOURCE
 assert "if (mqttConnected || relayPollInFlight || !navigator.onLine) return" in SOURCE
