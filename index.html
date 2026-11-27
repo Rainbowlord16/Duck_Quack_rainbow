@@ -661,7 +661,7 @@
             if (!/^[a-zA-Z0-9_-]{1,64}$/.test(accountSlotId)) return null;
             const now = Date.now();
             const updatedAt = Number(data.updatedAt);
-            if (!Number.isFinite(updatedAt) || updatedAt < now - 86400000 || updatedAt > now + 60000) return null;
+            if (!Number.isFinite(updatedAt) || updatedAt < now - 86400000 || updatedAt > now + 10000) return null;
             const boundedNumber = (value, max) => {
                 const n = Number(value);
                 return Number.isFinite(n) ? Math.max(0, Math.min(max, n)) : 0;
@@ -1441,7 +1441,7 @@
             const incomingUpdatedAt = Number(data.updatedAt);
             if (!Number.isFinite(incomingUpdatedAt) ||
                 incomingUpdatedAt < Date.now() - 86400000 ||
-                incomingUpdatedAt > Date.now() + 60000 ||
+                incomingUpdatedAt > Date.now() + 10000 ||
                 incomingUpdatedAt <= coopBossState.updatedAt) return;
             coopBossState = {
                 stage: Math.max(0, Math.min(100000, Number(data.stage) || 0)),
