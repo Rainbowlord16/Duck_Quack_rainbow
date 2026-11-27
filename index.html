@@ -2057,13 +2057,40 @@ for (const packet of bossPackets) {
             return Boolean(sessionStorage.getItem("dq_creator_admin_session_v1"));
         }
 
+        async function applyCreatorPrivileges(identity = null, silent = false) {
+            if (identity?.player?.id) state.accountSlotId = identity.player.id;
+            state.playerName = CREATOR_USERNAME;
+            state.isAdminAuthenticated = true;
+            if (!state.creatorMaxed) {
+                adminMaxOutEverything(true);
+                state.creatorMaxed = true;
+            }
+            saveGame();
+            renderAll();
+            refreshServerLeaderboard(true);
+            if (!silent) showToast("Creator identity restored. RainbowLord16 privileges are active.", "success");
+        }
+
+        async function restoreCreatorSession() {
+            if (!window.DuckQuackApi?.creatorSession || !window.DuckQuackApi?.claimCreatorIdentity) return false;
+            try {
+                await window.DuckQuackApi.creatorSession();
+                const identity = await window.DuckQuackApi.claimCreatorIdentity();
+                await applyCreatorPrivileges(identity, true);
+                return true;
+            } catch (error) {
+                state.isAdminAuthenticated = false;
+                renderAll();
+                return false;
+            }
+        }
+
         async function unlockAdminVault() {
             if (!window.DuckQuackApi) { showToast("Secure backend is still connecting.", "error"); return; }
             try {
-                await window.DuckQuackApi.creatorLogin();
-                state.isAdminAuthenticated = true;
+                const result = await window.DuckQuackApi.creatorLogin();
+                await applyCreatorPrivileges(result.identity, false);
                 openModal("profile");
-                showToast("Creator passkey verified. Admin Vault unlocked.", "success");
             } catch (error) { showToast(error?.message || "Creator passkey login failed.", "error"); }
         }
 
@@ -2160,7 +2187,8 @@ for (const packet of bossPackets) {
 
         function applyAdminAbuseEvent(evt, isVerifiedServerEvent = false) {
             // Only server-ledger events are trusted; public MQTT and ntfy event packets are ignored.
-            if (state.safeVisualsMode || !isVerifiedServerEvent || !evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
+            const incomingType = String(evt?.type || "").toUpperCase();
+            if ((state.safeVisualsMode && incomingType !== "CLEAR") || !isVerifiedServerEvent || !evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
             rememberBoundedId(processedAdminEventIds, evt.id);
 
 
@@ -2245,15 +2273,33 @@ for (const packet of bossPackets) {
                     ice.classList.remove("hidden");
                     setTimeout(() => ice.classList.add("hidden"), 6000);
                 }
-            } else if (type === "UNFREEZE" || type === "CLEAR") {
+            } else if (type === "UNFREEZE") {
                 const jail = document.getElementById("duckJailOverlay");
                 const ice = document.getElementById("duckFreezeOverlay");
                 if (jail) jail.classList.add("hidden");
                 if (ice) ice.classList.add("hidden");
+            } else if (type === "CLEAR") {
+                ["duckJailOverlay", "duckFreezeOverlay", "jumpscareOverlay", "adminFxOverlay", "globalEventBanner"].forEach(id => {
+                    const node = document.getElementById(id);
+                    if (!node) return;
+                    node.classList.add("hidden");
+                    node.classList.remove("scare-active");
+                    if (id === "adminFxOverlay") node.innerHTML = "";
+                    if (id === "jumpscareOverlay") node.style.display = "none";
+                });
                 if (root) {
+                    root.classList.remove("screen-shaking", "admin-glitch-active", "admin-invert-active", "admin-acid-active", "admin-blind-active", "admin-retro-active");
                     root.style.transform = "";
-                    root.classList.remove("admin-glitch-active", "admin-invert-active", "admin-acid-active", "admin-blind-active", "admin-retro-active", "screen-shaking");
+                    root.style.filter = "";
+                    root.style.animation = "";
                 }
+                const duckBtn = document.getElementById("heroDuckBtn");
+                if (duckBtn) duckBtn.style.transform = "";
+                document.querySelectorAll(".rainbow-aura").forEach(node => node.classList.remove("rainbow-aura"));
+                state.adminServerMult = 1;
+                state.adminServerMultEndsAt = 0;
+                feverActive = false;
+                feverValue = 0;
             } else if (type === "FLIP") {
                 if (root) {
                     root.style.transition = "transform 0.5s ease";
@@ -2665,6 +2711,7 @@ for (const packet of bossPackets) {
             saveGame();
             renderAll();
             if (activeModalId === "profile") openModal("profile");
+            restoreCreatorSession();
         };
 
         async function copyPlayerRecoveryCode() {
