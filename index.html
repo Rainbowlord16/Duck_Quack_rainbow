@@ -2983,6 +2983,7 @@ for (const packet of bossPackets) {
                 serverLeaderboardEntries = (Array.isArray(result.entries) ? result.entries : []).map(entry => ({
                     accountSlotId: String(entry.player_id || ""),
                     playerName: String(entry.username || "DuckGuest"),
+                    quacks: Math.max(0, Number(entry.quacks) || 0),
                     lifetimeQuacks: Math.max(0, Number(entry.lifetime_quacks) || 0),
                     rebirths: Math.max(0, Number(entry.rebirths) || 0),
                     currentWorld: 1,
@@ -3025,8 +3026,9 @@ for (const packet of bossPackets) {
                             <div class="text-[10px] text-slate-400">Player ID: ${escapeHtmlText(p.accountSlotId)} · Rebirths: ${formatNum(p.rebirths)}</div>
                         </div>
                         <div class="text-right shrink-0">
-                            <div class="font-display font-extrabold text-sm text-amber-300">${formatNum(p.lifetimeQuacks)}</div>
-                            <div class="text-[10px] text-slate-400">Quacks</div>
+                            <div class="font-display font-extrabold text-sm text-amber-300">${formatNum(p.quacks)}</div>
+                            <div class="text-[10px] text-slate-400">Current Quacks</div>
+                            <div class="text-[9px] text-slate-500">Lifetime: ${formatNum(p.lifetimeQuacks)}</div>
                         </div>
                     </div>`; }).join("")}
                 </div>` : `<div class="panel-subcard rounded-xl p-4 text-xs text-slate-400">${escapeHtmlText(serverLeaderboardStatus)}. Scores appear here only after the server accepts validated game progress.</div>`}
@@ -3047,7 +3049,7 @@ for (const packet of bossPackets) {
                             </span>
                             <span class="font-extrabold truncate ${isCreator ? "creator-name-glow" : "text-white"}">${escapeHtmlText(isCreator ? CREATOR_USERNAME : p.playerName)}</span>
                         </div>
-                        <span class="font-display font-extrabold text-[11px] text-amber-300 shrink-0">${formatNum(p.lifetimeQuacks)}</span>
+                        <span class="font-display font-extrabold text-[11px] text-amber-300 shrink-0" title="Current Quacks">${formatNum(p.quacks)}</span>
                     </div>`;
                 }).join("") : `<div class="px-2 py-3 text-[11px] text-slate-500">${escapeHtmlText(serverLeaderboardStatus)}</div>`;
             }
