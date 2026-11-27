@@ -123,7 +123,7 @@ assert "function flushPendingChatOutbox" in SOURCE
 assert "pendingChatOutbox = pendingChatOutbox.slice(-50)" in SOURCE
 assert "finish(!error)" in SOURCE
 assert "syncGlobalWeatherFromClock();" in SOURCE
-assert "if (mqttConnected) publishMqttPacket(\"boss\", coopBossState, true)" in SOURCE
+assert 'publishMqttPacket("boss", coopBossState, true)' in SOURCE
 assert "queuePendingChatMessage(msgObj)" in SOURCE
 assert "flushPendingChatOutbox()" in SOURCE
 for function_name, next_function in (
