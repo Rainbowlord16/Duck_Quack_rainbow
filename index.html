@@ -2857,7 +2857,7 @@
             }).join("");
         }
 
-        async async function refreshServerLeaderboard(force = false) {
+        async function refreshServerLeaderboard(force = false) {
             if (!window.DuckQuackApi || !serverIdentityReady || serverLeaderboardPollInFlight || !navigator.onLine) return;
             if (!force && Date.now() - lastServerLeaderboardFetchAt < 12000) return;
             serverLeaderboardPollInFlight = true;
