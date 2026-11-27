@@ -7,7 +7,6 @@
     <link id="dynamicFavicon" rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
@@ -342,18 +341,6 @@
             <div class="panel-card rounded-2xl p-3.5">
                 <div class="flex items-center justify-between mb-2.5">
                     <h2 class="font-display font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 text-amber-400" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                        Core Upgrades
-                    </h2>
-                    <span id="worldBoostBadge" class="text-[11px] font-extrabold text-emerald-300 bg-emerald-500/15 border border-emerald-400/30 px-2 py-0.5 rounded-lg">1.00x Boost</span>
-                </div>
-                <div id="worldsList" class="space-y-1.5 max-h-[225px] overflow-y-auto custom-scroll pr-1"></div>
-            </div>
-
-            <!-- Core Upgrades -->
-            <div class="panel-card rounded-2xl p-3.5">
-                <div class="flex items-center justify-between mb-2.5">
-                    <h2 class="font-display font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
                         <span class="text-amber-400">⚡</span> Core Upgrades
                     </h2>
                     <div class="flex items-center gap-1 bg-slate-950/90 p-0.5 rounded-lg border border-slate-800">
@@ -423,8 +410,8 @@
                         type="button"
                         onpointerdown="startHoldQuack(event)"
                         onpointerup="stopHoldQuack()"
-                        onpointerleave="stopHoldQuack()"
                         onpointercancel="stopHoldQuack()"
+                        onlostpointercapture="stopHoldQuack()"
                         class="duck-stage-btn relative z-20 w-32 h-32 sm:w-36 sm:h-36 rounded-full flex items-center justify-center focus:outline-none transition-transform duration-75 active:scale-90 cursor-pointer"
                         aria-label="Quack Duck"
                     >
@@ -615,7 +602,8 @@
            ========================================================================= */
         const CREATOR_USERNAME = "RainbowLord16";
         const CREATOR_SLOT_ID = "creator_rainbowlord16_official";
-        const CREATOR_PASSCODE_HASH = "ABC202616Rainbow_AI@129";
+        // Static hosting cannot establish administrator identity securely.
+        const ADMIN_AUTH_BACKEND_ENABLED = false;
         const SAVE_KEY = "duckQuackUltimateSave_v11";
 
         const NUMBER_SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg"];
@@ -763,13 +751,7 @@
             "confetti", "hearts", "skull_rain", "matrix", "blur", "shake_screen", "reset_size", "clear"
         ];
 
-        const JUMPSCARE_IMAGE_URLS = [
-            "https://i.pinimg.com/564x/c3/fe/8a/c3fe8a0d6bcbcdeeb4d310e4f5e598e4.jpg",
-            "https://i.pinimg.com/236x/47/f5/ed/47f5ed484f0bf76fbd1e618ac9b092c9.jpg",
-            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQPKh7st5AligOkK4BC1KSiXcXyE1ipH1N5qFz_FxJhfDfEmyi0gce7K0VT&s=10",
-            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlSrAFt6QKRmXtE2PZ9UnTaoz2jg1Y-vcnJIUaMzxt1-xBKZ8tVcmxcJcR&s=10",
-            "./jumpscare.png"
-        ];
+        const JUMPSCARE_IMAGE_URLS = ["./jumpscare.png"];
 
         /* =========================================================================
            2. PERSISTENT PLAYER STATE
@@ -841,23 +823,16 @@
                     const parsed = JSON.parse(raw);
                     state = { ...createDefaultState(), ...parsed };
                 }
-                if (sessionStorage.getItem("dqCreatorUnlocked") === "1") {
-                    state.isAdminAuthenticated = true;
-                    state.playerName = CREATOR_USERNAME;
-                    state.accountSlotId = CREATOR_SLOT_ID;
-                } else if (state.isAdminAuthenticated) {
-                    sessionStorage.setItem("dqCreatorUnlocked", "1");
-                }
+                // Browser storage is user-controlled and must never restore admin privileges.
+                state.isAdminAuthenticated = false;
+                sessionStorage.removeItem("dqCreatorUnlocked");
             } catch (e) {}
         }
 
         function saveGame() {
             try {
-                if (state.isAdminAuthenticated) {
-                    state.playerName = CREATOR_USERNAME;
-                    state.accountSlotId = CREATOR_SLOT_ID;
-                    sessionStorage.setItem("dqCreatorUnlocked", "1");
-                }
+                state.isAdminAuthenticated = false;
+                sessionStorage.removeItem("dqCreatorUnlocked");
                 localStorage.setItem(SAVE_KEY, JSON.stringify(state));
             } catch (e) {}
         }
@@ -882,23 +857,20 @@
         let liveHttpEntries = {};
         let globalChatMessages = [];
         let seenChatIds = new Set();
+
+        function rememberBoundedId(idSet, id, limit = 200) {
+            if (!idSet || !id || idSet.has(id)) return;
+            idSet.add(id);
+            while (idSet.size > limit) idSet.delete(idSet.values().next().value);
+        }
         let coopBossState = { stage: 0, hp: 5000, maxHp: 5000, lastAttacker: "", updatedAt: 0 };
         let lastBossDefeatEventId = "";
         let lastWorldSyncTs = 0;
 
+        // MQTT WSS is the sole primary transport. HTTP polling is used only while MQTT is disconnected.
         let gunInstance = null;
         let gunLeaderboardNode = null;
         let gunAdminEventNode = null;
-        try {
-            if (typeof Gun !== "undefined") {
-                gunInstance = Gun([
-                    "https://gun-manhattan.up.railway.app/gun",
-                    "https://peer.wallie.io/gun"
-                ]);
-                gunLeaderboardNode = gunInstance.get("duck_quack_v11_roster");
-                gunAdminEventNode = gunInstance.get("duck_quack_v11_events");
-            }
-        } catch (e) {}
 
         const adminBroadcastChannel = ("BroadcastChannel" in window)
             ? new BroadcastChannel("dq_gag_admin_abuse_v11")
@@ -1069,7 +1041,7 @@
                 isSystem,
                 timestamp: Date.now()
             };
-            seenChatIds.add(msgObj.id);
+            rememberBoundedId(seenChatIds, msgObj.id);
             globalChatMessages.push(msgObj);
             globalChatMessages = globalChatMessages.slice(-60);
             renderGlobalChat();
@@ -1079,30 +1051,22 @@
         function sendGlobalChatMessage() {
             const input = document.getElementById("globalChatInput");
             if (!input) return;
-            const text = input.value.trim();
-            if (!text) return;
+            const messageText = input.value.trim();
+            if (!messageText) return;
             input.value = "";
 
-            if (text.startsWith("/") && state.isAdminAuthenticated) {
-                const cmdInput = document.getElementById("adminCommandInput");
-                if (cmdInput) {
-                    cmdInput.value = text;
-                    executeAdminCommandLine();
-                } else {
-                    const fakeInput = document.createElement("input");
-                    fakeInput.id = "adminCommandInput";
-                    fakeInput.value = text;
-                    fakeInput.style.display = "none";
-                    document.body.appendChild(fakeInput);
-                    executeAdminCommandLine();
-                    fakeInput.remove();
+            if (messageText.startsWith("/")) {
+                if (!state.isAdminAuthenticated || !ADMIN_AUTH_BACKEND_ENABLED) {
+                    showToast("Admin commands are disabled until server authorization is available.", "error");
+                    return;
                 }
+                executeAdminCommandLine(messageText);
                 return;
             }
 
-            const msgObj = appendLocalChatMessage(state.playerName, text, Boolean(state.isAdminAuthenticated), false);
+            const msgObj = appendLocalChatMessage(state.playerName, messageText, false, false);
             publishMqttPacket("chat", msgObj, false);
-            fetch(`https://ntfy.sh/${RELAY_TOPIC_CHAT}`, {
+            fetch("https://ntfy.sh/" + RELAY_TOPIC_CHAT, {
                 method: "POST",
                 body: JSON.stringify(msgObj)
             }).catch(() => {});
@@ -1134,6 +1098,7 @@
         }
 
         function pullHttpCloudRosterAndEvents() {
+            if (mqttConnected) return;
             fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}/json?poll=1&since=24h`)
                 .then(r => r.text())
                 .then(txt => {
@@ -1193,7 +1158,7 @@
                         if (!wrapper.message) return;
                         const msg = JSON.parse(wrapper.message);
                         if (msg && msg.id && !seenChatIds.has(msg.id)) {
-                            seenChatIds.add(msg.id);
+                            rememberBoundedId(seenChatIds, msg.id);
                             globalChatMessages.push(msg);
                             globalChatMessages = globalChatMessages.slice(-60);
                             renderGlobalChat();
@@ -1647,6 +1612,7 @@
         }
 
         function triggerPhotoJumpscare() {
+            if (state.safeVisualsMode) return;
             const overlay = document.getElementById("jumpscareOverlay");
             const imgEl = document.getElementById("jumpscareImg");
             const svgBackup = document.getElementById("jumpscareSvgBackup");
@@ -1782,6 +1748,9 @@
 
         function startHoldQuack(e) {
             if (e && e.cancelable) e.preventDefault();
+            if (e && e.currentTarget && e.pointerId !== undefined) {
+                try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+            }
             performDuckQuack(true);
             if (holdQuackTimer) clearInterval(holdQuackTimer);
             holdQuackTimer = setInterval(() => performDuckQuack(true), 95);
@@ -2018,34 +1987,12 @@
         /* =========================================================================
            9. ADMIN AUTHENTICATION, MAX-OUT & 77 COMMAND ENGINE
            ========================================================================= */
-        async function verifyAdminPasscode(inputCode) {
-            const clean = (inputCode || "").trim();
-            if (!clean) return false;
-            try {
-                const res = await fetch("./admin.secret.json", { cache: "no-store" });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && data.passcode && clean === data.passcode) return true;
-                }
-            } catch (e) {}
-            return clean === CREATOR_PASSCODE_HASH;
+        async function verifyAdminPasscode() {
+            return false;
         }
 
         async function unlockAdminVault() {
-            const input = document.getElementById("adminPasscodeInput");
-            const code = input ? input.value : "";
-            const ok = await verifyAdminPasscode(code);
-            if (!ok) {
-                showToast("Invalid RainbowLord16 Creator Passcode!", "error");
-                return;
-            }
-            state.isAdminAuthenticated = true;
-            state.playerName = CREATOR_USERNAME;
-            state.accountSlotId = CREATOR_SLOT_ID;
-            sessionStorage.setItem("dqCreatorUnlocked", "1");
-            adminMaxOutEverything(true);
-            openModal("profile");
-            showToast("👑 RainbowLord16 Creator Vault Unlocked & Maxed!", "success");
+            showToast("Creator Admin Vault is unavailable until secure server authentication is configured.", "error");
         }
 
         function lockAdminAccount() {
@@ -2094,7 +2041,7 @@
         }
 
         function triggerAdminCommand(cmdType, customArg = "") {
-            if (!state.isAdminAuthenticated) return;
+            if (!state.isAdminAuthenticated || !ADMIN_AUTH_BACKEND_ENABLED) return;
             const targetSel = document.getElementById("adminTargetSelect");
             const targetPlayer = targetSel ? targetSel.value : (state.adminTargetPlayer || "ALL");
             state.adminTargetPlayer = targetPlayer;
@@ -2128,23 +2075,21 @@
             }).catch(() => {});
         }
 
-        function executeAdminCommandLine() {
-            const input = document.getElementById("adminCommandInput");
-            if (!input) return;
-            const raw = input.value.trim().replace(/^\//, "");
+        function executeAdminCommandLine(rawCommandString = "") {
+            if (!state.isAdminAuthenticated || !ADMIN_AUTH_BACKEND_ENABLED) return;
+            const raw = String(rawCommandString).trim().replace(/^\//, "");
             if (!raw) return;
-            input.value = "";
             const parts = raw.split(/\s+/);
-            const cmd = parts[0].toLowerCase();
-            const arg = parts.slice(1).join(" ");
-            triggerAdminCommand(cmd, arg);
+            triggerAdminCommand(parts[0].toLowerCase(), parts.slice(1).join(" "));
         }
 
         const processedAdminEventIds = new Set();
 
         function applyAdminAbuseEvent(evt, isSender = false) {
-            if (!evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
-            processedAdminEventIds.add(evt.id);
+            // MQTT and ntfy topics are public. Reject every remote admin/gift event until server signing exists.
+            if (!isSender || !evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
+            rememberBoundedId(processedAdminEventIds, evt.id);
+
 
             const target = (evt.targetPlayer || "ALL").trim();
             const isTargetedAtMe =
@@ -3157,15 +3102,11 @@
                         </div>
                     </div>
 
-                    ${!state.isAdminAuthenticated ? `
-                        <div class="panel-subcard rounded-2xl p-4 border border-fuchsia-500/30 space-y-2.5">
-                            <div class="font-display font-extrabold text-sm text-fuchsia-300">🔐 RainbowLord16 Creator Admin Vault</div>
-                            <div class="flex gap-2">
-                                <input id="adminPasscodeInput" type="password" onkeydown="if(event.key==='Enter') unlockAdminVault()" placeholder="Enter Creator Passcode..." class="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white">
-                                <button onclick="unlockAdminVault()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-fuchsia-500 to-amber-400 text-slate-950 font-extrabold text-xs">Unlock</button>
-                            </div>
-                        </div>
-                    ` : `
+                    <div class="panel-subcard rounded-2xl p-4 border border-amber-400/30 space-y-2">
+                        <div class="font-display font-extrabold text-sm text-amber-300">🔐 Creator Admin Vault</div>
+                        <p class="text-xs text-slate-300">Admin controls are disabled until server-side authentication and signed event authorization are configured. This browser cannot securely verify a creator passcode.</p>
+                    </div>
+                    ${state.isAdminAuthenticated ? `
                         <div class="panel-subcard rounded-2xl p-4 border border-amber-400/50 space-y-3">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <div class="font-display font-extrabold text-sm creator-name-glow">👑 RAINBOWLORD16 CREATOR ADMIN VAULT</div>
@@ -3345,7 +3286,6 @@
         renderAll();
         renderGlobalChat();
         connectGlobalMqttSync();
-        startInstantRealtimeStreams();
         pullHttpCloudRosterAndEvents();
         window.syncLeaderboardScore(true);
 
@@ -3387,7 +3327,7 @@
 
         setInterval(() => {
             window.syncLeaderboardScore(true);
-            pullHttpCloudRosterAndEvents();
+            if (!mqttConnected) pullHttpCloudRosterAndEvents();
         }, 4000);
     </script>
 </body>
