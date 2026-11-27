@@ -33,3 +33,13 @@ The previous static creator passcode was committed to the repository. Removing t
 ## Reporting
 
 Please avoid posting exploitable details or credentials in public issues. If GitHub private vulnerability reporting is enabled for this repository, use it. Otherwise contact the repository owner privately before publishing details.
+
+## Real-time synchronization trust boundaries
+
+The client uses public MQTT brokers over WSS with ntfy HTTP fallback. WSS encrypts the connection but does not authenticate a player or make a public topic private. Anyone who discovers the topic names can publish forged roster, chat, weather, or boss packets.
+
+Current client-side protections include payload size limits, schema normalization, timestamp checks, per-topic validation, bounded roster/chat caches, chat rate limiting, a bounded local chat outbox, MQTT broker failover, HTTP fallback polling, and deterministic UTC weather. Public weather packets are not accepted. Co-op boss packets can update display state but cannot grant local rewards.
+
+These controls reduce accidental corruption, stale updates, and some abuse. They do not establish sender identity or stop a determined attacker from spoofing scores or boss state. Public roster and boss data must remain untrusted display data until a server validates it.
+
+Before claiming secure real-time multiplayer, move the shared state to a trusted backend with authenticated player sessions, per-user write authorization, server timestamps/revisions, atomic boss damage transactions, server-side score/reward calculation, replay protection, and rate limits. MQTT/ntfy should then be treated only as delivery channels for backend-authorized events, not as the authority.
