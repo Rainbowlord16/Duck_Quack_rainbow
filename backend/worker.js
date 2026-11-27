@@ -163,8 +163,8 @@ async function adminRoutes(req,env,u){
     env.DB.prepare("UPDATE gift_transactions SET applied=1 WHERE gift_id=? AND applied=0").bind(requestId)
    ]);
   }catch(e){return reply({error:"Gift transaction could not be completed."},409);}
-  const gift=await env.DB.prepare("SELECT gift_id AS giftId,target_player_id AS targetPlayer,resource,amount,created_at AS createdAt,applied FROM gift_transactions WHERE gift_id=?").bind(requestId).first();
-  if(!gift||gift.actor_player_id&&gift.actor_player_id!==creator.player_id||gift.targetPlayer!==targetId||gift.resource!==resource||Number(gift.amount)!==amount)
+  const gift=await env.DB.prepare("SELECT gift_id AS giftId,actor_player_id AS actorPlayer,target_player_id AS targetPlayer,resource,amount,created_at AS createdAt,applied FROM gift_transactions WHERE gift_id=?").bind(requestId).first();
+  if(!gift||gift.actorPlayer!==creator.player_id||gift.targetPlayer!==targetId||gift.resource!==resource||Number(gift.amount)!==amount)
    return reply({error:"Gift request ID was already used for a different transaction."},409);
   if(!gift.applied)return reply({error:"Gift was not applied. Please retry with a new request ID."},409);
   const balance=await env.DB.prepare("SELECT quacks FROM player_game_state WHERE player_id=?").bind(targetId).first();
