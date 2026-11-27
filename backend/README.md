@@ -29,7 +29,7 @@ Cloudflare Worker + D1 + Durable Objects. The backend provides anonymous player 
 1. Create a Cloudflare D1 database named `duck-quack`.
 2. Replace `database_id` in wrangler.toml with its ID.
 3. Set FRONTEND_ORIGIN to the exact GitHub Pages origin.
-4. Apply both SQL migrations in order, including `migrations/0002_authoritative_game.sql`, to the remote D1 database. With Wrangler, run `npx wrangler d1 migrations apply duck-quack --remote`.
+4. Apply SQL migrations `0001_initial.sql` through `0005_creator_gifting.sql` in order to the remote D1 database. With Wrangler, run `npx wrangler d1 migrations apply duck-quack --remote`.
 5. Deploy using `npx wrangler deploy`.
 
 No secret or account-specific ID is committed. The public MQTT/ntfy relays remain untrusted presentation transports.
@@ -60,3 +60,13 @@ The passkey-bound Creator player is identified only by the D1 `creator_passkeys.
 ## Leaderboard score labels
 
 The leaderboard API returns both current server-verified Quacks from `player_game_state.quacks` and lifetime Quacks from `leaderboard.lifetime_quacks`. The frontend labels current balance as "Current Quacks" and shows lifetime total separately, avoiding confusion between spendable balance and cumulative earned Quacks.
+
+
+## Creator Gift Plaza and audited Quack grants
+
+- Apply `migrations/0005_creator_gifting.sql` after migrations 0001-0004.
+- `GET /api/admin/gifts` returns the latest 50 grants and requires a live Creator passkey session.
+- `POST /api/admin/gifts` accepts `targetPlayerId`, `resource: "quacks"`, an integer `amount` from 1 to 1,000,000,000, and a unique `requestId`.
+- The Worker resolves the Creator from the D1 passkey binding, rejects banned or missing recipients and self-gifts, rate-limits grants, and applies the balance update with an idempotent D1 batch.
+- Every grant is recorded in `gift_transactions`; retries with the same request ID cannot apply the grant twice.
+- The Gift Plaza currently grants Quacks only. Gems, Eggs, pets, and other items remain disabled until those inventories and balances are migrated to server-owned state. Local browser values are not trusted for gifting.
