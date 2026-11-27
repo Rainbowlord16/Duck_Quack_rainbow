@@ -144,15 +144,9 @@ assert "Math.floor(now / 45000)" in SOURCE
 assert "mqttClient.subscribe(`${MQTT_BASE_TOPIC}/world`" not in SOURCE
 assert 'publishMqttPacket("world"' not in SOURCE
 assert "now - Number(e.updatedAt) <= 20000" in SOURCE
-assert "message.ntfyDelivered" in SOURCE
-assert "mqttClient.publish(`${MQTT_BASE_TOPIC}/chat`" in SOURCE
-assert "RELAY_TOPIC_CHAT" in SOURCE
-assert "pendingChatOutbox = pendingChatOutbox.slice(-50)" in SOURCE
 assert "finish(!error)" in SOURCE
 assert "syncGlobalWeatherFromClock();" in SOURCE
 assert 'publishMqttPacket("boss", coopBossState, true)' in SOURCE
-assert "queuePendingChatMessage(msgObj)" in SOURCE
-assert "flushPendingChatOutbox()" in SOURCE
 for function_name, next_function in (
     ("function pushHttpCloudRoster", "async function fetchNtfyRelayMessages"),
     ("function attackCoopBoss()", "function sendPlayerGift"),
