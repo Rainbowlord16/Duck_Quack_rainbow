@@ -979,7 +979,7 @@
         let lastBossDefeatEventId = "";
         let lastWorldSyncTs = 0;
 
-        // MQTT WSS is the sole primary transport. HTTP polling is used only while MQTT is disconnected.
+        // MQTT WSS and ntfy HTTP are mirrored so clients on mixed transports still synchronize.
         const adminBroadcastChannel = ("BroadcastChannel" in window)
             ? new BroadcastChannel("dq_gag_admin_abuse_v11")
             : null;
