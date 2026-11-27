@@ -36,7 +36,7 @@ Please avoid posting exploitable details or credentials in public issues. If Git
 
 ## Real-time synchronization trust boundaries
 
-The client uses public MQTT brokers over WSS with ntfy HTTP fallback. WSS encrypts the connection but does not authenticate a player or make a public topic private. Anyone who discovers the topic names can publish forged roster, chat, weather, or boss packets.
+The client bridges public MQTT brokers over WSS and ntfy HTTP in both directions. Clients publish roster, chat, and co-op boss updates to both relays and listen to both, allowing MQTT-connected and HTTP-fallback players to exchange updates. WSS encrypts the connection but does not authenticate a player or make a public topic private. Anyone who discovers the topic names can publish forged roster, chat, or boss packets.
 
 Current client-side protections include payload size limits, schema normalization, timestamp checks, per-topic validation, bounded roster/chat caches, chat rate limiting, a bounded local chat outbox, MQTT broker failover, HTTP fallback polling, and deterministic UTC weather. Public weather packets are not accepted. Co-op boss packets can update display state but cannot grant local rewards.
 
