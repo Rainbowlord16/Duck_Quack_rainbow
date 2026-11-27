@@ -198,8 +198,8 @@ test("Creator-only controls require a live server-verified passkey session", () 
   assert.match(frontend, /id="giftPlazaButton"/);
   assert.match(frontend, /giftButton\.classList\.toggle\("hidden", !state\.isAdminAuthenticated\)/);
   assert.match(frontend, /This console is restricted to RainbowLord16/);
-  assert.match(frontend, /async function sendPlayerGift\(targetSlotId, targetName, giftType\) \{\s*if \(!state\.isAdminAuthenticated \|\| !await requireCreatorSession\(\)\) return;/);
-  assert.match(frontend, /Transfers remain paused until the server-backed gift ledger is implemented/);
+  assert.match(frontend, /async function sendPlayerGift\(targetSlotId, targetName, giftType, rawAmount\) \{\s*if \(!state\.isAdminAuthenticated \|\| !await requireCreatorSession\(\)\) return;/);
+  assert.match(frontend, /Creator Quack Grant/);
 });
 
 
