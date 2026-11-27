@@ -1072,7 +1072,13 @@
                     // Shared weather is deterministic from UTC; no public write topic is trusted.
 
                     window.syncLeaderboardScore(true);
-                    if (coopBossState.updatedAt > 0) publishMqttPacket("boss", coopBossState, true);
+                    if (coopBossState.updatedAt > 0) {
+                        publishMqttPacket("boss", coopBossState, true);
+                        fetch(`https://ntfy.sh/${RELAY_TOPIC_BOSS}`, {
+                            method: "POST",
+                            body: JSON.stringify(coopBossState)
+                        }).catch(() => {});
+                    }
                     flushPendingChatOutbox();
                     renderLeaderboardUI();
                 });
@@ -1455,14 +1461,12 @@
                 updatedAt: Date.now()
             };
             coopBossState = syncPayload;
-            if (mqttConnected) {
-                publishMqttPacket("boss", syncPayload, true);
-            } else {
-                fetch(`https://ntfy.sh/${RELAY_TOPIC_BOSS}`, {
-                    method: "POST",
-                    body: JSON.stringify(syncPayload)
-                }).catch(() => {});
-            }
+            // Mirror the same timestamped state to both relays for mixed-transport clients.
+            if (mqttConnected) publishMqttPacket("boss", syncPayload, true);
+            fetch(`https://ntfy.sh/${RELAY_TOPIC_BOSS}`, {
+                method: "POST",
+                body: JSON.stringify(syncPayload)
+            }).catch(() => {});
 
             saveGame();
             renderAll();
