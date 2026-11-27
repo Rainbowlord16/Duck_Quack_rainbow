@@ -109,3 +109,13 @@ test("admin event effects require trusted server delivery and honor target playe
   assert.match(client, /adminEvents\(since=0\)/);
   assert.match(frontend, /target === state\.accountSlotId/);
 });
+
+test("every restored frontend abuse command is explicitly allowlisted by the Worker", () => {
+  const ui = frontend.match(/const ALL_ADMIN_COMMANDS = \[([\s\S]*?)\];/);
+  const server = worker.match(/const ADMIN_COMMANDS=new Set\(\[([\s\S]*?)\]\);/);
+  assert.ok(ui && server);
+  const uiCommands = [...ui[1].matchAll(/"([^"]+)"/g)].map(x => x[1].toUpperCase()).sort();
+  const serverCommands = [...server[1].matchAll(/"([^"]+)"/g)].map(x => x[1]).sort();
+  assert.deepEqual(serverCommands, uiCommands);
+  assert.doesNotMatch(frontend, /target === state\.accountSlotId \|\|\s*isVerifiedServerEvent/);
+});
