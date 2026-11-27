@@ -5,3 +5,5 @@ if (window.DUCK_QUACK_API_URL) {
     window.DuckQuackApi = createDuckQuackApi(window.DUCK_QUACK_API_URL);
   }).catch(() => console.error("Duck Quack API client could not be loaded."));
 }
+
+// Recovery UI remains visible even while this URL is unset; it activates after configuration.
