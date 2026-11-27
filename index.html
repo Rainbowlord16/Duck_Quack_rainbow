@@ -423,6 +423,9 @@
                     <!-- Orbiting Pets Container -->
                     <div id="orbitingPetsLayer" class="absolute inset-0 pointer-events-none"></div>
 
+                    <!-- Live Online Players in Same World Layer -->
+                    <div id="worldLivePlayersLayer" class="absolute -inset-6 pointer-events-none z-10"></div>
+
                     <!-- Interactive Hero Duck Button -->
                     <button id="heroDuckBtn" type="button" aria-label="Quack Duck"
                         onpointerdown="startHoldQuack(event)"
@@ -574,7 +577,10 @@
                         <svg viewBox="0 0 24 24" class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                         <span>Global Live Chat</span>
                     </h2>
-                    <span class="text-[10px] font-bold text-slate-400">Cross-Device</span>
+                    <span id="liveOnlineCountBadge" class="inline-flex items-center gap-1 text-[10px] font-extrabold text-emerald-400">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                        <span>1 Online</span>
+                    </span>
                 </div>
                 <div id="globalChatFeed" class="h-32 overflow-y-auto rounded-xl bg-slate-950/90 border border-slate-800/90 p-2 flex flex-col gap-1 text-[11px]"></div>
                 <div class="flex gap-1.5">
@@ -723,67 +729,111 @@
         }
 
         /* =========================================================================
-           ZERO-LOGIN MULTI-DEVICE CLOUD SYNC (GUNJS + CORS-OPEN RELAY + LOCAL)
+           ZERO-LOGIN MULTI-DEVICE CLOUD SYNC (INSTANT SSE STREAM + GUNJS + LOCAL)
            ========================================================================= */
-        const RELAY_TOPIC_ROSTER = "duck_quack_rainbowlord16_roster_v9";
-        const RELAY_TOPIC_EVENTS = "duck_quack_rainbowlord16_events_v9";
-        const RELAY_TOPIC_CHAT = "duck_quack_rainbowlord16_chat_v9";
-        const RELAY_TOPIC_BOSS = "duck_quack_rainbowlord16_boss_v9";
+        const RELAY_TOPIC_ROSTER = "duck_quack_rainbowlord16_roster_v10";
+        const RELAY_TOPIC_EVENTS = "duck_quack_rainbowlord16_events_v10";
+        const RELAY_TOPIC_CHAT = "duck_quack_rainbowlord16_chat_v10";
+        const RELAY_TOPIC_BOSS = "duck_quack_rainbowlord16_boss_v10";
+        const RELAY_TOPIC_WORLD = "duck_quack_rainbowlord16_world_v10";
         let liveHttpEntries = {};
         let globalChatMessages = [];
         let seenChatIds = new Set();
         let coopBossState = { stage: 0, hp: 5000, maxHp: 5000, lastAttacker: "", updatedAt: 0 };
         let lastBossDefeatEventId = "";
+        let lastWorldSyncTs = 0;
 
-        let gunInstance = null;
-        let gunLeaderboardNode = null;
-        let gunAdminEventNode = null;
-        try {
-            if (typeof Gun !== "undefined") {
-                gunInstance = Gun({
-                    peers: [
-                        "https://gun-manhattan.up.railway.app/gun",
-                        "https://peer.wallie.io/gun",
-                        "https://gundb-relay-mlccl.ondigitalocean.app/gun"
-                    ]
-                });
-                gunLeaderboardNode = gunInstance.get("duck_quack_rainbowlord16_v3").get("leaderboard");
-                gunAdminEventNode = gunInstance.get("duck_quack_rainbowlord16_v3").get("admin_event");
-            }
-        } catch (e) {}
-
-        async function pushHttpCloudRoster(entry) {
-            try {
-                liveHttpEntries[entry.accountSlotId] = entry;
-                const compactEntry = {
-                    accountSlotId: entry.accountSlotId,
-                    playerName: entry.playerName,
-                    isAdmin: Boolean(entry.isAdmin),
-                    lifetimeQuacks: entry.lifetimeQuacks || 0,
-                    rebirths: entry.rebirths || 0,
-                    bossKills: entry.bossKills || 0,
-                    eggsHatched: entry.eggsHatched || 0,
-                    currentWorld: entry.currentWorld || 1,
-                    skin: entry.skin || "classic",
-                    profilePic: (entry.profilePic && entry.profilePic.length < 18000) ? entry.profilePic : "",
-                    updatedAt: Date.now()
-                };
-                await fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}`, {
-                    method: "POST",
-                    body: JSON.stringify(compactEntry)
-                });
-            } catch (e) {}
+        function escapeHtmlText(str) {
+            return String(str || "")
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;");
         }
 
-        async function pullHttpCloudRosterAndEvents() {
-            try {
-                const res = await fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}/json?poll=1&since=12h`, { cache: "no-store" });
-                if (res.ok) {
-                    const text = await res.text();
-                    const lines = text.trim().split("\n");
+        function appendLocalChatMessage(sender, text, isCreator = false, isSystem = false) {
+            const msgObj = {
+                id: "chat_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+                sender: sender || "DuckGuest",
+                text: String(text || "").slice(0, 140),
+                isCreator: Boolean(isCreator),
+                isSystem: Boolean(isSystem),
+                timestamp: Date.now()
+            };
+            seenChatIds.add(msgObj.id);
+            globalChatMessages.push(msgObj);
+            globalChatMessages = globalChatMessages.slice(-50);
+            renderGlobalChat();
+            return msgObj;
+        }
+
+        function renderGlobalChat() {
+            const feed = document.getElementById("globalChatFeed");
+            if (!feed) return;
+            if (globalChatMessages.length === 0) {
+                feed.innerHTML = `<div class="text-slate-500 italic">Connected to Global Pond Relay. Say hi or run /nuke!</div>`;
+                return;
+            }
+            feed.innerHTML = globalChatMessages.map(m => {
+                if (m.isSystem) {
+                    return `<div class="px-2 py-0.5 rounded bg-fuchsia-950/60 border border-fuchsia-500/30 text-fuchsia-200 font-bold">[${escapeHtmlText(m.sender)}] ${escapeHtmlText(m.text)}</div>`;
+                }
+                const badge = m.isCreator
+                    ? `<span class="px-1 py-0.2 rounded bg-fuchsia-500/30 border border-fuchsia-400 text-[9px] text-fuchsia-200 font-extrabold mr-1">CREATOR</span>`
+                    : "";
+                const nameColor = m.isCreator ? "text-amber-300" : "text-cyan-300";
+                return `<div class="leading-snug break-words">${badge}<span class="font-extrabold ${nameColor}">${escapeHtmlText(m.sender)}:</span> <span class="text-slate-200">${escapeHtmlText(m.text)}</span></div>`;
+            }).join("");
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function sendGlobalChatMessage() {
+            const input = document.getElementById("globalChatInput");
+            if (!input) return;
+            const text = input.value.trim();
+            if (!text) return;
+            input.value = "";
+
+            if (text.startsWith("/") && state.isAdminAuthenticated) {
+                const cmdInput = document.getElementById("adminCommandInput");
+                if (cmdInput) {
+                    cmdInput.value = text;
+                    executeAdminCommandLine();
+                } else {
+                    const fakeInput = document.createElement("input");
+                    fakeInput.id = "adminCommandInput";
+                    fakeInput.value = text;
+                    fakeInput.style.display = "none";
+                    document.body.appendChild(fakeInput);
+                    executeAdminCommandLine();
+                    fakeInput.remove();
+                }
+                return;
+            }
+
+            const msgObj = appendLocalChatMessage(state.playerName, text, Boolean(state.isAdminAuthenticated), false);
+            fetch(`https://ntfy.sh/${RELAY_TOPIC_CHAT}`, {
+                method: "POST",
+                body: JSON.stringify(msgObj)
+            }).catch(() => {});
+        }
+
+        function pushHttpCloudRoster(entry) {
+            if (!entry || !entry.accountSlotId) return;
+            fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}`, {
+                method: "POST",
+                body: JSON.stringify(entry)
+            }).catch(() => {});
+        }
+
+        function pullHttpCloudRosterAndEvents() {
+            fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}/json?poll=1&since=6h`)
+                .then(res => res.ok ? res.text() : "")
+                .then(raw => {
+                    if (!raw) return;
                     let changed = false;
-                    lines.forEach(line => {
-                        if (!line) return;
+                    raw.split("\n").forEach(line => {
+                        if (!line.trim()) return;
                         try {
                             const wrapper = JSON.parse(line);
                             if (wrapper && wrapper.message) {
@@ -796,151 +846,153 @@
                                     }
                                 }
                             }
-                        } catch (err) {}
+                        } catch (e) {}
                     });
                     if (changed) {
                         renderLeaderboardUI();
-                        if (activeModalId === "profile") {
-                            const sel = document.getElementById("adminTargetPlayerSelect");
-                            if (sel) {
-                                const prevVal = sel.value;
-                                const rows = getMergedLeaderboardRows();
-                                sel.innerHTML = [`<option value="ALL">ALL PLAYERS (Server-Wide)</option>`]
-                                    .concat(rows.filter(r => r.accountSlotId !== ADMIN_SLOT_ID).map(r => `<option value="${r.playerName}">${r.playerName} (W${r.currentWorld || 1})</option>`))
-                                    .join("");
-                                if ([...sel.options].some(o => o.value === prevVal)) sel.value = prevVal;
-                            }
-                        }
+                        renderWorldLivePlayers();
                     }
-                }
-            } catch (e) {}
+                })
+                .catch(() => {});
 
+            fetch(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}/json?poll=1&since=2m`)
+                .then(res => res.ok ? res.text() : "")
+                .then(raw => {
+                    if (!raw) return;
+                    raw.split("\n").forEach(line => {
+                        if (!line.trim()) return;
+                        try {
+                            const wrapper = JSON.parse(line);
+                            if (wrapper && wrapper.message) {
+                                const evt = JSON.parse(wrapper.message);
+                                if (evt && evt.id) applyAdminAbuseEvent(evt, false);
+                            }
+                        } catch (e) {}
+                    });
+                })
+                .catch(() => {});
+        }
+
+        let gunInstance = null;
+        let gunLeaderboardNode = null;
+        let gunAdminEventNode = null;
+        try {
+            if (typeof Gun !== "undefined") {
+                gunInstance = Gun({
+                    peers: [
+                        "https://gun-manhattan.up.railway.app/gun",
+                        "https://peer.wallie.io/gun",
+                        "https://gundb-relay-mlccl.ondigitalocean.app/gun"
+                    ],
+                    localStorage: false
+                });
+                gunLeaderboardNode = gunInstance.get("duck_quack_rainbowlord16_lb_v10");
+                gunAdminEventNode = gunInstance.get("duck_quack_rainbowlord16_events_v10");
+            }
+        } catch (e) {}
+
+        function startInstantRealtimeStreams() {
+            // 1. Instant Admin Abuse & Gift Stream (<200ms latency across Mac <-> Tablet)
             try {
-                const evRes = await fetch(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}/json?poll=1&since=2m`, { cache: "no-store" });
-                if (evRes.ok) {
-                    const text = await evRes.text();
-                    const lines = text.trim().split("\n");
-                    const lastLine = lines[lines.length - 1];
-                    if (lastLine) {
-                        const wrapper = JSON.parse(lastLine);
+                const evStream = new EventSource(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}/sse?since=1m`);
+                evStream.onmessage = (e) => {
+                    try {
+                        const wrapper = JSON.parse(e.data);
                         if (wrapper && wrapper.message) {
                             const evt = JSON.parse(wrapper.message);
                             if (evt && evt.id) applyAdminAbuseEvent(evt, false);
                         }
-                    }
-                }
+                    } catch (err) {}
+                };
             } catch (e) {}
 
+            // 2. Instant Global Live Chat Stream
             try {
-                const chatRes = await fetch(`https://ntfy.sh/${RELAY_TOPIC_CHAT}/json?poll=1&since=6h`, { cache: "no-store" });
-                if (chatRes.ok) {
-                    const text = await chatRes.text();
-                    const lines = text.trim().split("\n");
-                    let chatAdded = false;
-                    lines.forEach(line => {
-                        if (!line) return;
-                        try {
-                            const wrapper = JSON.parse(line);
-                            if (wrapper && wrapper.message) {
-                                const msgObj = JSON.parse(wrapper.message);
-                                if (msgObj && msgObj.id && !seenChatIds.has(msgObj.id)) {
-                                    seenChatIds.add(msgObj.id);
-                                    globalChatMessages.push(msgObj);
-                                    chatAdded = true;
+                const chatStream = new EventSource(`https://ntfy.sh/${RELAY_TOPIC_CHAT}/sse?since=2h`);
+                chatStream.onmessage = (e) => {
+                    try {
+                        const wrapper = JSON.parse(e.data);
+                        if (wrapper && wrapper.message) {
+                            const msgObj = JSON.parse(wrapper.message);
+                            if (msgObj && msgObj.id && !seenChatIds.has(msgObj.id)) {
+                                seenChatIds.add(msgObj.id);
+                                globalChatMessages.push(msgObj);
+                                globalChatMessages = globalChatMessages.slice(-50);
+                                renderGlobalChat();
+                            }
+                        }
+                    } catch (err) {}
+                };
+            } catch (e) {}
+
+            // 3. Instant Live Roster & Presence Stream
+            try {
+                const rosterStream = new EventSource(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}/sse?since=6h`);
+                rosterStream.onmessage = (e) => {
+                    try {
+                        const wrapper = JSON.parse(e.data);
+                        if (wrapper && wrapper.message) {
+                            const row = JSON.parse(wrapper.message);
+                            if (row && row.accountSlotId) {
+                                const prev = liveHttpEntries[row.accountSlotId];
+                                if (!prev || (row.updatedAt || 0) >= (prev.updatedAt || 0)) {
+                                    liveHttpEntries[row.accountSlotId] = row;
+                                    renderLeaderboardUI();
+                                    renderWorldLivePlayers();
                                 }
                             }
-                        } catch (err) {}
-                    });
-                    if (chatAdded) {
-                        globalChatMessages = globalChatMessages.slice(-45);
-                        renderGlobalChat();
-                    }
-                }
+                        }
+                    } catch (err) {}
+                };
             } catch (e) {}
 
+            // 4. Instant Co-Op Boss & Shared World Weather Stream
             try {
-                const bossRes = await fetch(`https://ntfy.sh/${RELAY_TOPIC_BOSS}/json?poll=1&since=1h`, { cache: "no-store" });
-                if (bossRes.ok) {
-                    const text = await bossRes.text();
-                    const lines = text.trim().split("\n");
-                    const lastLine = lines[lines.length - 1];
-                    if (lastLine) {
-                        const wrapper = JSON.parse(lastLine);
+                const bossStream = new EventSource(`https://ntfy.sh/${RELAY_TOPIC_BOSS}/sse?since=30m`);
+                bossStream.onmessage = (e) => {
+                    try {
+                        const wrapper = JSON.parse(e.data);
                         if (wrapper && wrapper.message) {
                             const bData = JSON.parse(wrapper.message);
                             if (bData && (bData.updatedAt || 0) > coopBossState.updatedAt) {
                                 applySharedCoopBossUpdate(bData);
                             }
                         }
-                    }
-                }
+                    } catch (err) {}
+                };
+
+                const worldStream = new EventSource(`https://ntfy.sh/${RELAY_TOPIC_WORLD}/sse?since=10m`);
+                worldStream.onmessage = (e) => {
+                    try {
+                        const wrapper = JSON.parse(e.data);
+                        if (wrapper && wrapper.message) {
+                            const wData = JSON.parse(wrapper.message);
+                            if (wData && (wData.updatedAt || 0) > lastWorldSyncTs) {
+                                lastWorldSyncTs = wData.updatedAt;
+                                const found = WEATHERS.find(w => w.id === wData.weatherId);
+                                if (found && found.id !== currentWeather.id) {
+                                    currentWeather = found;
+                                    weatherTimer = wData.weatherTimer || 45;
+                                    renderAll();
+                                    showToast(`World Weather Synced: ${found.name} (${found.mult}x)!`, "info");
+                                }
+                            }
+                        }
+                    } catch (err) {}
+                };
             } catch (e) {}
         }
 
-        function appendLocalChatMessage(sender, text, isAdmin = false, isSystem = false) {
-            const msgObj = {
-                id: "chat_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
-                sender,
-                text,
-                isAdmin,
-                isSystem,
-                ts: Date.now()
+        function broadcastSharedWorldWeather() {
+            const payload = {
+                weatherId: currentWeather.id,
+                weatherTimer,
+                updatedAt: Date.now()
             };
-            seenChatIds.add(msgObj.id);
-            globalChatMessages.push(msgObj);
-            globalChatMessages = globalChatMessages.slice(-45);
-            renderGlobalChat();
-            return msgObj;
-        }
-
-        function renderGlobalChat() {
-            const box = document.getElementById("globalChatFeed");
-            if (!box) return;
-            if (globalChatMessages.length === 0) {
-                box.innerHTML = `<div class="text-slate-500 italic">Welcome to Global Chat! Say hi to players on other devices...</div>`;
-                return;
-            }
-            box.innerHTML = globalChatMessages.map(m => {
-                if (m.isSystem) {
-                    return `<div class="text-fuchsia-300 font-bold">[SYSTEM] ${m.text}</div>`;
-                }
-                return `<div class="leading-snug break-words">
-                    <span class="font-extrabold ${m.isAdmin ? "text-amber-300" : "text-sky-300"}">${m.isAdmin ? "[CREATOR] " : ""}${m.sender}:</span>
-                    <span class="text-slate-200">${m.text}</span>
-                </div>`;
-            }).join("");
-            box.scrollTop = box.scrollHeight;
-        }
-
-        function sendGlobalChatMessage() {
-            const input = document.getElementById("globalChatInput");
-            if (!input) return;
-            const raw = input.value.trim();
-            if (!raw) return;
-            input.value = "";
-
-            if (raw.startsWith("/") && state.isAdminAuthenticated) {
-                let cmdInput = document.getElementById("adminCommandInput");
-                if (!cmdInput) {
-                    const temp = document.createElement("input");
-                    temp.id = "adminCommandInput";
-                    temp.value = raw;
-                    temp.style.display = "none";
-                    document.body.appendChild(temp);
-                    executeAdminCommandLine();
-                    temp.remove();
-                } else {
-                    cmdInput.value = raw;
-                    executeAdminCommandLine();
-                }
-                return;
-            }
-
-            const safeText = raw.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-            const msgObj = appendLocalChatMessage(state.playerName, safeText, Boolean(state.isAdminAuthenticated), false);
-            fetch(`https://ntfy.sh/${RELAY_TOPIC_CHAT}`, {
+            lastWorldSyncTs = payload.updatedAt;
+            fetch(`https://ntfy.sh/${RELAY_TOPIC_WORLD}`, {
                 method: "POST",
-                body: JSON.stringify(msgObj)
+                body: JSON.stringify(payload)
             }).catch(() => {});
         }
 
@@ -3241,775 +3293,793 @@
         }
 
         /* =========================================================================
-           10. MODALS (EGGS, PETS, WARDROBE, REBIRTH, SKILLS, ALCHEMY, DIG, BOSS, WHEEL,
-               ARCADE, MASTERY, CODES, QUESTS, LEADERBOARD, PROFILE & ADMIN VAULT)
+           PERSISTENT CLOUD DATABASE SYNC (JSONBLOB + INSTANT SSE)
            ========================================================================= */
-        function openModal(id) {
-            activeModalId = id;
-            const backdrop = document.getElementById("systemModalBackdrop");
-            const titleEl = document.getElementById("systemModalTitle");
-            const bodyEl = document.getElementById("systemModalBody");
-            if (!backdrop || !titleEl || !bodyEl) return;
+        const PERSISTENT_CLOUD_BLOB_URL = "https://jsonblob.com/api/jsonBlob/0194a8b2-7c3e-7f10-9a4b-6e2d1c8f9016";
+        let cloudSyncStatusText = "Connecting Cloud...";
 
-            backdrop.classList.remove("hidden");
-
-            if (id === "eggs") {
-                titleEl.textContent = "Egg Hatchery";
-                bodyEl.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${EGGS.map(egg => `
-                    <div class="rounded-2xl bg-slate-950/80 border border-slate-800 p-4 flex flex-col justify-between gap-3">
-                        <div class="flex items-center gap-3">
-                            ${getEggSvg(egg.color, egg.spot, 52)}
-                            <div>
-                                <div class="font-display text-base font-bold text-white">${egg.name}</div>
-                                <div class="text-xs text-slate-400">${egg.pool.map(p => `${p.name} (${p.mult}x)`).join(" &bull; ")}</div>
-                            </div>
-                        </div>
-                        <button onclick="hatchEggById('${egg.id}')" class="w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold transition">
-                            Hatch (${formatNum(egg.cost)} ${egg.currency.toUpperCase()})
-                        </button>
-                    </div>`).join("")}</div>`;
-            } else if (id === "pets") {
-                titleEl.textContent = `Pet Squad & Fusion (${state.pets.length} Owned)`;
-                bodyEl.innerHTML = `
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs text-slate-300">Equip up to 3 pets to orbit your duck and multiply Quacks!</span>
-                        <button onclick="fuseDuplicatePets()" class="px-3 py-1.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-xs font-extrabold text-white">Fuse 3x Duplicates</button>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">${state.pets.map(p => `
-                        <div class="rounded-2xl bg-slate-950/85 border ${p.equipped ? "border-emerald-400" : "border-slate-800"} p-3 flex items-center justify-between">
-                            <div class="flex items-center gap-2.5">
-                                ${getPetSvg(p.color, 38)}
-                                <div>
-                                    <div class="text-xs font-extrabold text-white">${p.name} <span class="text-amber-300">Lv.${p.level}</span></div>
-                                    <div class="text-[11px] text-slate-400">${p.rarity} &bull; <span class="text-emerald-300 font-bold">${p.mult}x</span></div>
-                                </div>
-                            </div>
-                            <button onclick="toggleEquipPet('${p.id}')" class="px-2.5 py-1 rounded-lg ${p.equipped ? "bg-emerald-500 text-slate-950" : "bg-slate-800 text-slate-200"} text-[11px] font-extrabold">
-                                ${p.equipped ? "Equipped" : "Equip"}
-                            </button>
-                        </div>`).join("")}</div>`;
-            } else if (id === "wardrobe") {
-                titleEl.textContent = "Skins, Hats, Visors & Quack Voice";
-                bodyEl.innerHTML = `
-                    <div class="space-y-4">
-                        <div>
-                            <h4 class="text-xs font-extrabold uppercase text-amber-300 mb-2">Plumage Skins</h4>
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">${SKINS.map(s => {
-                                const unlocked = state.unlockedSkins.includes(s.id) || (s.exclusive && state.isAdminAuthenticated);
-                                const active = state.skin === s.id;
-                                return `<button onclick="equipOrBuyCosmetic('skin','${s.id}')" class="p-3 rounded-xl border ${active ? "border-amber-400 bg-amber-500/15" : "border-slate-800 bg-slate-950/80"} text-left">
-                                    <div class="w-6 h-6 rounded-full mb-1.5 border border-white/20" style="background:${s.body}"></div>
-                                    <div class="text-xs font-bold text-white">${s.name}</div>
-                                    <div class="text-[10px] ${s.exclusive ? "text-fuchsia-300 font-extrabold" : "text-slate-400"}">${active ? "Equipped" : unlocked ? "Owned" : s.exclusive ? "Creator Exclusive" : formatNum(s.cost) + " " + s.currency}</div>
-                                </button>`;
-                            }).join("")}</div>
-                        </div>
-                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                            <div>
-                                <h4 class="text-xs font-extrabold uppercase text-sky-300 mb-2">Hats</h4>
-                                <div class="flex flex-col gap-1.5">${HATS.map(h => `<button onclick="equipOrBuyCosmetic('hat','${h.id}')" class="px-3 py-2 rounded-xl border ${state.hat === h.id ? "border-sky-400 bg-sky-500/15" : "border-slate-800 bg-slate-950/80"} text-xs font-bold text-left flex justify-between"><span>${h.name}</span><span class="text-slate-400">${state.hat === h.id ? "On" : h.exclusive ? "Creator" : h.cost + " Gems"}</span></button>`).join("")}</div>
-                            </div>
-                            <div>
-                                <h4 class="text-xs font-extrabold uppercase text-purple-300 mb-2">Visors</h4>
-                                <div class="flex flex-col gap-1.5">${SHADES.map(sh => `<button onclick="equipOrBuyCosmetic('shades','${sh.id}')" class="px-3 py-2 rounded-xl border ${state.shades === sh.id ? "border-purple-400 bg-purple-500/15" : "border-slate-800 bg-slate-950/80"} text-xs font-bold text-left flex justify-between"><span>${sh.name}</span><span class="text-slate-400">${state.shades === sh.id ? "On" : sh.exclusive ? "Creator" : sh.cost + " Gems"}</span></button>`).join("")}</div>
-                            </div>
-                            <div>
-                                <h4 class="text-xs font-extrabold uppercase text-emerald-300 mb-2">Voice Pitch</h4>
-                                <div class="flex flex-col gap-1.5">${VOICES.map(v => `<button onclick="equipOrBuyCosmetic('voice','${v.id}')" class="px-3 py-2 rounded-xl border ${state.voice === v.id ? "border-emerald-400 bg-emerald-500/15" : "border-slate-800 bg-slate-950/80"} text-xs font-bold text-left flex justify-between"><span>${v.name}</span><span class="text-slate-400">${state.voice === v.id ? "Active" : "Select"}</span></button>`).join("")}</div>
-                            </div>
-                        </div>
-                    </div>`;
-            } else if (id === "rebirth") {
-                const cost = getRebirthCost();
-                titleEl.textContent = "Rebirth & Void Ascension";
-                bodyEl.innerHTML = `
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div class="rounded-2xl bg-slate-950/85 border border-emerald-500/35 p-4">
-                            <div class="font-display text-lg font-bold text-emerald-300 mb-1">Rebirth (Rank ${state.rebirths})</div>
-                            <p class="text-xs text-slate-300 mb-3">Resets Quacks & Core Upgrades for permanent +50% Multiplier, Golden Feathers, and +1 Skill Point.</p>
-                            <button onclick="performRebirth()" class="w-full py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold">Rebirth (${formatNum(cost)} Quacks)</button>
-                        </div>
-                        <div class="rounded-2xl bg-slate-950/85 border border-purple-500/35 p-4">
-                            <div class="font-display text-lg font-bold text-purple-300 mb-1">Void Ascension (Rank ${state.voidAscensions})</div>
-                            <p class="text-xs text-slate-300 mb-3">Requires 10 Rebirths. Grants +500% Base Multiplier, +5 Void Shards, and +3 Skill Points.</p>
-                            <button onclick="performVoidAscension()" class="w-full py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-extrabold">Void Ascend (Req: 10 Rebirths)</button>
-                        </div>
-                    </div>`;
-            } else if (id === "skills") {
-                titleEl.textContent = `Skill Tree (${state.skillPoints} Skill Points Available)`;
-                bodyEl.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">${SKILL_NODES.map(sk => {
-                    const rank = state.skills[sk.id] || 0;
-                    return `<div class="rounded-2xl bg-slate-950/85 border border-slate-800 p-3.5 flex items-center justify-between gap-3">
-                        <div>
-                            <div class="text-sm font-extrabold text-lime-300">${sk.name} (${rank}/${sk.max})</div>
-                            <div class="text-xs text-slate-400">${sk.desc}</div>
-                        </div>
-                        <button onclick="upgradeSkillNode('${sk.id}')" class="px-3 py-2 rounded-xl bg-lime-500 hover:bg-lime-400 text-slate-950 text-xs font-extrabold shrink-0">${rank >= sk.max ? "MAX" : sk.baseCost + " SP"}</button>
-                    </div>`;
-                }).join("")}</div>`;
-            } else if (id === "alchemy") {
-                titleEl.textContent = `Alchemy Lab (${formatNum(state.feathers)} Feathers)`;
-                bodyEl.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">${POTIONS.map(p => {
-                    const rem = Math.max(0, Math.ceil(((state.activePotions[p.id] || 0) - Date.now()) / 1000));
-                    return `<div class="rounded-2xl bg-slate-950/85 border border-sky-500/30 p-4 flex flex-col justify-between gap-3">
-                        <div>
-                            <div class="text-sm font-extrabold text-sky-300">${p.name}</div>
-                            <div class="text-xs text-slate-400 mt-1">${p.desc}</div>
-                            ${rem > 0 ? `<div class="text-[11px] font-bold text-emerald-400 mt-1">Active: ${rem}s left</div>` : ""}
-                        </div>
-                        <button onclick="brewPotion('${p.id}')" class="w-full py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-extrabold">Brew (${p.costFeathers} Feathers)</button>
-                    </div>`;
-                }).join("")}</div>`;
-            } else if (id === "dig") {
-                titleEl.textContent = `Archaeology Dig Site (${state.relics} Relics Found)`;
-                bodyEl.innerHTML = `
-                    <p class="text-xs text-slate-300 mb-3">Dig tiles (10 Gems each) to uncover Ancient Relics, Void Shards, and Buried Quack Caches!</p>
-                    <div class="grid grid-cols-4 gap-2 max-w-md mx-auto">${state.digTiles.map((val, idx) => `
-                        <button onclick="digTile(${idx})" class="h-16 rounded-xl border ${val ? "border-amber-400 bg-amber-500/20 text-amber-200" : "border-slate-700 bg-slate-950 hover:bg-slate-800 text-slate-400"} text-xs font-extrabold">
-                            ${val || "DIG (10)"}
-                        </button>`).join("")}</div>`;
-            } else if (id === "boss") {
-                const boss = BOSSES[state.bossStage % BOSSES.length];
-                const pct = Math.max(0, Math.min(100, (state.bossHp / boss.maxHp) * 100));
-                titleEl.textContent = `Co-Op World Boss Raid (${state.bossKills} Slain)`;
-                bodyEl.innerHTML = `
-                    <div class="flex flex-col items-center text-center gap-3 py-2">
-                        <span class="px-3 py-1 rounded-full bg-rose-500/20 border border-rose-400/40 text-[11px] font-extrabold text-rose-200">LIVE SHARED HP ACROSS ALL ONLINE PLAYERS</span>
-                        ${getBossSvg(boss.color)}
-                        <div class="font-display text-xl font-bold text-rose-300">${boss.name}</div>
-                        ${coopBossState.lastAttacker ? `<div class="text-xs text-amber-300 font-bold">Last Strike: ${coopBossState.lastAttacker} (-${formatNum(coopBossState.lastDamage || 0)} HP)</div>` : ""}
-                        <div class="w-full max-w-md h-5 rounded-full bg-slate-950 border border-slate-800 overflow-hidden relative flex items-center justify-center">
-                            <div class="absolute left-0 top-0 bottom-0 bg-rose-600 transition-all" style="width:${pct}%"></div>
-                            <span class="relative z-10 text-xs font-extrabold text-white">${formatNum(Math.max(0, state.bossHp))} / ${formatNum(boss.maxHp)} HP</span>
-                        </div>
-                        <button onclick="attackBoss()" class="px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-sm font-extrabold text-white shadow-lg">CO-OP QUACK STRIKE (-${formatNum(Math.max(10, getClickPower() * 2))} HP)</button>
-                    </div>`;
-            } else if (id === "trade") {
-                const onlineTargets = getMergedLeaderboardRows().filter(r => r.accountSlotId !== state.accountSlotId);
-                titleEl.textContent = "Duck Trading & Gift Plaza";
-                bodyEl.innerHTML = `
-                    <div class="space-y-4">
-                        <div class="rounded-2xl bg-slate-950/85 border border-slate-800 p-4 space-y-3">
-                            <div class="text-xs font-extrabold text-emerald-300">Send Gifts to Any Online Player</div>
-                            <select id="tradeTargetSelect" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white">
-                                ${onlineTargets.length === 0 ? `<option value="">Waiting for another player to join...</option>` : onlineTargets.map(r => `<option value="${r.playerName}">${r.playerName} (World ${r.currentWorld || 1})</option>`).join("")}
-                            </select>
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                <button onclick="sendPlayerGift('gems', false)" class="py-2.5 px-3 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/40 border border-cyan-400/50 text-xs font-extrabold text-cyan-200">Gift 100 Gems</button>
-                                <button onclick="sendPlayerGift('egg', false)" class="py-2.5 px-3 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/40 border border-emerald-400/50 text-xs font-extrabold text-emerald-200">Gift Cyber Egg (150 Gems)</button>
-                                <button onclick="sendPlayerGift('pet', false)" class="py-2.5 px-3 rounded-xl bg-pink-600/30 hover:bg-pink-600/40 border border-pink-400/50 text-xs font-extrabold text-pink-200">Send Spare Pet</button>
-                            </div>
-                        </div>
-                        ${state.isAdminAuthenticated ? `
-                        <div class="rounded-2xl obsidian-neon-rainbow p-4 space-y-2.5">
-                            <div class="font-display text-sm font-bold text-cyan-200">INFINITE CREATOR GIFT SPAWNER (RAINBOWLORD16)</div>
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                <button onclick="sendPlayerGift('gems', true)" class="py-2.5 px-3 rounded-xl bg-amber-400 text-slate-950 text-xs font-extrabold">Spawn 50,000 Gems</button>
-                                <button onclick="sendPlayerGift('egg', true)" class="py-2.5 px-3 rounded-xl bg-fuchsia-500 text-white text-xs font-extrabold">Spawn Omniverse Egg</button>
-                                <button onclick="sendPlayerGift('pet', true)" class="py-2.5 px-3 rounded-xl bg-cyan-400 text-slate-950 text-xs font-extrabold">Spawn 250x Creator Pet</button>
-                            </div>
-                        </div>` : ""}
-                    </div>`;
-            } else if (id === "wheel") {
-                const wheelSlices = [
-                    { label: "250 Gems", color: "#0284c7" },
-                    { label: "15 Shards", color: "#7e22ce" },
-                    { label: "25 Feathers", color: "#ea580c" },
-                    { label: "2 Relics", color: "#e11d48" },
-                    { label: "100x Jackpot", color: "#d97706" },
-                    { label: "Cyber Egg", color: "#059669" }
-                ];
-                titleEl.textContent = `Fortune Spin Wheel (${state.wheelSpins} Free Spins)`;
-                bodyEl.innerHTML = `
-                    <div class="flex flex-col items-center text-center py-2 space-y-4">
-                        <div class="relative w-64 h-64 sm:w-72 sm:h-72 flex items-center justify-center">
-                            <!-- Top Pointer Needle -->
-                            <div class="absolute -top-3 left-1/2 -translate-x-1/2 z-20">
-                                <svg viewBox="0 0 32 36" width="32" height="36"><polygon points="16,34 4,4 28,4" fill="#facc15" stroke="#0f172a" stroke-width="3"/></svg>
-                            </div>
-                            <!-- Rotating Multi-Slice SVG Wheel -->
-                            <svg id="fortuneWheelSvg" viewBox="0 0 240 240" style="transform: rotate(${wheelCurrentDeg}deg);" class="w-full h-full rounded-full shadow-2xl border-4 border-amber-400">
-                                ${wheelSlices.map((s, idx) => {
-                                    const startAngle = (idx * 60 - 90) * (Math.PI / 180);
-                                    const endAngle = ((idx + 1) * 60 - 90) * (Math.PI / 180);
-                                    const x1 = 120 + 114 * Math.cos(startAngle);
-                                    const y1 = 120 + 114 * Math.sin(startAngle);
-                                    const x2 = 120 + 114 * Math.cos(endAngle);
-                                    const y2 = 120 + 114 * Math.sin(endAngle);
-                                    const midAngle = idx * 60 - 60;
-                                    return `<g>
-                                        <path d="M120,120 L${x1},${y1} A114,114 0 0,1 ${x2},${y2} Z" fill="${s.color}" stroke="#0f172a" stroke-width="2.5"/>
-                                        <text x="120" y="120" fill="#ffffff" font-size="10.5" font-weight="800" text-anchor="middle" transform="rotate(${midAngle + 90} 120 120) translate(0, -68)">${s.label}</text>
-                                    </g>`;
-                                }).join("")}
-                                <circle cx="120" cy="120" r="22" fill="#0f172a" stroke="#facc15" stroke-width="4"/>
-                                <circle cx="120" cy="120" r="8" fill="#facc15"/>
-                            </svg>
-                        </div>
-                        <p class="text-xs text-slate-300">Spin the wheel to win Gems, Void Shards, Golden Feathers, Ancient Relics, Cyber Eggs, or a 100x Click Jackpot!</p>
-                        <button onclick="spinPrizeWheel()" class="px-6 py-3 rounded-2xl bg-gradient-to-r from-indigo-500 via-fuchsia-500 to-amber-500 hover:brightness-110 text-sm font-extrabold text-white shadow-lg">
-                            ${state.wheelSpins > 0 ? `Spin Wheel (${state.wheelSpins} Free Left)` : "Spin Wheel (50 Gems)"}
-                        </button>
-                    </div>`;
-            } else if (id === "arcade") {
-                titleEl.textContent = "Bread Basket Arcade";
-                bodyEl.innerHTML = `
-                    <p class="text-xs text-slate-300 text-center mb-4">Pick the basket hiding the Golden Loaf to win bonus Quacks &amp; +25 Gems!</p>
-                    <div class="grid grid-cols-3 gap-3 max-w-md mx-auto">${[0, 1, 2].map(i => `
-                        <button onclick="playBreadCatch(${i})" class="py-6 rounded-2xl bg-slate-950 hover:bg-violet-500/20 border border-violet-500/40 text-sm font-extrabold text-violet-200">Basket #${i + 1}</button>`).join("")}</div>`;
-            } else if (id === "mastery") {
-                titleEl.textContent = "Mastery Cards & Quick Guide";
-                bodyEl.innerHTML = `
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-                        <div class="rounded-2xl bg-slate-950/85 border border-amber-500/30 p-3.5">
-                            <div class="text-xs font-extrabold text-amber-300">Clicker Mastery (${formatNum(state.totalClicks)} Clicks)</div>
-                            <div class="text-xs text-slate-300 mt-1">Hold Spacebar, Mouse, or Touch anywhere on the Duck to rapid-quack without browser zoom.</div>
-                        </div>
-                        <div class="rounded-2xl bg-slate-950/85 border border-cyan-500/30 p-3.5">
-                            <div class="text-xs font-extrabold text-cyan-300">Collector Mastery (${state.eggsHatched} Eggs &bull; ${state.relics} Relics)</div>
-                            <div class="text-xs text-slate-300 mt-1">Fuse 3 identical pets in Pet Craft to level them up and multiply passive + active Quacks!</div>
-                        </div>
-                    </div>
-                    <div class="rounded-2xl bg-slate-950/85 border border-slate-800 p-4 text-xs text-slate-300 space-y-1.5">
-                        <div class="font-extrabold text-white">Simulator Quick Guide</div>
-                        <div>&bull; <strong>Realms &amp; Worlds:</strong> Unlock up to World 21 (Rainbow Omniverse) for up to 60,000x base boost.</div>
-                        <div>&bull; <strong>Sky Anomalies:</strong> Tap falling Bread, Gems, Eggs, and Void Shards on the stage for instant loot.</div>
-                        <div>&bull; <strong>Multi-Device Sync:</strong> Your profile, avatar, and Hall of Fame rank sync live across devices.</div>
-                    </div>`;
-            } else if (id === "codes") {
-                titleEl.textContent = "Promo Codes";
-                bodyEl.innerHTML = `
-                    <div class="flex gap-2 mb-4">
-                        <input id="promoCodeInput" type="text" placeholder="Enter code (e.g. QUACK2026, RAINBOW16)..." class="flex-1 px-3.5 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-white uppercase">
-                        <button onclick="redeemPromoCode()" class="px-4 py-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-xs font-extrabold text-white">Redeem</button>
-                    </div>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">${Object.entries(PROMO_CODES).map(([c, info]) => {
-                        const used = state.redeemedCodes.includes(c);
-                        return `<div class="px-3 py-2 rounded-xl bg-slate-950/80 border border-slate-800 flex items-center justify-between text-xs">
-                            <span class="font-extrabold text-amber-300">${c}</span>
-                            <span class="${used ? "text-emerald-400" : "text-slate-400"}">${used ? "Redeemed" : info.label}</span>
-                        </div>`;
-                    }).join("")}</div>`;
-            } else if (id === "piano") {
-                titleEl.textContent = "12-Duck Rainbow Choir (Tap Each Colored Duck or Keys 1-0, Q, W)";
-                bodyEl.innerHTML = `
-                    <div class="space-y-4">
-                        <div class="flex flex-wrap items-center justify-between gap-2 bg-slate-950/85 border border-slate-800 p-3 rounded-2xl">
-                            <div class="text-xs text-slate-300">Tap any of the 12 colored ducks (or press <span class="text-amber-300 font-bold">1–0, Q, W</span>) to make it bounce and sing its own pitch!</div>
-                            <div class="flex flex-wrap gap-1.5">
-                                <button onclick="playDuckChoirSong('anthem')" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold">Duck Anthem</button>
-                                <button onclick="playDuckChoirSong('scale')" class="px-3 py-1.5 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-white text-xs font-extrabold">12-Duck Scale</button>
-                                <button onclick="playDuckChoirSong('twinkle')" class="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-extrabold">Twinkle Duck</button>
-                                <button onclick="playDuckChoirSong('megalo')" class="px-3 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-extrabold">Megalovania Quack</button>
-                                <button onclick="playDuckChoirSong('boss')" class="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold">Boss Theme</button>
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-2.5 bg-slate-950/90 p-4 rounded-3xl border border-slate-800">
-                            ${DUCK_CHOIR_MEMBERS.map(d => `
-                                <button data-choir-duck="${d.id}" onpointerdown="singChoirDuck('${d.id}')" style="box-shadow: 0 8px 20px -8px ${d.glow};" class="group rounded-2xl bg-slate-900/95 hover:bg-slate-800 border border-slate-700/90 p-3 flex flex-col items-center justify-between gap-2 transition cursor-pointer">
-                                    <span class="px-2 py-0.5 rounded-md bg-slate-950 border border-slate-700 text-[10px] font-extrabold text-slate-300">Key ${d.key} &bull; ${d.note}</span>
-                                    <svg viewBox="0 0 120 120" class="w-20 h-20">
-                                        <ellipse cx="60" cy="108" rx="34" ry="7" fill="rgba(0,0,0,0.4)"/>
-                                        <path d="M22,74 C14,66 15,58 26,64 C30,52 46,50 62,52 C82,55 92,68 90,84 C88,100 70,104 54,103 C34,102 22,90 22,74 Z" fill="${d.body}" stroke="#0f172a" stroke-width="3"/>
-                                        <path d="M38,74 C48,66 66,68 70,80 C64,88 46,90 36,82 Z" fill="${d.wing}" stroke="#0f172a" stroke-width="2.5"/>
-                                        <circle cx="64" cy="38" r="21" fill="${d.body}" stroke="#0f172a" stroke-width="3"/>
-                                        <circle cx="57" cy="35" r="3.2" fill="#0f172a"/>
-                                        <circle cx="56" cy="34" r="1.2" fill="#ffffff"/>
-                                        <circle cx="73" cy="35" r="3.2" fill="#0f172a"/>
-                                        <circle cx="72" cy="34" r="1.2" fill="#ffffff"/>
-                                        <g class="choir-beak-closed">
-                                            <path d="M56,43 C66,40 84,42 85,47 C86,52 66,53 56,49 Z" fill="#f97316" stroke="#0f172a" stroke-width="2.5"/>
-                                        </g>
-                                        <g class="choir-beak-open" style="display:none;">
-                                            <path d="M56,41 C66,36 84,39 85,44 C75,47 64,47 56,45 Z" fill="#f97316" stroke="#0f172a" stroke-width="2.5"/>
-                                            <path d="M58,46 C66,46 76,46 82,49 C78,56 64,56 57,51 Z" fill="#991b1b" stroke="#0f172a" stroke-width="2.5"/>
-                                        </g>
-                                    </svg>
-                                    <div class="text-xs font-extrabold text-white text-center leading-tight">${d.name}</div>
-                                </button>
-                            `).join("")}
-                        </div>
-                    </div>`;
-            } else if (id === "quests") {
-                const quests = [
-                    { id: "q_click_50", name: "Tap 50 Times", done: state.totalClicks >= 50, reward: 50 },
-                    { id: "q_egg_3", name: "Hatch 3 Eggs", done: state.eggsHatched >= 3, reward: 100 },
-                    { id: "q_world_3", name: "Unlock World 3", done: state.unlockedWorlds.includes(3), reward: 175 },
-                    { id: "q_rebirth_1", name: "Complete 1 Rebirth", done: state.rebirths >= 1, reward: 300 }
-                ];
-                titleEl.textContent = "Season Pass & Quests";
-                bodyEl.innerHTML = `<div class="flex flex-col gap-2.5">${quests.map(q => {
-                    const claimed = state.claimedQuests.includes(q.id);
-                    return `<div class="rounded-2xl bg-slate-950/85 border border-slate-800 p-3.5 flex items-center justify-between">
-                        <div>
-                            <div class="text-xs font-extrabold text-white">${q.name}</div>
-                            <div class="text-[11px] text-cyan-300">Reward: +${q.reward} Gems</div>
-                        </div>
-                        <button onclick="claimQuest('${q.id}', ${q.reward})" ${(!q.done || claimed) ? "disabled" : ""} class="px-3 py-1.5 rounded-xl text-xs font-extrabold ${claimed ? "bg-slate-800 text-emerald-400" : q.done ? "bg-amber-400 text-slate-950" : "bg-slate-800 text-slate-500"}">
-                            ${claimed ? "Claimed" : q.done ? "Claim" : "In Progress"}
-                        </button>
-                    </div>`;
-                }).join("")}</div>`;
-            } else if (id === "leaderboard") {
-                const rows = getMergedLeaderboardRows();
-                titleEl.textContent = "Global Hall of Fame (Live Multi-Device Sync)";
-                bodyEl.innerHTML = `
-                    <div class="flex flex-wrap gap-1.5 mb-3">
-                        ${[["lifetimeQuacks","Lifetime Quacks"],["rebirths","Rebirths"],["bossKills","Boss Slays"],["eggsHatched","Eggs Hatched"]].map(([k, lbl]) => `
-                            <button onclick="leaderboardTab='${k}'; openModal('leaderboard')" class="px-3 py-1.5 rounded-xl text-xs font-extrabold ${leaderboardTab === k ? "bg-yellow-400 text-slate-950" : "bg-slate-950 text-slate-300 border border-slate-800"}">${lbl}</button>
-                        `).join("")}
-                    </div>
-                    <div class="flex flex-col gap-2">${rows.map((r, idx) => {
-                        const isCreator = r.accountSlotId === ADMIN_SLOT_ID || r.isAdmin;
-                        return `<div class="rounded-2xl px-3.5 py-2.5 flex items-center justify-between ${isCreator ? "obsidian-neon-rainbow" : "bg-slate-950/85 border border-slate-800"}">
-                            <div class="flex items-center gap-3">
-                                <span class="font-display text-sm font-bold ${idx === 0 ? "text-yellow-300" : "text-slate-400"} w-6">#${idx + 1}</span>
-                                ${renderAvatarHtml(r, "w-9 h-9")}
-                                <div>
-                                    <div class="text-xs sm:text-sm font-extrabold text-white flex items-center gap-1.5">
-                                        <span>${r.playerName}</span>
-                                        ${isCreator ? `<span class="px-1.5 py-0.5 rounded bg-fuchsia-500/30 border border-fuchsia-400 text-[9px] text-fuchsia-200">CREATOR</span>` : ""}
-                                    </div>
-                                    <div class="text-[11px] text-slate-400">World ${r.currentWorld || 1} &bull; ${r.rebirths || 0} Rebirths</div>
-                                </div>
-                            </div>
-                            <div class="text-right font-extrabold text-xs sm:text-sm text-amber-300">${formatNum(r[leaderboardTab] || 0)}</div>
-                        </div>`;
-                    }).join("")}</div>`;
-            } else if (id === "profile") {
-                const rows = getMergedLeaderboardRows();
-                titleEl.textContent = "Player Profile, Save Sync & Creator Vault";
-                bodyEl.innerHTML = `
-                    <div class="space-y-4">
-                        <div class="rounded-2xl bg-slate-950/85 border border-slate-800 p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-                            <div class="flex items-center gap-3">
-                                ${renderAvatarHtml({ playerName: state.playerName, isAdmin: state.isAdminAuthenticated, profilePic: state.profilePic }, "w-14 h-14")}
-                                <div>
-                                    <div class="text-xs text-slate-400">Display Name</div>
-                                    <div class="flex items-center gap-2 mt-1">
-                                        <input id="profileNameInput" type="text" value="${state.playerName}" maxlength="22" class="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white">
-                                        <button onclick="const v=document.getElementById('profileNameInput').value.trim(); if(v){state.playerName=v; saveGame(); window.syncLeaderboardScore(true); renderAll(); showToast('Name updated!','success');}" class="px-3 py-1.5 rounded-xl bg-indigo-500 text-xs font-extrabold text-white">Save</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <label class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-xs font-extrabold text-slate-200 cursor-pointer">
-                                Upload Profile Picture
-                                <input type="file" accept="image/*" onchange="handleAvatarFileUpload(this)" class="hidden">
-                            </label>
-                        </div>
-
-                        <!-- Save Backup String -->
-                        <div class="rounded-2xl bg-slate-950/85 border border-slate-800 p-4 space-y-2">
-                            <div class="text-xs font-extrabold text-slate-200">Manual Save Code Backup / Transfer</div>
-                            <textarea id="saveStringBox" rows="2" placeholder="Click Export to generate save code, or paste save code here to Import..." class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-[11px] font-mono text-slate-300"></textarea>
-                            <div class="flex gap-2">
-                                <button onclick="exportSaveString()" class="px-3 py-1.5 rounded-xl bg-emerald-600 text-xs font-extrabold text-white">Export &amp; Copy Save</button>
-                                <button onclick="importSaveString()" class="px-3 py-1.5 rounded-xl bg-sky-600 text-xs font-extrabold text-white">Import Save</button>
-                            </div>
-                        </div>
-
-                        <!-- RainbowLord16 Admin Vault -->
-                        ${state.isAdminAuthenticated ? `
-                        <div class="rounded-2xl obsidian-neon-rainbow p-4 space-y-3">
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <div>
-                                    <div class="font-display text-base font-bold text-cyan-200">RAINBOWLORD16 CREATOR ADMIN VAULT</div>
-                                    <div class="text-[11px] text-slate-300">Live multi-device trolling &amp; server events active!</div>
-                                </div>
-                                <div class="flex gap-2">
-                                    <button onclick="adminMaxOutEverything()" class="px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-400 via-fuchsia-500 to-cyan-400 text-slate-950 text-xs font-extrabold shadow-lg">MAX OUT EVERYTHING</button>
-                                    <button onclick="lockAdminAccount()" class="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-slate-300">Lock &amp; Exit Admin Account</button>
-                                </div>
-                            </div>
-
-                            <div class="flex flex-col sm:flex-row gap-2">
-                                <select id="adminTargetPlayerSelect" class="px-3 py-2 rounded-xl bg-slate-950 border border-fuchsia-500/40 text-xs font-bold text-white">
-                                    <option value="ALL">ALL PLAYERS (Server-Wide)</option>
-                                    ${rows.filter(r => r.accountSlotId !== ADMIN_SLOT_ID).map(r => `<option value="${r.playerName}">${r.playerName} (W${r.currentWorld || 1})</option>`).join("")}
-                                </select>
-                                <input id="adminCommandInput" onkeydown="if(event.key==='Enter') executeAdminCommandLine()" type="text" placeholder="Type command: nuke, jail, freeze, jumpscare, flip, spin, giant, tiny, say hello..." class="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-cyan-500/40 text-xs font-bold text-white">
-                                <button onclick="executeAdminCommandLine()" class="px-4 py-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-xs font-extrabold text-white">Run Command</button>
-                            </div>
-
-                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
-                                <button onclick="triggerAdminAbuse('NUKE','RainbowLord16 dropped a TACTICAL QUACK NUKE!')" class="py-2 px-2 rounded-xl bg-rose-600/30 border border-rose-400/50 text-[11px] font-extrabold text-rose-200">Nuke Target</button>
-                                <button onclick="triggerAdminAbuse('JAIL','RainbowLord16 jailed players behind laser bars!')" class="py-2 px-2 rounded-xl bg-amber-600/30 border border-amber-400/50 text-[11px] font-extrabold text-amber-200">Jail Duck</button>
-                                <button onclick="triggerAdminAbuse('FREEZE','RainbowLord16 froze players in solid ice!')" class="py-2 px-2 rounded-xl bg-cyan-600/30 border border-cyan-400/50 text-[11px] font-extrabold text-cyan-200">Freeze Ice</button>
-                                <button onclick="triggerAdminAbuse('JUMPSCARE','RainbowLord16 unleashed a Nightmare Entity!')" class="py-2 px-2 rounded-xl bg-red-600/30 border border-red-400/50 text-[11px] font-extrabold text-red-200">8x Jumpscare</button>
-                                <button onclick="triggerAdminAbuse('FLIP','RainbowLord16 flipped the screen upside down!')" class="py-2 px-2 rounded-xl bg-indigo-600/30 border border-indigo-400/50 text-[11px] font-extrabold text-indigo-200">Flip Screen</button>
-                                <button onclick="triggerAdminAbuse('SPIN','RainbowLord16 triggered a 360° Barrel Roll!')" class="py-2 px-2 rounded-xl bg-violet-600/30 border border-violet-400/50 text-[11px] font-extrabold text-violet-200">Barrel Roll</button>
-                                <button onclick="triggerAdminAbuse('BLACKHOLE','RainbowLord16 opened a Singularity Black Hole!')" class="py-2 px-2 rounded-xl bg-purple-700/40 border border-purple-400/60 text-[11px] font-extrabold text-purple-200">Black Hole</button>
-                                <button onclick="triggerAdminAbuse('GLITCH','RainbowLord16 corrupted the Cyber Matrix!')" class="py-2 px-2 rounded-xl bg-emerald-600/30 border border-emerald-400/50 text-[11px] font-extrabold text-emerald-200">Cyber Glitch</button>
-                                <button onclick="triggerAdminAbuse('INVERT','RainbowLord16 inverted colors into Shadow Realm!')" class="py-2 px-2 rounded-xl bg-slate-700/50 border border-slate-400/50 text-[11px] font-extrabold text-slate-200">Invert Realm</button>
-                                <button onclick="triggerAdminAbuse('EARTHQUAKE','RainbowLord16 unleashed a Magnitude 12 Quackquake!')" class="py-2 px-2 rounded-xl bg-orange-700/40 border border-orange-400/60 text-[11px] font-extrabold text-orange-200">Quackquake</button>
-                                <button onclick="triggerAdminAbuse('METEOR','RainbowLord16 triggered an Apocalyptic Meteor Shower!')" class="py-2 px-2 rounded-xl bg-amber-600/30 border border-amber-300/50 text-[11px] font-extrabold text-amber-100">Meteor Shower</button>
-                                <button onclick="triggerAdminAbuse('CLONE_DUCKS','RainbowLord16 summoned a 50-Duck Stampede!')" class="py-2 px-2 rounded-xl bg-yellow-600/30 border border-yellow-400/50 text-[11px] font-extrabold text-yellow-200">Duck Stampede</button>
-                                <button onclick="triggerAdminAbuse('GIANT','RainbowLord16 spawned Giant Titan Ducks!')" class="py-2 px-2 rounded-xl bg-lime-600/30 border border-lime-400/50 text-[11px] font-extrabold text-lime-200">Giant Duck</button>
-                                <button onclick="triggerAdminAbuse('TINY','RainbowLord16 shrunk ducks to tiny size!')" class="py-2 px-2 rounded-xl bg-teal-600/30 border border-teal-400/50 text-[11px] font-extrabold text-teal-200">Tiny Duck</button>
-                                <button onclick="triggerAdminAbuse('ZERO_G','RainbowLord16 disabled stage gravity!')" class="py-2 px-2 rounded-xl bg-sky-600/30 border border-sky-400/50 text-[11px] font-extrabold text-sky-200">Zero Gravity</button>
-                                <button onclick="triggerAdminAbuse('DISCO','RainbowLord16 started Rainbow Disco Party!')" class="py-2 px-2 rounded-xl bg-fuchsia-600/30 border border-fuchsia-400/50 text-[11px] font-extrabold text-fuchsia-200">Disco Mode</button>
-                                <button onclick="triggerAdminAbuse('FAKE_BAN','RainbowLord16 swung the Troll Ban Hammer!')" class="py-2 px-2 rounded-xl bg-rose-700/30 border border-rose-400/50 text-[11px] font-extrabold text-rose-200">Fake Ban</button>
-                                <button onclick="triggerAdminAbuse('GIVE_PETS','RainbowLord16 bestowed a 250x Mythic Creator Pet!')" class="py-2 px-2 rounded-xl bg-pink-600/30 border border-pink-400/50 text-[11px] font-extrabold text-pink-200">Gift 250x Pet</button>
-                                <button onclick="triggerAdminAbuse('RAINBOW_STORM','RainbowLord16 summoned a 100x RAINBOW STORM!',{targetPlayer:'ALL'})" class="py-2 px-2 rounded-xl bg-indigo-500/30 border border-indigo-300/50 text-[11px] font-extrabold text-indigo-100">100x Storm</button>
-                                <button onclick="triggerAdminAbuse('CLEAR','RainbowLord16 cleared all active trolls.')" class="py-2 px-2 rounded-xl bg-slate-800 border border-slate-600 text-[11px] font-extrabold text-slate-200">Clear Trolls</button>
-                            </div>
-
-                            <!-- Live Speaker Troll Soundboard -->
-                            <div class="pt-2 border-t border-white/10">
-                                <div class="text-[11px] font-extrabold uppercase tracking-wider text-amber-300 mb-1.5">Live Speaker Troll Soundboard (Plays on Target's Speakers)</div>
-                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
-                                    <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 blasted an MLG Airhorn!',{soundId:'airhorn'})" class="py-2 px-2 rounded-xl bg-amber-500/25 border border-amber-400/50 text-[11px] font-extrabold text-amber-200">Blast Airhorn</button>
-                                    <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 triggered a Nuclear Warning Siren!',{soundId:'siren'})" class="py-2 px-2 rounded-xl bg-rose-500/25 border border-rose-400/50 text-[11px] font-extrabold text-rose-200">Nuclear Siren</button>
-                                    <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 dropped a Mega Vine Boom!',{soundId:'vine_boom'})" class="py-2 px-2 rounded-xl bg-purple-500/25 border border-purple-400/50 text-[11px] font-extrabold text-purple-200">Vine Boom</button>
-                                    <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 played a Horror Scream!',{soundId:'scream'})" class="py-2 px-2 rounded-xl bg-red-600/30 border border-red-400/50 text-[11px] font-extrabold text-red-200">Horror Scream</button>
-                                    <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 played the 12-Duck Choir Chord!',{soundId:'choir_chord'})" class="py-2 px-2 rounded-xl bg-emerald-500/25 border border-emerald-400/50 text-[11px] font-extrabold text-emerald-200">Duck Choir Chord</button>
-                                    <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 played the Sad Trombone Troll!',{soundId:'troll_fanfare'})" class="py-2 px-2 rounded-xl bg-sky-500/25 border border-sky-400/50 text-[11px] font-extrabold text-sky-200">Sad Trombone</button>
-                                </div>
-                            </div>
-
-                            <!-- 75+ Clickable Admin Commands Directory -->
-                            <div class="pt-2 border-t border-white/10">
-                                <div class="text-[11px] font-extrabold uppercase tracking-wider text-cyan-300 mb-1.5">All 75+ Admin Commands (Click Any Chip to Fire Immediately)</div>
-                                <div class="flex flex-wrap gap-1 max-h-36 overflow-y-auto p-2 rounded-xl bg-slate-950/90 border border-slate-800">
-                                    ${[
-                                        "nuke","tsar_nuke","orbital_laser","blackhole","vortex","supernova","earthquake","quake","meteor","apocalypse",
-                                        "lightning","smite","explode","tnt","armageddon","jumpscare","screamer","jail","jail_all","freeze",
-                                        "freeze_all","flip","upside_down","spin","tornado_spin","giant","titan","tiny","ant","zerog",
-                                        "float","glitch","matrix","invert","shadow_realm","disco","acid","blur","blind","darkness",
-                                        "flashbang","pixelate","mirror","ban","fake_ban","fake_error","bsod","fake_wipe","rickroll","clone",
-                                        "stampede","clear","storm","mega_storm","fever","eggs","rain_eggs","gems","rain_gems","rain_shards",
-                                        "pets","give_pets","rich","gems_drop","rebirth_boost","max","airhorn","siren","vine_boom","scream",
-                                        "choir","trombone","cutscene","summon","tp 21","give all gems 50000","say QUACK!"
-                                    ].map(c => `<button onclick="const inp=document.getElementById('adminCommandInput'); if(inp){inp.value='/${c}'; executeAdminCommandLine();}" class="px-2 py-0.5 rounded-md bg-slate-900 hover:bg-fuchsia-600/40 border border-slate-700 text-[10px] font-mono font-bold text-slate-200 transition">/${c}</button>`).join("")}
-                                </div>
-                            </div>
-                        </div>` : `
-                        <div class="rounded-2xl bg-slate-950/85 border border-fuchsia-500/30 p-4">
-                            <div class="text-xs font-extrabold text-fuchsia-300 mb-2">Creator Vault Authentication (RainbowLord16)</div>
-                            <div class="flex gap-2">
-                                <input id="adminPasscodeInput" onkeydown="if(event.key==='Enter') unlockAdminAccount()" type="password" placeholder="Enter Creator Passcode..." class="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white">
-                                <button onclick="unlockAdminAccount()" class="px-4 py-2 rounded-xl bg-fuchsia-600 hover:bg-fuchsia-500 text-xs font-extrabold text-white">Unlock Vault</button>
-                            </div>
-                        </div>`}
-                    </div>`;
-            }
+        function buildCompactCloudRosterEntry(entry) {
+            return {
+                accountSlotId: entry.accountSlotId,
+                playerName: entry.playerName,
+                isAdmin: Boolean(entry.isAdmin),
+                lifetimeQuacks: entry.lifetimeQuacks || 0,
+                rebirths: entry.rebirths || 0,
+                bossKills: entry.bossKills || 0,
+                eggsHatched: entry.eggsHatched || 0,
+                currentWorld: entry.currentWorld || 1,
+                skin: entry.skin || "classic",
+                updatedAt: entry.updatedAt || Date.now()
+            };
         }
 
-        function closeModal() {
-            activeModalId = null;
-            const backdrop = document.getElementById("systemModalBackdrop");
-            if (backdrop) backdrop.classList.add("hidden");
+        async function syncPersistentCloudDatabase(pushLocal = true) {
+            try {
+                const res = await fetch(PERSISTENT_CLOUD_BLOB_URL, {
+                    method: "GET",
+                    headers: { "Accept": "application/json" }
+                });
+                let cloudDoc = { entries: {} };
+                if (res.ok) {
+                    const parsed = await res.json();
+                    if (parsed && typeof parsed.entries === "object") cloudDoc = parsed;
+                }
+                let changed = false;
+                Object.values(cloudDoc.entries || {}).forEach(row => {
+                    if (!row || !row.accountSlotId) return;
+                    const prev = liveHttpEntries[row.accountSlotId];
+                    if (!prev || (row.updatedAt || 0) > (prev.updatedAt || 0)) {
+                        liveHttpEntries[row.accountSlotId] = {
+                            ...row,
+                            profilePic: (prev && prev.profilePic) || row.profilePic || ""
+                        };
+                        changed = true;
+                    }
+                });
+                if (pushLocal) {
+                    const myCompact = buildCompactCloudRosterEntry({
+                        accountSlotId: state.accountSlotId,
+                        playerName: state.playerName,
+                        isAdmin: Boolean(state.isAdminAuthenticated),
+                        lifetimeQuacks: state.lifetimeQuacks,
+                        rebirths: state.rebirths,
+                        bossKills: state.bossKills,
+                        eggsHatched: state.eggsHatched,
+                        currentWorld: state.currentWorld,
+                        skin: state.skin,
+                        updatedAt: Date.now()
+                    });
+                    cloudDoc.entries[myCompact.accountSlotId] = myCompact;
+                    liveHttpEntries[myCompact.accountSlotId] = {
+                        ...myCompact,
+                        profilePic: state.profilePic || ""
+                    };
+                    await fetch(PERSISTENT_CLOUD_BLOB_URL, {
+                        method: "PUT",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "Accept": "application/json"
+                        },
+                        body: JSON.stringify(cloudDoc)
+                    });
+                }
+                cloudSyncStatusText = "GLOBAL DB LIVE";
+                if (changed) {
+                    renderLeaderboardUI();
+                    renderWorldLivePlayers();
+                }
+            } catch (e) {
+                cloudSyncStatusText = "RELAY SYNC LIVE";
+            }
         }
 
         /* =========================================================================
-           11. UI RENDERING & MAIN 100MS SIMULATION LOOP
+           10. DYNAMIC FAVICON, WORLD PRESENCE & RENDERING ENGINE
            ========================================================================= */
-        function renderHudAndStats() {
-            const w = getWorldObj();
-            const qEl = document.getElementById("hudQuacks");
-            const gEl = document.getElementById("hudGems");
-            const rEl = document.getElementById("hudRebirths");
-            const fEl = document.getElementById("hudFeathers");
-            const sEl = document.getElementById("hudShards");
-            const relEl = document.getElementById("hudRelics");
-            const rankEl = document.getElementById("hudRankLabel");
-            const wBadge = document.getElementById("worldMultBadge");
-            const adminBadge = document.getElementById("adminTopBadge");
-
-            if (qEl) qEl.textContent = formatNum(state.quacks);
-            if (gEl) gEl.textContent = formatNum(state.gems);
-            if (rEl) rEl.textContent = formatNum(state.rebirths);
-            if (fEl) fEl.textContent = formatNum(state.feathers);
-            if (sEl) sEl.textContent = formatNum(state.shards);
-            if (relEl) relEl.textContent = formatNum(state.relics);
-            if (rankEl) rankEl.textContent = `W${w.id}: ${w.name} • ${state.rebirths > 0 ? "Rebirth " + state.rebirths : "Novice"}`;
-            if (wBadge) wBadge.textContent = `${formatNum(w.mult)}x Boost`;
-            if (adminBadge) adminBadge.classList.toggle("hidden", !state.isAdminAuthenticated);
-
-            const clickEl = document.getElementById("statClickPower");
-            const qpsEl = document.getElementById("statPassiveQps");
-            const multEl = document.getElementById("statTotalMult");
-            if (clickEl) clickEl.textContent = "+" + formatNum(getClickPower());
-            if (qpsEl) qpsEl.textContent = formatNum(getPassiveQps()) + "/s";
-            if (multEl) multEl.textContent = formatNum(getTotalMultiplier()) + "x";
-
-            const feverFill = document.getElementById("feverBarFill");
-            const feverLbl = document.getElementById("feverBarLabel");
-            if (feverFill) feverFill.style.width = Math.min(100, state.fever) + "%";
-            if (feverLbl) feverLbl.textContent = state.fever >= 100
-                ? "QUACK FEVER MAXED! (2.5x FRENZY)"
-                : `QUACK FEVER: ${Math.floor(state.fever)}%`;
-
-            const comboEl = document.getElementById("comboBadge");
-            if (comboEl) comboEl.textContent = `Combo: ${state.combo}x (${(1 + Math.min(2, state.combo * 0.02)).toFixed(2)}x)`;
-
-            const stormEl = document.getElementById("adminBoostBadge");
-            if (stormEl) {
-                const active = adminGlobalBoostUntil > Date.now();
-                stormEl.classList.toggle("hidden", !active);
-                if (active) stormEl.textContent = `${adminGlobalBoostMult}x ADMIN STORM (${Math.ceil((adminGlobalBoostUntil - Date.now()) / 1000)}s)`;
-            }
-
-            const navName = document.getElementById("navPlayerName");
-            const navThumb = document.getElementById("navAvatarThumb");
-            if (navName) navName.textContent = state.playerName;
-            if (navThumb) {
-                navThumb.innerHTML = renderAvatarHtml({
-                    playerName: state.playerName,
-                    isAdmin: state.isAdminAuthenticated,
-                    profilePic: state.profilePic
-                }, "w-4 h-4");
-            }
-        }
-
-        function renderWorldsList() {
-            const box = document.getElementById("worldsList");
-            if (!box) return;
-            box.innerHTML = WORLDS.map(w => {
-                const unlocked = state.unlockedWorlds.includes(w.id);
-                const active = state.currentWorld === w.id;
-                return `<button onclick="selectOrUnlockWorld(${w.id})" class="w-full px-3 py-2 rounded-xl border text-left flex items-center justify-between transition ${active ? "border-sky-400 bg-sky-500/20" : unlocked ? "border-slate-800 bg-slate-950/70 hover:bg-slate-800/80" : "border-slate-800/70 bg-slate-950/40 opacity-85 hover:opacity-100"}">
-                    <div>
-                        <div class="text-xs font-extrabold ${active ? "text-sky-200" : "text-white"}">W${w.id}. ${w.name}</div>
-                        <div class="text-[10px] text-emerald-300 font-bold">${formatNum(w.mult)}x Quacks</div>
-                    </div>
-                    <span class="text-[10px] font-extrabold px-2 py-0.5 rounded-lg ${active ? "bg-sky-400 text-slate-950" : unlocked ? "bg-slate-800 text-slate-300" : "bg-amber-500/20 text-amber-300 border border-amber-500/30"}">
-                        ${active ? "Active" : unlocked ? "Enter" : formatNum(w.cost)}
-                    </span>
-                </button>`;
-            }).join("");
-        }
-
-        function renderUpgradesList() {
-            const box = document.getElementById("coreUpgradesList");
-            if (!box) return;
-            box.innerHTML = CORE_UPGRADES.map(u => {
-                const lvl = state.upgrades[u.id] || 0;
-                const cost = getUpgradeCost(u, upgradeBuyMult);
-                const canAfford = state.quacks >= cost;
-                return `<button onclick="buyCoreUpgrade('${u.id}')" class="w-full px-3 py-2 rounded-xl border ${canAfford ? "border-amber-500/35 bg-slate-950/85 hover:bg-slate-800/90" : "border-slate-800 bg-slate-950/50 opacity-75"} text-left flex items-center justify-between gap-2 transition">
-                    <div>
-                        <div class="text-xs font-extrabold text-white">${u.name} <span class="text-amber-300">Lv.${lvl}</span></div>
-                        <div class="text-[10px] text-slate-400">${u.desc}</div>
-                    </div>
-                    <span class="px-2.5 py-1 rounded-lg text-[10px] font-extrabold shrink-0 ${canAfford ? "bg-amber-400 text-slate-950" : "bg-slate-800 text-slate-400"}">${formatNum(cost)}</span>
-                </button>`;
-            }).join("");
-        }
-
-        function renderOrbitingPets() {
-            const layer = document.getElementById("orbitingPetsLayer");
-            const squadBar = document.getElementById("equippedSquadBar");
-            const countBadge = document.getElementById("squadCountBadge");
-            const equipped = getEquippedPets();
-
-            if (countBadge) countBadge.textContent = `${equipped.length}/3`;
-            if (squadBar) {
-                squadBar.innerHTML = [0, 1, 2].map(i => {
-                    const p = equipped[i];
-                    if (!p) {
-                        return `<div onclick="openModal('pets')" class="cursor-pointer rounded-xl bg-slate-950/70 border border-dashed border-slate-700 p-2 flex flex-col items-center justify-center text-center min-h-[68px]">
-                            <span class="text-[10px] font-bold text-slate-500">+ Equip</span>
-                        </div>`;
-                    }
-                    return `<div onclick="openModal('pets')" class="cursor-pointer rounded-xl bg-slate-950/90 border border-pink-500/30 p-2 flex flex-col items-center text-center">
-                        ${getPetSvg(p.color, 30)}
-                        <div class="text-[10px] font-extrabold text-white truncate w-full mt-1">${p.name}</div>
-                        <div class="text-[9px] font-bold text-emerald-300">${p.mult}x</div>
-                    </div>`;
-                }).join("");
-            }
-
-            if (layer) {
-                if (equipped.length === 0) {
-                    layer.innerHTML = "";
-                    return;
-                }
-                layer.innerHTML = `<div class="pet-orbit-ring w-full h-full relative">${equipped.map((p, idx) => {
-                    const angle = (idx / equipped.length) * Math.PI * 2;
-                    const x = 50 + Math.cos(angle) * 46;
-                    const y = 50 + Math.sin(angle) * 46;
-                    return `<div style="left:${x}%; top:${y}%; transform:translate(-50%,-50%)" class="absolute">
-                        <div class="pet-counter-spin">${getPetSvg(p.color, 34)}</div>
-                    </div>`;
-                }).join("")}</div>`;
-            }
-        }
-
-        function renderLeaderboardUI() {
-            const mini = document.getElementById("miniLeaderboardList");
-            if (!mini) return;
-            const rows = getMergedLeaderboardRows().slice(0, 4);
-            mini.innerHTML = rows.map((r, i) => {
-                const isCreator = r.accountSlotId === ADMIN_SLOT_ID || r.isAdmin;
-                return `<div class="px-2.5 py-1.5 rounded-xl flex items-center justify-between ${isCreator ? "obsidian-neon-rainbow" : "bg-slate-950/80 border border-slate-800/80"}">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <span class="text-[10px] font-extrabold ${i === 0 ? "text-yellow-300" : "text-slate-400"}">#${i + 1}</span>
-                        ${renderAvatarHtml(r, "w-6 h-6")}
-                        <span class="text-xs font-bold text-white truncate">${r.playerName}</span>
-                    </div>
-                    <span class="text-[11px] font-extrabold text-amber-300 ml-2">${formatNum(r.lifetimeQuacks || 0)}</span>
-                </div>`;
-            }).join("");
-        }
-
-        function renderAutomationButtons() {
-            const tapLbl = document.getElementById("autoTapLabel");
-            const hatchLbl = document.getElementById("autoHatchLabel");
-            const sndLbl = document.getElementById("soundToggleLabel");
-            if (tapLbl) tapLbl.textContent = `Auto-Tap: ${state.autoTap ? "ON" : "OFF"}`;
-            if (hatchLbl) hatchLbl.textContent = `Auto-Hatch: ${state.autoHatch ? "ON" : "OFF"}`;
-            if (sndLbl) sndLbl.textContent = `Audio: ${state.soundOn ? "ON" : "OFF"}`;
-        }
-
-        function updateDynamicFavicon(overrideMode = null) {
+        function updateDynamicFavicon(mode = "normal") {
+            const link = document.getElementById("dynamicFavicon");
+            if (!link) return;
             try {
-                const link = document.getElementById("dynamicFavicon");
-                if (!link) return;
                 const canvas = document.createElement("canvas");
                 canvas.width = 64;
                 canvas.height = 64;
                 const ctx = canvas.getContext("2d");
-
-                const isHorror = overrideMode === "horror";
-                const isFever = !isHorror && state.fever >= 100;
                 const skin = SKINS.find(s => s.id === state.skin) || SKINS[0];
-
                 let bodyColor = skin.body;
-                if (isHorror) {
-                    bodyColor = "#dc2626";
-                } else if (isFever) {
-                    bodyColor = "#f97316";
-                } else if (skin.id === "rainbow_lord") {
-                    const hue = Math.floor((Date.now() / 18) % 360);
-                    bodyColor = `hsl(${hue}, 92%, 58%)`;
+                if (mode === "horror") bodyColor = "#dc2626";
+                else if (state.fever >= 100) bodyColor = "#f97316";
+                else if (skin.id === "rainbow_lord") {
+                    const hue = Math.floor((Date.now() / 20) % 360);
+                    bodyColor = `hsl(${hue}, 90%, 60%)`;
                 }
-
-                // Rounded badge background
-                ctx.fillStyle = isHorror ? "#090000" : "#0f172a";
+                ctx.fillStyle = "#090d16";
                 ctx.beginPath();
-                ctx.roundRect(2, 2, 60, 60, 16);
+                ctx.arc(32, 32, 30, 0, Math.PI * 2);
                 ctx.fill();
 
-                ctx.strokeStyle = isHorror ? "#ef4444" : (isFever ? "#facc15" : bodyColor);
-                ctx.lineWidth = 4;
-                ctx.stroke();
-
-                // Duck head silhouette
                 ctx.fillStyle = bodyColor;
                 ctx.beginPath();
-                ctx.arc(30, 34, 18, 0, Math.PI * 2);
+                ctx.arc(30, 35, 19, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Eye
-                ctx.fillStyle = isHorror ? "#ffffff" : "#0f172a";
+                ctx.fillStyle = mode === "horror" ? "#ffffff" : "#0f172a";
                 ctx.beginPath();
-                ctx.arc(34, 29, isHorror ? 4.5 : 3.2, 0, Math.PI * 2);
+                ctx.arc(37, 29, 3.5, 0, Math.PI * 2);
                 ctx.fill();
-                if (isHorror) {
-                    ctx.fillStyle = "#ff0000";
-                    ctx.beginPath();
-                    ctx.arc(34, 29, 2, 0, Math.PI * 2);
-                    ctx.fill();
-                }
 
-                // Beak
-                ctx.fillStyle = isHorror ? "#7f1d1d" : "#f97316";
+                ctx.fillStyle = mode === "horror" ? "#7f1d1d" : "#f97316";
                 ctx.beginPath();
-                ctx.moveTo(44, 33);
-                ctx.lineTo(58, 36);
-                ctx.lineTo(44, 41);
+                ctx.moveTo(45, 34);
+                ctx.lineTo(59, 37);
+                ctx.lineTo(45, 41);
                 ctx.closePath();
                 ctx.fill();
 
                 link.href = canvas.toDataURL("image/png");
-                document.title = isHorror
-                    ? "RUN // DUCK QUACK"
-                    : `(${formatNum(state.quacks)}) Duck Quack Simulator`;
             } catch (e) {}
+        }
+
+        function renderWorldLivePlayers() {
+            const layer = document.getElementById("worldLivePlayersLayer");
+            const onlineBadge = document.getElementById("liveOnlineCountBadge");
+            const rows = getMergedLeaderboardRows();
+            const activeOthers = rows.filter(r =>
+                r.accountSlotId !== state.accountSlotId &&
+                (Date.now() - (r.updatedAt || 0) < 120000)
+            );
+            const totalOnline = 1 + activeOthers.length;
+            if (onlineBadge) {
+                onlineBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span><span>${totalOnline} Online</span>`;
+            }
+            if (!layer) return;
+            const sameWorld = activeOthers.filter(r => (r.currentWorld || 1) === state.currentWorld).slice(0, 6);
+            layer.innerHTML = sameWorld.map((p, idx) => {
+                const angle = (idx * 60 + 25) * (Math.PI / 180);
+                const left = 50 + Math.cos(angle) * 44;
+                const top = 50 + Math.sin(angle) * 44;
+                const skinObj = SKINS.find(s => s.id === p.skin) || SKINS[0];
+                return `<div style="left:${left}%;top:${top}%;" class="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center opacity-85">
+                    <div class="px-1.5 py-0.2 rounded bg-slate-950/90 border border-slate-700 text-[9px] font-bold text-cyan-200 whitespace-nowrap mb-0.5">${escapeHtmlText(p.playerName)}</div>
+                    ${getPetSvg(skinObj.body, 26)}
+                </div>`;
+            }).join("");
+        }
+
+        function renderWorldsList() {
+            const el = document.getElementById("worldsList");
+            const badge = document.getElementById("worldMultBadge");
+            if (badge) badge.textContent = formatNum(getWorldObj().mult) + "x Boost";
+            if (!el) return;
+            el.innerHTML = WORLDS.map(w => {
+                const unlocked = state.unlockedWorlds.includes(w.id);
+                const active = state.currentWorld === w.id;
+                return `<div class="flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl border ${active ? "border-sky-400 bg-sky-500/15" : "border-slate-800 bg-slate-950/75"}">
+                    <div class="min-w-0">
+                        <div class="text-xs font-extrabold text-white truncate">W${w.id}. ${w.name}</div>
+                        <div class="text-[10px] font-bold text-emerald-400">${formatNum(w.mult)}x Quacks</div>
+                    </div>
+                    <button onclick="selectOrUnlockWorld(${w.id})" class="px-2.5 py-1 rounded-lg text-[11px] font-extrabold shrink-0 ${active ? "bg-sky-400 text-slate-950" : unlocked ? "bg-slate-800 hover:bg-slate-700 text-slate-200" : "bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300"}">
+                        ${active ? "Active" : unlocked ? "Enter" : formatNum(w.cost)}
+                    </button>
+                </div>`;
+            }).join("");
+        }
+
+        function renderUpgradesList() {
+            const el = document.getElementById("coreUpgradesList");
+            if (!el) return;
+            el.innerHTML = CORE_UPGRADES.map(u => {
+                const lvl = state.upgrades[u.id] || 0;
+                const cost = getUpgradeCost(u, upgradeBuyMult);
+                const canAfford = state.quacks >= cost;
+                return `<div class="flex items-center justify-between gap-2 px-2.5 py-2 rounded-xl border border-slate-800 bg-slate-950/75">
+                    <div class="min-w-0">
+                        <div class="text-xs font-extrabold text-white truncate">${u.name} <span class="text-amber-400">Lv.${lvl}</span></div>
+                        <div class="text-[10px] font-semibold text-slate-400">${u.desc}</div>
+                    </div>
+                    <button onclick="buyCoreUpgrade('${u.id}')" class="px-2.5 py-1 rounded-lg text-[11px] font-extrabold shrink-0 ${canAfford ? "bg-amber-400 hover:bg-amber-300 text-slate-950" : "bg-slate-800 text-slate-400"}">
+                        ${formatNum(cost)}
+                    </button>
+                </div>`;
+            }).join("");
+        }
+
+        function renderOrbitingPets() {
+            const ring = document.getElementById("orbitingPetsLayer");
+            const bar = document.getElementById("equippedSquadBar");
+            const countBadge = document.getElementById("squadCountBadge");
+            const eq = getEquippedPets();
+            if (countBadge) countBadge.textContent = `${eq.length}/3`;
+            if (bar) {
+                bar.innerHTML = [0, 1, 2].map(i => {
+                    const p = eq[i];
+                    if (!p) {
+                        return `<button onclick="openModal('pets')" class="h-16 rounded-xl border border-dashed border-slate-700 bg-slate-950/60 flex items-center justify-center text-[10px] font-bold text-slate-500 hover:text-slate-300">+ Equip</button>`;
+                    }
+                    return `<button onclick="openModal('pets')" class="h-16 rounded-xl border border-pink-500/35 bg-slate-950/85 p-1.5 flex flex-col items-center justify-center">
+                        ${getPetSvg(p.color, 26)}
+                        <div class="text-[9px] font-extrabold text-white truncate w-full text-center mt-0.5">${p.name}</div>
+                        <div class="text-[9px] font-bold text-emerald-400">${formatNum(p.mult)}x</div>
+                    </button>`;
+                }).join("");
+            }
+            if (ring) {
+                if (eq.length === 0) {
+                    ring.innerHTML = "";
+                    return;
+                }
+                ring.innerHTML = `<div class="pet-orbit-ring w-full h-full relative">
+                    ${eq.map((p, idx) => {
+                        const deg = idx * 120;
+                        const rad = (deg * Math.PI) / 180;
+                        const x = 50 + Math.cos(rad) * 44;
+                        const y = 50 + Math.sin(rad) * 44;
+                        return `<div style="left:${x}%;top:${y}%;" class="absolute -translate-x-1/2 -translate-y-1/2 pet-counter-spin">${getPetSvg(p.color, 34)}</div>`;
+                    }).join("")}
+                </div>`;
+            }
+        }
+
+        function renderLeaderboardUI() {
+            const rows = getMergedLeaderboardRows();
+            const mini = document.getElementById("miniLeaderboardList");
+            if (mini) {
+                mini.innerHTML = rows.slice(0, 4).map((r, idx) => {
+                    const isMe = r.accountSlotId === state.accountSlotId;
+                    const cardStyle = r.isAdmin
+                        ? "obsidian-neon-rainbow"
+                        : isMe
+                            ? "border-cyan-500/50 bg-cyan-950/25"
+                            : "border-slate-800 bg-slate-950/80";
+                    return `<div class="flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-xl border ${cardStyle}">
+                        <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-[11px] font-extrabold ${idx === 0 ? "text-amber-300" : "text-slate-400"}">#${idx + 1}</span>
+                            ${renderAvatarHtml(r, "w-6 h-6")}
+                            <span class="text-xs font-extrabold text-white truncate">${escapeHtmlText(r.playerName)}</span>
+                        </div>
+                        <span class="text-[11px] font-extrabold text-amber-300 shrink-0">${formatNum(r.lifetimeQuacks || 0)}</span>
+                    </div>`;
+                }).join("");
+            }
+        }
+
+        function renderAutomationButtons() {
+            const tapBtn = document.getElementById("autoTapBtn");
+            const tapLbl = document.getElementById("autoTapLabel");
+            const hatchBtn = document.getElementById("autoHatchBtn");
+            const hatchLbl = document.getElementById("autoHatchLabel");
+            const sndLbl = document.getElementById("soundToggleLabel");
+            if (tapLbl) tapLbl.textContent = `Auto-Tap: ${state.autoTap ? "ON" : "OFF"}`;
+            if (tapBtn) tapBtn.className = `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition ${state.autoTap ? "bg-amber-500/20 border-amber-400 text-amber-200" : "bg-slate-950/90 border-slate-700 text-slate-300"}`;
+            if (hatchLbl) hatchLbl.textContent = `Auto-Hatch: ${state.autoHatch ? "ON" : "OFF"}`;
+            if (hatchBtn) hatchBtn.className = `inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition ${state.autoHatch ? "bg-emerald-500/20 border-emerald-400 text-emerald-200" : "bg-slate-950/90 border-slate-700 text-slate-300"}`;
+            if (sndLbl) sndLbl.textContent = `Audio: ${state.soundOn ? "ON" : "OFF"}`;
+        }
+
+        function renderHudAndStats() {
+            const setTxt = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+            setTxt("hudQuacks", formatNum(state.quacks));
+            setTxt("hudGems", formatNum(state.gems));
+            setTxt("hudRebirths", formatNum(state.rebirths));
+            setTxt("hudFeathers", formatNum(state.feathers));
+            setTxt("hudShards", formatNum(state.shards));
+            setTxt("hudRelics", formatNum(state.relics));
+            setTxt("statClickPower", "+" + formatNum(getClickPower()));
+            setTxt("statPassiveQps", formatNum(getPassiveQps()) + "/s");
+            setTxt("statTotalMult", formatNum(getTotalMultiplier()) + "x");
+
+            const wObj = getWorldObj();
+            setTxt("hudRankLabel", `W${wObj.id}: ${wObj.name} • Rebirth ${formatNum(state.rebirths)}`);
+
+            const feverFill = document.getElementById("feverBarFill");
+            const feverLabel = document.getElementById("feverBarLabel");
+            if (feverFill) feverFill.style.width = Math.min(100, state.fever) + "%";
+            if (feverLabel) feverLabel.textContent = state.fever >= 100 ? "HYPER QUACK FEVER ACTIVE! (2.5x)" : `QUACK FEVER: ${Math.floor(state.fever)}%`;
+
+            const comboBadge = document.getElementById("comboBadge");
+            if (comboBadge) comboBadge.textContent = `Combo: ${state.combo}x (${(1 + Math.min(2, state.combo * 0.02)).toFixed(2)}x)`;
+
+            const weatherBadge = document.getElementById("weatherBadge");
+            if (weatherBadge) {
+                weatherBadge.innerHTML = `<svg viewBox="0 0 24 24" class="w-3.5 h-3.5 text-amber-300" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg><span>${currentWeather.name} (${currentWeather.mult}x)</span>`;
+            }
+
+            const boostBadge = document.getElementById("adminBoostBadge");
+            if (boostBadge) {
+                if (adminGlobalBoostUntil > Date.now()) {
+                    boostBadge.classList.remove("hidden");
+                    boostBadge.textContent = `${formatNum(adminGlobalBoostMult)}x CREATOR STORM ACTIVE`;
+                } else {
+                    boostBadge.classList.add("hidden");
+                }
+            }
+
+            const adminBadge = document.getElementById("adminTopBadge");
+            if (adminBadge) adminBadge.classList.toggle("hidden", !state.isAdminAuthenticated);
+
+            const navName = document.getElementById("navPlayerName");
+            if (navName) navName.textContent = state.playerName;
+            const navThumb = document.getElementById("navAvatarThumb");
+            if (navThumb) {
+                navThumb.innerHTML = renderAvatarHtml({ playerName: state.playerName, isAdmin: state.isAdminAuthenticated, profilePic: state.profilePic }, "w-4 h-4");
+            }
+            document.title = `(${formatNum(state.quacks)}) Duck Quack Simulator`;
         }
 
         function renderAll() {
             const duckWrap = document.getElementById("heroDuckSvgWrapper");
             if (duckWrap) duckWrap.innerHTML = getHeroDuckSvg();
-
-            const backdropLayer = document.getElementById("worldBackdropLayer");
-            if (backdropLayer) backdropLayer.innerHTML = getWorldBackdropSvg(state.currentWorld);
-
-            const weatherBadge = document.getElementById("weatherBadge");
-            if (weatherBadge) {
-                weatherBadge.innerHTML = `<svg viewBox="0 0 24 24" class="w-3.5 h-3.5 text-amber-300" fill="currentColor"><circle cx="12" cy="12" r="5"/></svg>
-                    <span>${currentWeather.name} (${currentWeather.mult}x)</span>`;
-            }
-
+            const bgLayer = document.getElementById("worldBackdropLayer");
+            if (bgLayer) bgLayer.innerHTML = getWorldBackdropSvg(state.currentWorld);
             renderHudAndStats();
             renderWorldsList();
             renderUpgradesList();
             renderOrbitingPets();
             renderLeaderboardUI();
             renderAutomationButtons();
-            renderGlobalChat();
+            renderWorldLivePlayers();
             updateDynamicFavicon();
         }
 
-        window.onload = function() {
-            loadGame();
-            renderAll();
-            window.syncLeaderboardScore(true);
+        /* =========================================================================
+           11. UNIVERSAL SYSTEM MODAL VIEWS (EGGS, PETS, CHOIR, LEADERBOARD, ADMIN VAULT)
+           ========================================================================= */
+        function closeModal() {
+            activeModalId = null;
+            const bd = document.getElementById("systemModalBackdrop");
+            if (bd) bd.classList.add("hidden");
+        }
+
+        function openModal(modalId) {
+            activeModalId = modalId;
+            const bd = document.getElementById("systemModalBackdrop");
+            const titleEl = document.getElementById("systemModalTitle");
+            const bodyEl = document.getElementById("systemModalBody");
+            if (!bd || !titleEl || !bodyEl) return;
+            bd.classList.remove("hidden");
+
+            if (modalId === "eggs") {
+                titleEl.textContent = "Egg Hatchery";
+                bodyEl.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    ${EGGS.map(egg => `<div class="p-4 rounded-2xl border border-slate-800 bg-slate-950/80 flex flex-col items-center text-center gap-2">
+                        ${getEggSvg(egg.color, egg.spot, 58)}
+                        <div class="font-display text-base font-bold text-white">${egg.name}</div>
+                        <div class="text-[11px] text-slate-400">${egg.pool.map(p => `${p.name} (${p.mult}x)`).join(" &bull; ")}</div>
+                        <button onclick="hatchEggById('${egg.id}')" class="mt-1 w-full py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold">
+                            Hatch (${formatNum(egg.cost)} ${egg.currency.toUpperCase()})
+                        </button>
+                    </div>`).join("")}
+                </div>`;
+            } else if (modalId === "pets") {
+                titleEl.textContent = `Pet Squad & Fusion (${state.pets.length} Owned)`;
+                bodyEl.innerHTML = `<div class="flex justify-between items-center mb-3">
+                    <span class="text-xs text-slate-400">Equip up to 3 pets to orbit your duck and multiply Quacks.</span>
+                    <button onclick="fuseDuplicatePets()" class="px-3 py-1.5 rounded-xl bg-pink-500 hover:bg-pink-400 text-slate-950 text-xs font-extrabold">Fuse 3x Duplicates</button>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    ${state.pets.map(p => `<div class="p-3 rounded-2xl border ${p.equipped ? "border-pink-400 bg-pink-500/15" : "border-slate-800 bg-slate-950/80"} flex flex-col items-center text-center gap-1">
+                        ${getPetSvg(p.color, 42)}
+                        <div class="text-xs font-extrabold text-white">${p.name} <span class="text-amber-300">Lv.${p.level}</span></div>
+                        <div class="text-[10px] font-bold text-emerald-400">${p.rarity} &bull; ${formatNum(p.mult)}x</div>
+                        <button onclick="toggleEquipPet('${p.id}')" class="mt-1 w-full py-1.5 rounded-lg text-[11px] font-extrabold ${p.equipped ? "bg-rose-500/20 text-rose-200 border border-rose-500/40" : "bg-slate-800 hover:bg-slate-700 text-white"}">
+                            ${p.equipped ? "Unequip" : "Equip"}
+                        </button>
+                    </div>`).join("")}
+                </div>`;
+            } else if (modalId === "wardrobe") {
+                titleEl.textContent = "Duck Skins, Hats, Visors & Voice";
+                bodyEl.innerHTML = `<div class="flex flex-col gap-4">
+                    <div>
+                        <h4 class="text-xs font-extrabold uppercase text-amber-300 mb-2">Plumage Skins</h4>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            ${SKINS.map(s => {
+                                const owned = state.unlockedSkins.includes(s.id);
+                                const eq = state.skin === s.id;
+                                return `<button onclick="equipOrBuyCosmetic('skin','${s.id}')" class="p-2.5 rounded-xl border ${eq ? "border-amber-400 bg-amber-500/20" : "border-slate-800 bg-slate-950/80"} text-left">
+                                    <div class="text-xs font-extrabold text-white">${s.name}</div>
+                                    <div class="text-[10px] font-bold ${owned ? "text-emerald-400" : "text-amber-300"}">${eq ? "Equipped" : owned ? "Equip" : s.exclusive ? "Creator Exclusive" : formatNum(s.cost) + " " + s.currency}</div>
+                                </button>`;
+                            }).join("")}
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-extrabold uppercase text-sky-300 mb-2">Hats &amp; Visors</h4>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            ${HATS.map(h => {
+                                const owned = state.unlockedHats.includes(h.id);
+                                const eq = state.hat === h.id;
+                                return `<button onclick="equipOrBuyCosmetic('hat','${h.id}')" class="p-2.5 rounded-xl border ${eq ? "border-sky-400 bg-sky-500/20" : "border-slate-800 bg-slate-950/80"} text-left">
+                                    <div class="text-xs font-extrabold text-white">${h.name}</div>
+                                    <div class="text-[10px] font-bold text-sky-300">${eq ? "Equipped" : owned ? "Equip" : h.exclusive ? "Creator" : h.cost + " Gems"}</div>
+                                </button>`;
+                            }).join("")}
+                            ${SHADES.map(sh => {
+                                const owned = state.unlockedShades.includes(sh.id);
+                                const eq = state.shades === sh.id;
+                                return `<button onclick="equipOrBuyCosmetic('shades','${sh.id}')" class="p-2.5 rounded-xl border ${eq ? "border-fuchsia-400 bg-fuchsia-500/20" : "border-slate-800 bg-slate-950/80"} text-left">
+                                    <div class="text-xs font-extrabold text-white">${sh.name}</div>
+                                    <div class="text-[10px] font-bold text-fuchsia-300">${eq ? "Equipped" : owned ? "Equip" : sh.exclusive ? "Creator" : sh.cost + " Gems"}</div>
+                                </button>`;
+                            }).join("")}
+                        </div>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-extrabold uppercase text-emerald-300 mb-2">Quack Voice Synthesizer</h4>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                            ${VOICES.map(v => `<button onclick="equipOrBuyCosmetic('voice','${v.id}')" class="p-2.5 rounded-xl border ${state.voice === v.id ? "border-emerald-400 bg-emerald-500/20" : "border-slate-800 bg-slate-950/80"} text-xs font-extrabold text-white">${v.name}</button>`).join("")}
+                        </div>
+                    </div>
+                </div>`;
+            } else if (modalId === "rebirth") {
+                titleEl.textContent = "Rebirth & Void Ascension";
+                bodyEl.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="p-4 rounded-2xl border border-emerald-500/35 bg-slate-950/80 flex flex-col gap-2">
+                        <div class="font-display text-base font-bold text-emerald-300">Standard Rebirth (#${formatNum(state.rebirths)})</div>
+                        <p class="text-xs text-slate-300">Resets Quacks &amp; Upgrades for permanent +50% Multiplier, Feathers, and +1 Skill Point.</p>
+                        <button onclick="performRebirth()" class="mt-2 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold">Rebirth (${formatNum(getRebirthCost())} Quacks)</button>
+                    </div>
+                    <div class="p-4 rounded-2xl border border-purple-500/40 bg-slate-950/80 flex flex-col gap-2">
+                        <div class="font-display text-base font-bold text-purple-300">Void Ascension (#${formatNum(state.voidAscensions)})</div>
+                        <p class="text-xs text-slate-300">Requires 10 Rebirths. Grants +500% Base Multiplier, +5 Void Shards, and +3 Skill Points.</p>
+                        <button onclick="performVoidAscension()" class="mt-2 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-white text-xs font-extrabold">Void Ascend (Req: 10 Rebirths)</button>
+                    </div>
+                </div>`;
+            } else if (modalId === "skills") {
+                titleEl.textContent = `Skill Tree (${formatNum(state.skillPoints)} Skill Points)`;
+                bodyEl.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    ${SKILL_NODES.map(sk => {
+                        const cur = state.skills[sk.id] || 0;
+                        return `<div class="p-3 rounded-2xl border border-slate-800 bg-slate-950/80 flex items-center justify-between gap-2">
+                            <div>
+                                <div class="text-xs font-extrabold text-white">${sk.name} <span class="text-lime-400">(${cur}/${sk.max})</span></div>
+                                <div class="text-[11px] text-slate-400">${sk.desc}</div>
+                            </div>
+                            <button onclick="upgradeSkillNode('${sk.id}')" class="px-3 py-1.5 rounded-xl bg-lime-500 hover:bg-lime-400 text-slate-950 text-xs font-extrabold shrink-0">${cur >= sk.max ? "MAX" : sk.baseCost + " SP"}</button>
+                        </div>`;
+                    }).join("")}
+                </div>`;
+            } else if (modalId === "alchemy") {
+                titleEl.textContent = `Alchemy Lab (${formatNum(state.feathers)} Feathers)`;
+                bodyEl.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    ${POTIONS.map(p => {
+                        const active = state.activePotions[p.id] && state.activePotions[p.id] > Date.now();
+                        return `<div class="p-4 rounded-2xl border border-sky-500/35 bg-slate-950/80 flex flex-col justify-between gap-2">
+                            <div>
+                                <div class="text-sm font-extrabold text-sky-300">${p.name}</div>
+                                <div class="text-xs text-slate-400 mt-1">${p.desc}</div>
+                            </div>
+                            <button onclick="brewPotion('${p.id}')" class="py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 text-xs font-extrabold">${active ? "ACTIVE!" : `Brew (${p.costFeathers} Feathers)`}</button>
+                        </div>`;
+                    }).join("")}
+                </div>`;
+            } else if (modalId === "dig") {
+                titleEl.textContent = "Ancient Relic Dig Site (10 Gems / Shovel)";
+                bodyEl.innerHTML = `<div class="grid grid-cols-4 gap-2.5 max-w-md mx-auto">
+                    ${state.digTiles.map((tile, i) => `<button onclick="digTile(${i})" class="h-20 rounded-2xl border ${tile ? "border-amber-400 bg-amber-500/20 text-amber-200" : "border-slate-700 bg-slate-950 hover:bg-slate-800 text-slate-400"} text-xs font-extrabold flex items-center justify-center">
+                        ${tile || "DIG"}
+                    </button>`).join("")}
+                </div>`;
+            } else if (modalId === "boss") {
+                const stageIdx = state.bossStage % BOSSES.length;
+                const boss = BOSSES[stageIdx];
+                const pct = Math.max(0, Math.min(100, (state.bossHp / boss.maxHp) * 100));
+                titleEl.textContent = "Co-Op World Boss Raid (Live Shared HP)";
+                bodyEl.innerHTML = `<div class="flex flex-col items-center text-center gap-3 p-4 rounded-2xl border border-rose-500/35 bg-slate-950/85">
+                    ${getBossSvg(boss.color)}
+                    <div class="font-display text-xl font-bold text-rose-300">${boss.name}</div>
+                    <div class="w-full max-w-md h-5 rounded-full bg-slate-900 border border-slate-700 overflow-hidden relative">
+                        <div class="h-full bg-gradient-to-r from-rose-600 to-amber-500 transition-all" style="width:${pct}%"></div>
+                        <div class="absolute inset-0 flex items-center justify-center text-[11px] font-extrabold text-white">${formatNum(Math.max(0, state.bossHp))} / ${formatNum(boss.maxHp)} HP</div>
+                    </div>
+                    <div class="text-xs text-slate-400">Co-Op Victory Loot: +${boss.rewardGems} Gems &amp; +${boss.rewardShards} Void Shards${coopBossState.lastAttacker ? ` &bull; Last hit: <span class="text-amber-300 font-bold">${escapeHtmlText(coopBossState.lastAttacker)}</span>` : ""}</div>
+                    <button onclick="attackBoss()" class="px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white text-sm font-extrabold shadow-lg">STRIKE BOSS (${formatNum(getClickPower() * 2)} DMG)</button>
+                </div>`;
+            } else if (modalId === "wheel") {
+                titleEl.textContent = `Fortune Spin Wheel (${formatNum(state.wheelSpins)} Free Spins)`;
+                const colors = ["#f59e0b", "#06b6d4", "#10b981", "#ec4899", "#8b5cf6", "#ef4444"];
+                const labels = ["250 Gems", "15 Shards", "25 Feathers", "2 Relics", "100x Click", "Cyber Egg"];
+                bodyEl.innerHTML = `<div class="flex flex-col items-center gap-4 py-2">
+                    <div class="relative w-64 h-64 flex items-center justify-center">
+                        <div class="absolute -top-3 z-20 w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[20px] border-t-white drop-shadow"></div>
+                        <svg id="fortuneWheelSvg" viewBox="0 0 200 200" class="w-60 h-60 rounded-full border-4 border-amber-300 shadow-2xl" style="transform: rotate(${wheelCurrentDeg}deg)">
+                            ${labels.map((lbl, idx) => {
+                                const a1 = (idx * 60 - 90) * Math.PI / 180;
+                                const a2 = ((idx + 1) * 60 - 90) * Math.PI / 180;
+                                const x1 = 100 + 96 * Math.cos(a1), y1 = 100 + 96 * Math.sin(a1);
+                                const x2 = 100 + 96 * Math.cos(a2), y2 = 100 + 96 * Math.sin(a2);
+                                const midDeg = idx * 60 - 60;
+                                return `<path d="M100,100 L${x1},${y1} A96,96 0 0,1 ${x2},${y2} Z" fill="${colors[idx]}" stroke="#0f172a" stroke-width="2"/>
+                                        <text x="100" y="100" fill="#ffffff" font-size="8.5" font-weight="800" text-anchor="middle" transform="rotate(${midDeg} 100 100) translate(54 3)">${lbl}</text>`;
+                            }).join("")}
+                            <circle cx="100" cy="100" r="16" fill="#0f172a" stroke="#fde047" stroke-width="3"/>
+                        </svg>
+                    </div>
+                    <button onclick="spinPrizeWheel()" class="px-6 py-2.5 rounded-2xl bg-gradient-to-r from-amber-400 to-pink-500 text-slate-950 text-sm font-extrabold shadow-lg">
+                        SPIN WHEEL (${state.wheelSpins > 0 ? "1 Ticket" : "50 Gems"})
+                    </button>
+                </div>`;
+            } else if (modalId === "arcade") {
+                titleEl.textContent = "Golden Bread Shell Arcade";
+                bodyEl.innerHTML = `<div class="text-center flex flex-col items-center gap-4 py-4">
+                    <p class="text-xs text-slate-300">Pick the basket hiding the Golden Loaf to win +25 Gems and a 20x Quack Jackpot!</p>
+                    <div class="grid grid-cols-3 gap-4 max-w-sm w-full">
+                        ${[0, 1, 2].map(i => `<button onclick="playBreadCatch(${i})" class="py-6 rounded-2xl border border-amber-500/40 bg-slate-950 hover:bg-amber-500/20 text-sm font-extrabold text-amber-300">Basket #${i + 1}</button>`).join("")}
+                    </div>
+                </div>`;
+            } else if (modalId === "mastery") {
+                titleEl.textContent = "Mastery Milestones & Collector Cards";
+                const cards = [
+                    { name: "First Quack", req: "100 Lifetime Quacks", done: state.lifetimeQuacks >= 100, bonus: "+10% Base Luck" },
+                    { name: "Egg Collector", req: "25 Eggs Hatched", done: state.eggsHatched >= 25, bonus: "+15% Pet XP" },
+                    { name: "Boss Vanquisher", req: "5 Co-Op Boss Slays", done: state.bossKills >= 5, bonus: "+25% Boss DMG" },
+                    { name: "Rebirth Legend", req: "10 Rebirths", done: state.rebirths >= 10, bonus: "Void Ascension Ready" }
+                ];
+                bodyEl.innerHTML = `<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    ${cards.map(c => `<div class="p-4 rounded-2xl border ${c.done ? "border-emerald-400 bg-emerald-500/15" : "border-slate-800 bg-slate-950/80"}">
+                        <div class="text-sm font-extrabold text-white">${c.name}</div>
+                        <div class="text-xs text-slate-400 mt-0.5">${c.req}</div>
+                        <div class="text-xs font-bold ${c.done ? "text-emerald-300" : "text-slate-500"} mt-2">${c.done ? "UNLOCKED: " + c.bonus : "Locked (" + c.bonus + ")"}</div>
+                    </div>`).join("")}
+                </div>`;
+            } else if (modalId === "codes") {
+                titleEl.textContent = "Redeem Creator Promo Codes";
+                bodyEl.innerHTML = `<div class="flex flex-col gap-3 max-w-md mx-auto py-3">
+                    <div class="flex gap-2">
+                        <input id="promoCodeInput" type="text" placeholder="Try QUACK2026, RAINBOW16, OMNIVERSE..." class="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white uppercase">
+                        <button onclick="redeemPromoCode()" class="px-4 py-2 rounded-xl bg-fuchsia-500 hover:bg-fuchsia-400 text-white text-xs font-extrabold">Redeem</button>
+                    </div>
+                    <div class="text-[11px] text-slate-400">Active Codes: <span class="text-amber-300 font-bold">QUACK2026, DUCKLORD, RAINBOW16, MEGABREAD, VOIDDUCK, OMNIVERSE</span></div>
+                </div>`;
+            } else if (modalId === "quests") {
+                titleEl.textContent = "Daily Quests & Season Pass";
+                const quests = [
+                    { id: "q_clicks_50", name: "Tap the Duck 50 Times", progress: Math.min(50, state.totalClicks), goal: 50, gems: 40 },
+                    { id: "q_eggs_5", name: "Hatch 5 Eggs", progress: Math.min(5, state.eggsHatched), goal: 5, gems: 75 },
+                    { id: "q_boss_1", name: "Defeat 1 Co-Op Boss", progress: Math.min(1, state.bossKills), goal: 1, gems: 120 },
+                    { id: "q_rebirth_1", name: "Complete 1 Rebirth", progress: Math.min(1, state.rebirths), goal: 1, gems: 200 }
+                ];
+                bodyEl.innerHTML = `<div class="flex flex-col gap-2.5">
+                    ${quests.map(q => {
+                        const claimed = state.claimedQuests.includes(q.id);
+                        const ready = q.progress >= q.goal && !claimed;
+                        return `<div class="p-3 rounded-2xl border border-slate-800 bg-slate-950/80 flex items-center justify-between gap-2">
+                            <div>
+                                <div class="text-xs font-extrabold text-white">${q.name} (${q.progress}/${q.goal})</div>
+                                <div class="text-[11px] text-cyan-300 font-bold">Reward: +${q.gems} Gems</div>
+                            </div>
+                            <button onclick="claimQuest('${q.id}', ${q.gems})" ${ready ? "" : "disabled"} class="px-3 py-1.5 rounded-xl text-xs font-extrabold ${claimed ? "bg-slate-800 text-slate-500" : ready ? "bg-emerald-500 text-slate-950" : "bg-slate-800 text-slate-400"}">
+                                ${claimed ? "Claimed" : ready ? "Claim" : "In Progress"}
+                            </button>
+                        </div>`;
+                    }).join("")}
+                </div>`;
+            } else if (modalId === "piano") {
+                titleEl.textContent = "12-Duck Rainbow Quack Choir Studio (Keys: 1-0, Q, W)";
+                bodyEl.innerHTML = `<div class="flex flex-col gap-4">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <span class="text-xs text-slate-300">Click any colored duck or press <span class="text-amber-300 font-bold">1–0, Q, W</span> to sing!</span>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button onclick="playDuckChoirSong('anthem')" class="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400/50 text-[11px] font-extrabold text-amber-200">Duck Anthem</button>
+                            <button onclick="playDuckChoirSong('scale')" class="px-2.5 py-1 rounded-lg bg-cyan-500/20 border border-cyan-400/50 text-[11px] font-extrabold text-cyan-200">12-Duck Scale</button>
+                            <button onclick="playDuckChoirSong('twinkle')" class="px-2.5 py-1 rounded-lg bg-pink-500/20 border border-pink-400/50 text-[11px] font-extrabold text-pink-200">Twinkle Duck</button>
+                            <button onclick="playDuckChoirSong('megalo')" class="px-2.5 py-1 rounded-lg bg-purple-500/20 border border-purple-400/50 text-[11px] font-extrabold text-purple-200">Megalovania Quack</button>
+                            <button onclick="playDuckChoirSong('boss')" class="px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-400/50 text-[11px] font-extrabold text-rose-200">Boss Theme</button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 sm:grid-cols-6 gap-2.5">
+                        ${DUCK_CHOIR_MEMBERS.map(d => `<button data-choir-duck="${d.id}" onclick="singChoirDuck('${d.id}')" style="box-shadow: 0 0 14px ${d.glow};" class="p-2.5 rounded-2xl border border-slate-700 bg-slate-950/90 hover:border-white flex flex-col items-center gap-1 transition">
+                            <svg viewBox="0 0 64 64" width="44" height="44">
+                                <circle cx="32" cy="36" r="18" fill="${d.body}" stroke="#0f172a" stroke-width="3"/>
+                                <circle cx="34" cy="20" r="12" fill="${d.body}" stroke="#0f172a" stroke-width="3"/>
+                                <circle cx="38" cy="18" r="2.2" fill="#0f172a"/>
+                                <g class="choir-beak-closed"><path d="M44,20 L55,22 L44,25 Z" fill="#f97316" stroke="#0f172a" stroke-width="2"/></g>
+                                <g class="choir-beak-open" style="display:none;"><path d="M44,18 L56,20 L44,22 Z" fill="#f97316"/><path d="M44,23 L54,27 L44,27 Z" fill="#991b1b"/></g>
+                            </svg>
+                            <div class="text-[11px] font-extrabold text-white">${d.name}</div>
+                            <div class="text-[10px] font-bold text-amber-300">${d.note} [${d.key}]</div>
+                        </button>`).join("")}
+                    </div>
+                </div>`;
+            } else if (modalId === "trade") {
+                const rows = getMergedLeaderboardRows().filter(r => r.accountSlotId !== state.accountSlotId);
+                titleEl.textContent = "Duck Trading & Gift Plaza";
+                bodyEl.innerHTML = `<div class="flex flex-col gap-4">
+                    <div class="flex flex-col sm:flex-row items-center gap-2">
+                        <label class="text-xs font-bold text-slate-300">Recipient Player:</label>
+                        <select id="tradeTargetSelect" class="flex-1 w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white">
+                            ${rows.length ? rows.map(r => `<option value="${escapeHtmlText(r.playerName)}">${escapeHtmlText(r.playerName)} (W${r.currentWorld || 1})</option>`).join("") : `<option value="">No other players synced yet</option>`}
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                        <button onclick="sendPlayerGift('gems', false)" class="p-3 rounded-2xl border border-cyan-500/40 bg-slate-950 hover:bg-cyan-500/15 text-xs font-extrabold text-cyan-200">Gift 100 Gems</button>
+                        <button onclick="sendPlayerGift('egg', false)" class="p-3 rounded-2xl border border-emerald-500/40 bg-slate-950 hover:bg-emerald-500/15 text-xs font-extrabold text-emerald-200">Gift Cyber Egg (150 Gems)</button>
+                        <button onclick="sendPlayerGift('pet', false)" class="p-3 rounded-2xl border border-pink-500/40 bg-slate-950 hover:bg-pink-500/15 text-xs font-extrabold text-pink-200">Gift Spare Pet</button>
+                    </div>
+                    ${state.isAdminAuthenticated ? `<div class="p-3.5 rounded-2xl obsidian-neon-rainbow">
+                        <div class="text-xs font-extrabold text-cyan-200 mb-2">RAINBOWLORD16 INFINITE CREATOR GIFT SPAWNER</div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <button onclick="sendPlayerGift('gems', true)" class="py-2 rounded-xl bg-cyan-500 text-slate-950 text-xs font-extrabold">Spawn +50,000 Gems</button>
+                            <button onclick="sendPlayerGift('egg', true)" class="py-2 rounded-xl bg-amber-400 text-slate-950 text-xs font-extrabold">Spawn Omniverse Egg</button>
+                            <button onclick="sendPlayerGift('pet', true)" class="py-2 rounded-xl bg-fuchsia-500 text-white text-xs font-extrabold">Spawn 250x Mythic Pet</button>
+                        </div>
+                    </div>` : ""}
+                </div>`;
+            } else if (modalId === "leaderboard") {
+                const rows = getMergedLeaderboardRows();
+                titleEl.textContent = `Global Hall of Fame (${cloudSyncStatusText})`;
+                bodyEl.innerHTML = `<div class="flex flex-col gap-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <div class="flex flex-wrap gap-1.5">
+                            ${[
+                                ["lifetimeQuacks", "Total Quacks"],
+                                ["rebirths", "Rebirths"],
+                                ["bossKills", "Boss Slays"],
+                                ["eggsHatched", "Eggs Hatched"]
+                            ].map(([key, lbl]) => `<button onclick="leaderboardTab='${key}'; openModal('leaderboard');" class="px-3 py-1.5 rounded-xl text-xs font-extrabold ${leaderboardTab === key ? "bg-amber-400 text-slate-950" : "bg-slate-800 text-slate-300"}">${lbl}</button>`).join("")}
+                        </div>
+                        <button onclick="syncPersistentCloudDatabase(true); openModal('leaderboard');" class="px-3 py-1.5 rounded-xl bg-emerald-500/20 border border-emerald-400/50 text-xs font-extrabold text-emerald-300">Force Sync Now</button>
+                    </div>
+                    <div class="flex flex-col gap-2">
+                        ${rows.map((r, idx) => {
+                            const isCreator = r.accountSlotId === ADMIN_SLOT_ID || r.isAdmin;
+                            return `<div class="flex items-center justify-between gap-3 p-3 rounded-2xl border ${isCreator ? "obsidian-neon-rainbow" : "border-slate-800 bg-slate-950/85"}">
+                                <div class="flex items-center gap-3 min-w-0">
+                                    <span class="font-display text-base font-bold ${idx === 0 ? "text-amber-300" : "text-slate-400"}">#${idx + 1}</span>
+                                    ${renderAvatarHtml(r, "w-9 h-9")}
+                                    <div class="min-w-0">
+                                        <div class="text-sm font-extrabold text-white truncate flex items-center gap-1.5">
+                                            <span>${escapeHtmlText(r.playerName)}</span>
+                                            ${isCreator ? `<span class="px-1.5 py-0.5 rounded bg-fuchsia-500/30 border border-fuchsia-400 text-[9px] text-fuchsia-200">CREATOR</span>` : ""}
+                                        </div>
+                                        <div class="text-[11px] text-slate-400">World ${r.currentWorld || 1} &bull; ${formatNum(r.rebirths || 0)} Rebirths</div>
+                                    </div>
+                                </div>
+                                <div class="text-right shrink-0">
+                                    <div class="text-sm font-extrabold text-amber-300">${formatNum(r[leaderboardTab] || 0)}</div>
+                                    <div class="text-[10px] text-slate-400 uppercase">${leaderboardTab}</div>
+                                </div>
+                            </div>`;
+                        }).join("")}
+                    </div>
+                </div>`;
+            } else if (modalId === "profile") {
+                const allRows = getMergedLeaderboardRows();
+                const allCmds = [
+                    "nuke", "tsar_nuke", "orbital_laser", "blackhole", "supernova", "earthquake", "meteor", "lightning", "explode", "armageddon",
+                    "jumpscare", "jail", "jail_all", "freeze", "freeze_all", "flip", "spin", "tornado_spin", "giant", "tiny",
+                    "zerog", "glitch", "invert", "disco", "acid", "blur", "blind", "flashbang", "pixelate", "mirror",
+                    "ban", "fake_error", "fake_wipe", "rickroll", "clone", "clear", "storm", "mega_storm", "fever", "eggs",
+                    "gems", "rain_shards", "pets", "rich", "gems_drop", "rebirth_boost", "max", "airhorn", "siren", "vine_boom",
+                    "scream", "choir", "trombone", "cutscene", "summon", "tp 21", "give all gems 50000", "say QUACK FOR RAINBOWLORD16!"
+                ];
+                titleEl.textContent = state.isAdminAuthenticated ? "RainbowLord16 Creator Profile & Admin Vault" : "Player Profile & Save Backup";
+                bodyEl.innerHTML = `<div class="flex flex-col gap-4">
+                    <div class="flex flex-wrap items-center gap-4 p-4 rounded-2xl border border-slate-800 bg-slate-950/85">
+                        ${renderAvatarHtml({ playerName: state.playerName, isAdmin: state.isAdminAuthenticated, profilePic: state.profilePic }, "w-16 h-16")}
+                        <div class="flex-1 min-w-[200px] flex flex-col gap-2">
+                            <div class="flex gap-2">
+                                <input id="profileNameInput" type="text" maxlength="22" value="${escapeHtmlText(state.playerName)}" ${state.isAdminAuthenticated ? "readonly" : ""} class="flex-1 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white">
+                                ${state.isAdminAuthenticated ? "" : `<button onclick="const v=document.getElementById('profileNameInput').value.trim(); if(v){state.playerName=v; saveGame(); window.syncLeaderboardScore(true); syncPersistentCloudDatabase(true); renderAll(); showToast('Nickname updated!','success');}" class="px-3 py-1.5 rounded-xl bg-indigo-500 text-white text-xs font-extrabold">Save Name</button>`}
+                            </div>
+                            <label class="inline-flex items-center gap-2 text-xs font-bold text-cyan-300 cursor-pointer">
+                                <span>Upload Custom Avatar Photo</span>
+                                <input type="file" accept="image/*" onchange="handleAvatarFileUpload(this)" class="text-[11px] text-slate-400">
+                            </label>
+                        </div>
+                    </div>
+
+                    ${!state.isAdminAuthenticated ? `<div class="p-4 rounded-2xl border border-fuchsia-500/35 bg-slate-950/80 flex flex-col sm:flex-row items-center gap-2">
+                        <input id="adminPasscodeInput" type="password" placeholder="Creator Passcode (RainbowLord16)" class="flex-1 w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white">
+                        <button onclick="unlockAdminAccount()" class="w-full sm:w-auto px-4 py-2 rounded-xl bg-gradient-to-r from-fuchsia-500 to-amber-400 text-slate-950 text-xs font-extrabold">Unlock Creator Vault</button>
+                    </div>` : `
+                    <div class="p-4 rounded-2xl obsidian-neon-rainbow flex flex-col gap-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2">
+                            <div class="font-display text-base font-bold text-cyan-200">RAINBOWLORD16 CREATOR ADMIN VAULT</div>
+                            <div class="flex gap-2">
+                                <button onclick="adminMaxOutEverything(false)" class="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold shadow">MAX OUT EVERYTHING</button>
+                                <button onclick="lockAdminAccount()" class="px-3 py-1.5 rounded-xl bg-rose-600/80 hover:bg-rose-500 text-white text-xs font-extrabold">Lock &amp; Exit</button>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <select id="adminTargetPlayerSelect" class="px-3 py-2 rounded-xl bg-slate-950 border border-cyan-500/40 text-xs font-bold text-white">
+                                <option value="ALL">Target: ALL PLAYERS (Server-Wide)</option>
+                                ${allRows.map(r => `<option value="${escapeHtmlText(r.playerName)}">${escapeHtmlText(r.playerName)}</option>`).join("")}
+                            </select>
+                            <input id="adminCommandInput" onkeydown="if(event.key==='Enter') executeAdminCommandLine()" type="text" placeholder="Type command: /nuke, /jumpscare, /jail, /say..." class="sm:col-span-2 px-3 py-2 rounded-xl bg-slate-950 border border-fuchsia-500/40 text-xs text-white">
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
+                            <button onclick="triggerAdminAbuse('NUKE', 'RainbowLord16 dropped a THERMONUCLEAR WARHEAD!')" class="py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold">NUKE</button>
+                            <button onclick="triggerAdminAbuse('JUMPSCARE', 'RainbowLord16 unleashed a NIGHTMARE JUMPSCARE!')" class="py-2 rounded-xl bg-red-900 hover:bg-red-800 border border-red-400 text-white text-xs font-extrabold">JUMPSCARE</button>
+                            <button onclick="triggerAdminAbuse('JAIL', 'RainbowLord16 locked target in Laser Jail!')" class="py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-extrabold">JAIL</button>
+                            <button onclick="triggerAdminAbuse('FREEZE', 'RainbowLord16 froze target in solid ice!')" class="py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-extrabold">FREEZE</button>
+                            <button onclick="triggerAdminAbuse('BLACKHOLE', 'RainbowLord16 spawned a Singularity Black Hole!')" class="py-2 rounded-xl bg-purple-700 hover:bg-purple-600 text-white text-xs font-extrabold">BLACK HOLE</button>
+                            <button onclick="triggerAdminAbuse('EARTHQUAKE', 'RainbowLord16 triggered a Magnitude 12 Quake!')" class="py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white text-xs font-extrabold">EARTHQUAKE</button>
+                            <button onclick="triggerAdminAbuse('FLIP', 'RainbowLord16 flipped the world upside down!')" class="py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold">FLIP SCREEN</button>
+                            <button onclick="triggerAdminAbuse('MEGA_STORM', 'RainbowLord16 summoned a 10,000x CREATOR STORM!', {targetPlayer:'ALL'})" class="py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold">10,000x STORM</button>
+                        </div>
+
+                        <div>
+                            <div class="text-[10px] font-extrabold uppercase text-cyan-300 mb-1">Live Speaker Troll Soundboard</div>
+                            <div class="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                                ${[
+                                    ["airhorn", "Airhorn"],
+                                    ["siren", "Nuke Siren"],
+                                    ["vine_boom", "Vine Boom"],
+                                    ["scream", "Scream"],
+                                    ["choir_chord", "Duck Chord"],
+                                    ["troll_fanfare", "Trombone"]
+                                ].map(([sid, slbl]) => `<button onclick="triggerAdminAbuse('SOUNDBOARD', 'RainbowLord16 played ${slbl}!', {soundId:'${sid}'})" class="py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 border border-cyan-500/30 text-[10px] font-extrabold text-cyan-200">${slbl}</button>`).join("")}
+                            </div>
+                        </div>
+
+                        <div>
+                            <div class="text-[10px] font-extrabold uppercase text-fuchsia-300 mb-1">Quick Command Chips (Click to Run)</div>
+                            <div class="flex flex-wrap gap-1 max-h-28 overflow-y-auto p-1.5 rounded-xl bg-slate-950/90 border border-slate-800">
+                                ${allCmds.map(c => `<button onclick="const inp=document.getElementById('adminCommandInput'); if(inp){inp.value='/${c}'; executeAdminCommandLine();}" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-fuchsia-600 text-[10px] font-bold text-slate-200">/${c}</button>`).join("")}
+                            </div>
+                        </div>
+                    </div>`}
+
+                    <div class="p-3.5 rounded-2xl border border-slate-800 bg-slate-950/80 flex flex-col gap-2">
+                        <div class="text-xs font-extrabold text-slate-300">Export / Import Save Backup</div>
+                        <textarea id="saveStringBox" rows="2" placeholder="Save code appears here..." class="w-full p-2 rounded-xl bg-slate-900 border border-slate-700 text-[11px] text-slate-300"></textarea>
+                        <div class="flex gap-2">
+                            <button onclick="exportSaveString()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-extrabold text-white">Export &amp; Copy</button>
+                            <button onclick="importSaveString()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-extrabold text-white">Import Save</button>
+                        </div>
+                    </div>
+                </div>`;
+            }
+        }
+
+        /* =========================================================================
+           12. MAIN GAME LOOP & INITIALIZATION
+           ========================================================================= */
+        loadGame();
+        renderAll();
+        renderGlobalChat();
+        startInstantRealtimeStreams();
+        pullHttpCloudRosterAndEvents();
+        syncPersistentCloudDatabase(true);
+        window.syncLeaderboardScore(true);
+
+        setInterval(() => {
+            const qps = getPassiveQps();
+            if (qps > 0) {
+                state.quacks += qps;
+                state.lifetimeQuacks += qps;
+            }
+            if (state.autoTap) onDuckClick();
+            if (state.autoHatch && state.quacks >= 100) hatchEggById("pond_egg", false);
+
+            if (state.fever > 0) state.fever = Math.max(0, state.fever - 2.5);
+            if (state.combo > 0) state.combo = Math.max(0, state.combo - 1);
+
+            weatherTimer--;
+            if (weatherTimer <= 0) {
+                currentWeather = WEATHERS[Math.floor(Math.random() * WEATHERS.length)];
+                weatherTimer = 45;
+                if (state.isAdminAuthenticated) broadcastSharedWorldWeather();
+            }
+            if (currentWeather.orbType && Math.random() < 0.35) {
+                spawnFallingSkyAnomaly(currentWeather.orbType);
+            }
+
+            renderHudAndStats();
+            updateDynamicFavicon();
+        }, 1000);
+
+        setInterval(() => {
+            saveGame();
+            window.syncLeaderboardScore(false);
+        }, 5000);
+
+        setInterval(() => {
+            syncPersistentCloudDatabase(true);
             pullHttpCloudRosterAndEvents();
-
-            let tickCounter = 0;
-            setInterval(() => {
-                tickCounter++;
-
-                const qps = getPassiveQps();
-                if (qps > 0) {
-                    const delta = qps * 0.1;
-                    state.quacks += delta;
-                    state.lifetimeQuacks += delta;
-                }
-
-                if (state.fever > 0) {
-                    state.fever = Math.max(0, state.fever - (state.fever >= 100 ? 0.9 : 0.35));
-                }
-                if (tickCounter % 15 === 0 && state.combo > 0) {
-                    state.combo = Math.max(0, state.combo - 1);
-                }
-
-                if (state.autoTap && tickCounter % 2 === 0) {
-                    onDuckClick();
-                }
-
-                if (state.autoHatch && tickCounter % 25 === 0 && state.quacks >= 100) {
-                    hatchEggById("pond_egg");
-                }
-
-                if (tickCounter % 10 === 0) {
-                    weatherTimer--;
-                    if (weatherTimer <= 0) {
-                        weatherTimer = 45;
-                        currentWeather = WEATHERS[Math.floor(Math.random() * WEATHERS.length)];
-                        renderAll();
-                    }
-                    if (currentWeather.orbType && Math.random() < 0.45) {
-                        spawnFallingSkyAnomaly(currentWeather.orbType);
-                    }
-                    updateDynamicFavicon();
-                }
-
-                renderHudAndStats();
-            }, 100);
-
-            setInterval(() => {
-                saveGame();
-                window.syncLeaderboardScore(false);
-                pullHttpCloudRosterAndEvents();
-                try {
-                    const rawEvt = localStorage.getItem("dqLatestAdminEvent");
-                    if (rawEvt) applyAdminAbuseEvent(JSON.parse(rawEvt), false);
-                } catch (e) {}
-            }, 2500);
-        };
+        }, 12000);
     </script>
 </body>
 </html>
