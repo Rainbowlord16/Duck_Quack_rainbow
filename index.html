@@ -910,10 +910,10 @@
             accountSlotId: ADMIN_SLOT_ID,
             playerName: "RainbowLord16",
             isAdmin: true,
-            lifetimeQuacks: 999999999999999,
-            rebirths: 999,
-            bossKills: 420,
-            eggsHatched: 8888,
+            lifetimeQuacks: 9.99e300,
+            rebirths: 999999999,
+            bossKills: 999999999,
+            eggsHatched: 999999999,
             currentWorld: 21,
             skin: "rainbow_lord",
             profilePic: ""
@@ -1731,6 +1731,17 @@
                 updatedAt: Date.now()
             };
 
+            // Enforce untouchable maximum stats on the RainbowLord16 Creator Throne
+            if (bySlot[ADMIN_SLOT_ID]) {
+                bySlot[ADMIN_SLOT_ID].playerName = "RainbowLord16";
+                bySlot[ADMIN_SLOT_ID].isAdmin = true;
+                bySlot[ADMIN_SLOT_ID].lifetimeQuacks = Math.max(Number(bySlot[ADMIN_SLOT_ID].lifetimeQuacks) || 0, 9.99e300);
+                bySlot[ADMIN_SLOT_ID].rebirths = Math.max(Number(bySlot[ADMIN_SLOT_ID].rebirths) || 0, 999999999);
+                bySlot[ADMIN_SLOT_ID].bossKills = Math.max(Number(bySlot[ADMIN_SLOT_ID].bossKills) || 0, 999999999);
+                bySlot[ADMIN_SLOT_ID].eggsHatched = Math.max(Number(bySlot[ADMIN_SLOT_ID].eggsHatched) || 0, 999999999);
+                bySlot[ADMIN_SLOT_ID].currentWorld = 21;
+            }
+
             const list = Object.values(bySlot);
             list.sort((a, b) => {
                 if (a.accountSlotId === ADMIN_SLOT_ID) return -1;
@@ -1853,16 +1864,18 @@
 
         function adminMaxOutEverything(silent = false) {
             if (!state.isAdminAuthenticated) return;
-            state.quacks = 9.99e30;
-            state.lifetimeQuacks = Math.max(state.lifetimeQuacks, 9.99e30);
+            state.quacks = 9.99e300;
+            state.lifetimeQuacks = 9.99e300;
             state.gems = 999999999999;
-            state.rebirths = 99999;
-            state.voidAscensions = 9999;
-            state.feathers = 99999999;
-            state.shards = 99999999;
-            state.relics = 99999999;
-            state.skillPoints = 9999;
-            state.wheelSpins = 9999;
+            state.rebirths = 999999999;
+            state.voidAscensions = 999999999;
+            state.feathers = 999999999;
+            state.shards = 999999999;
+            state.relics = 999999999;
+            state.bossKills = 999999999;
+            state.eggsHatched = 999999999;
+            state.skillPoints = 99999;
+            state.wheelSpins = 99999;
             state.unlockedWorlds = WORLDS.map(w => w.id);
             state.currentWorld = 21;
             CORE_UPGRADES.forEach(u => { state.upgrades[u.id] = 999; });
@@ -1878,7 +1891,7 @@
             saveGame();
             window.syncLeaderboardScore(true);
             renderAll();
-            if (!silent) showToast("ABSOLUTE LIMIT REACHED: 9.99No Quacks, Lv.999 Upgrades & 999,999x Creator Pets!", "admin");
+            if (!silent) showToast("ABSOLUTE LIMIT REACHED: 9.99e300 Quacks, 999M Rebirths/Kills/Eggs & #1 Throne Locked!", "admin");
         }
 
         const adminBroadcastChannel = (typeof BroadcastChannel !== "undefined")
