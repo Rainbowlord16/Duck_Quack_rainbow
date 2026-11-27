@@ -51,6 +51,25 @@ sidebar = SOURCE[sidebar_start:sidebar_end]
 assert sidebar.count("<!-- Core Upgrades -->") == 1
 assert sidebar.index('id="worldsList"') < sidebar.index('id="upgradesList"')
 assert all(token in sidebar for token in ('id="buyMult1"', 'id="buyMult10"', 'id="buyMult50"'))
+
+class ContainerBalanceParser(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.stack = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ("div", "section"):
+            self.stack.append(tag)
+
+    def handle_endtag(self, tag):
+        if tag in ("div", "section"):
+            assert self.stack, f"Unexpected closing </{tag}> in sidebar"
+            opened = self.stack.pop()
+            assert opened == tag, f"Mismatched </{tag}> for <{opened}> in sidebar"
+
+sidebar_parser = ContainerBalanceParser()
+sidebar_parser.feed(sidebar)
+assert not sidebar_parser.stack, f"Unclosed sidebar containers: {sidebar_parser.stack}"
 assert (ROOT / "jumpscare.png").is_file(), "Expected local jumpscare asset is missing"
 
 for forbidden in (
