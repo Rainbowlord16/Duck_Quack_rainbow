@@ -49,7 +49,7 @@ Creator access is separate from anonymous player sessions. The Worker uses WebAu
 - Apply `migrations/0003_creator_admin.sql` after the previous migrations.
 - The passkey implementation currently supports ES256/P-256 authenticators. The relying-party ID and origin must be updated in the Worker if the public frontend hostname changes.
 
-This passkey authorizes the existing local visual/effect command engine. It does not turn client-only currencies or imported local saves into verified server balances. Creator gifting/administrative changes to authoritative player data require dedicated server-side handlers before those economy operations can be treated as authoritative.
+This passkey authorizes the existing local visual/effect command engine and the dedicated server-side Creator Quack grant route. It does not turn other client-only currencies or imported local saves into verified server balances. Gems, Eggs, pets, and other inventory grants still require dedicated server-side handlers and trusted inventory state.
 
 
 ## Creator infinite server-side game stats
