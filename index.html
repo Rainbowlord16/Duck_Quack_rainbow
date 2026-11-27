@@ -1297,64 +1297,6 @@
         function sendPlayerGift(targetSlotId, targetName, giftType) {
             if (!targetSlotId) return;
             showToast("Player gifting is paused until gifts can be verified by a trusted server.", "error");
-            return;
-            const isCreator = Boolean(state.isAdminAuthenticated);
-            let amount = 0;
-            let eventType = "GIFT_GEMS";
-
-            if (giftType === "gems") {
-                amount = isCreator ? 1000000 : 250;
-                if (!isCreator) {
-                    if (state.gems < amount) {
-                        showToast("Need 250 Gems to gift!", "error");
-                        return;
-                    }
-                    state.gems -= amount;
-                }
-                eventType = "GIFT_GEMS";
-            } else if (giftType === "quacks") {
-                amount = isCreator ? 1e18 : Math.max(5000, Math.floor(state.quacks * 0.1));
-                if (!isCreator) {
-                    if (state.quacks < amount) {
-                        showToast("Not enough Quacks to gift!", "error");
-                        return;
-                    }
-                    state.quacks -= amount;
-                }
-                eventType = "GIFT_QUACKS";
-            } else if (giftType === "eggs") {
-                amount = isCreator ? 100 : 1;
-                if (!isCreator) {
-                    if (state.gems < 500) {
-                        showToast("Need 500 Gems to gift a Cyber Egg!", "error");
-                        return;
-                    }
-                    state.gems -= 500;
-                }
-                eventType = "GIFT_EGGS";
-            }
-
-            const payload = {
-                id: "gift_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
-                type: eventType,
-                amount,
-                sender: state.playerName,
-                targetPlayer: targetName,
-                message: `${state.playerName} gifted ${formatNum(amount)} ${giftType.toUpperCase()} to ${targetName}!`,
-                timestamp: Date.now()
-            };
-
-            appendLocalChatMessage("PLAZA", payload.message, false, true);
-            publishMqttPacket("events", payload, false);
-            try { localStorage.setItem("dqLatestAdminEvent", JSON.stringify(payload)); } catch (e) {}
-            fetch(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}`, {
-                method: "POST",
-                body: JSON.stringify(payload)
-            }).catch(() => {});
-
-            saveGame();
-            renderAll();
-            showToast(`Sent ${formatNum(amount)} ${giftType.toUpperCase()} to ${targetName}!`, "success");
         }
 
         function getMergedLeaderboardEntries() {
@@ -2477,14 +2419,24 @@
         }
 
         function compressAvatarDataUrl(file, callback) {
+            if (!file || !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+                showToast("Choose a JPEG, PNG or WebP image under 5 MB.", "error");
+                return;
+            }
             const reader = new FileReader();
+            reader.onerror = () => showToast("The selected image could not be read.", "error");
             reader.onload = (ev) => {
                 const img = new Image();
+                img.onerror = () => showToast("The selected file is not a valid image.", "error");
                 img.onload = () => {
                     const canvas = document.createElement("canvas");
                     canvas.width = 128;
                     canvas.height = 128;
                     const ctx = canvas.getContext("2d");
+                    if (!ctx) {
+                        showToast("Image processing is unavailable in this browser.", "error");
+                        return;
+                    }
                     ctx.drawImage(img, 0, 0, 128, 128);
                     callback(canvas.toDataURL("image/jpeg", 0.78));
                 };
@@ -2499,12 +2451,12 @@
             compressAvatarDataUrl(file, (dataUrl) => {
                 state.profilePic = dataUrl;
                 compressTinyAvatarForMqtt(dataUrl, (tinyUrl) => {
-                    state.tinyAvatar = tinyUrl;
+                    state.tinyAvatar = safeAvatarDataUrl(tinyUrl);
                     saveGame();
                     window.syncLeaderboardScore(true);
                     renderAll();
                     if (activeModalId === "profile") openModal("profile");
-                    showToast("Profile picture updated & synced globally across devices!", "success");
+                    showToast("Profile picture updated and optimized.", "success");
                 });
             });
         }
