@@ -42,6 +42,15 @@ assert not duplicates, f"Duplicate HTML IDs: {duplicates}"
 assert parser.ids.count("worldsList") == 1
 assert parser.ids.count("worldBoostBadge") == 1
 assert parser.ids.count("upgradesList") == 1
+assert parser.ids.count("buyMult1") == 1
+assert parser.ids.count("buyMult10") == 1
+assert parser.ids.count("buyMult50") == 1
+sidebar_start = SOURCE.index("<!-- LEFT COLUMN: WORLDS & UPGRADES -->")
+sidebar_end = SOURCE.index("<!-- CENTER COLUMN:", sidebar_start)
+sidebar = SOURCE[sidebar_start:sidebar_end]
+assert sidebar.count("<!-- Core Upgrades -->") == 1
+assert sidebar.index('id="worldsList"') < sidebar.index('id="upgradesList"')
+assert all(token in sidebar for token in ('id="buyMult1"', 'id="buyMult10"', 'id="buyMult50"'))
 assert (ROOT / "jumpscare.png").is_file(), "Expected local jumpscare asset is missing"
 
 for forbidden in (
@@ -66,6 +75,12 @@ assert "rememberBoundedId(seenChatIds, data.id)" in SOURCE
 assert "defeatEventId: \"\"" in SOURCE, "Remote boss events must not grant client-side rewards"
 assert "Player gifting is paused until gifts can be verified" in SOURCE
 assert "safeAvatarDataUrl" in SOURCE
+assert "normalizePublicRosterEntry" in SOURCE
+assert "normalizePublicChatMessage" in SOURCE
+assert "Object.keys(liveHttpEntries).length >= 100" in SOURCE
+assert 'file.size > 5 * 1024 * 1024' in SOURCE
+assert "Player gifting is paused until gifts can be verified" in SOURCE
+assert "const isCreator = false" in SOURCE
 assert "Permanent Untouchable #1" not in SOURCE
 
 assert len(parser.inline_scripts) == 1, f"Expected one inline app script, found {len(parser.inline_scripts)}"
