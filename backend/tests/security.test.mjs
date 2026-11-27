@@ -6,6 +6,7 @@ const worker = await readFile(new URL("../worker.js", import.meta.url), "utf8");
 const schema = await readFile(new URL("../migrations/0001_initial.sql", import.meta.url), "utf8");
 const gameSchema = await readFile(new URL("../migrations/0002_authoritative_game.sql", import.meta.url), "utf8");
 const adminSchema = await readFile(new URL("../migrations/0003_creator_admin.sql", import.meta.url), "utf8");
+const creatorStatsSchema = await readFile(new URL("../migrations/0004_creator_infinite_stats.sql", import.meta.url), "utf8");
 const client = await readFile(new URL("../client.js", import.meta.url), "utf8");
 const frontend = await readFile(new URL("../../index.html", import.meta.url), "utf8");
 
@@ -142,4 +143,16 @@ test("Creator admin UI has SVG command icons, a defined chat helper, and complet
   assert.match(frontend, /creator-name-glow/);
   assert.match(frontend, /getDisplayLeaderboardEntries\(\)/);
   assert.match(frontend, /creatorMaxed/);
+});
+
+
+test("infinite Creator leaderboard stats are issued only for the passkey-bound Creator player", () => {
+  assert.match(creatorStatsSchema, /ALTER TABLE creator_passkeys ADD COLUMN player_id TEXT REFERENCES players\(player_id\)/);
+  assert.match(worker, /UPDATE creator_passkeys SET player_id=\? WHERE slot=1/);
+  assert.match(worker, /FROM creator_passkeys c JOIN players p ON p\.player_id=c\.player_id/);
+  assert.match(worker, /1\.0e300 AS lifetime_quacks,1\.0e300 AS rebirths/);
+  assert.match(worker, /1 AS creator/);
+  assert.match(frontend, /isCreator: entry\.creator === 1 \|\| entry\.creator === true/);
+  assert.match(frontend, /entry\.isCreator/);
+  assert.match(frontend, /return "∞ MAX"/);
 });
