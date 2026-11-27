@@ -933,16 +933,16 @@
         /* =========================================================================
            3. PUBLIC MULTI-DEVICE SYNC (MQTT WSS PRIMARY + NTfy FALLBACK)
            ========================================================================= */
-        const MQTT_BASE_TOPIC = "duckquack/rainbowlord16/gag_sync_v11";
+        const MQTT_BASE_TOPIC = "duckquack/rainbowlord16/gag_sync_v12";
         const MQTT_BROKERS = [
             "wss://broker.emqx.io:8084/mqtt",
             "wss://broker.hivemq.com:8884/mqtt"
         ];
-        const RELAY_TOPIC_ROSTER = "duck_quack_rainbowlord16_roster_v11";
-        const RELAY_TOPIC_EVENTS = "duck_quack_rainbowlord16_events_v11";
-        const RELAY_TOPIC_CHAT = "duck_quack_rainbowlord16_chat_v11";
-        const RELAY_TOPIC_BOSS = "duck_quack_rainbowlord16_boss_v11";
-        const RELAY_TOPIC_WORLD = "duck_quack_rainbowlord16_world_v11";
+        const RELAY_TOPIC_ROSTER = "duck_quack_rainbowlord16_roster_v12";
+        const RELAY_TOPIC_EVENTS = "duck_quack_rainbowlord16_events_v12";
+        const RELAY_TOPIC_CHAT = "duck_quack_rainbowlord16_chat_v12";
+        const RELAY_TOPIC_BOSS = "duck_quack_rainbowlord16_boss_v12";
+        const RELAY_TOPIC_WORLD = "duck_quack_rainbowlord16_world_v12";
 
         let mqttClient = null;
         let mqttBrokerIndex = 0;
@@ -981,7 +981,7 @@
 
         // MQTT WSS and ntfy HTTP are mirrored so clients on mixed transports still synchronize.
         const adminBroadcastChannel = ("BroadcastChannel" in window)
-            ? new BroadcastChannel("dq_gag_admin_abuse_v11")
+            ? new BroadcastChannel("dq_gag_admin_abuse_v12")
             : null;
 
         function compressTinyAvatarForMqtt(dataUrl, callback) {
