@@ -648,7 +648,7 @@
         const CREATOR_USERNAME = "RainbowLord16";
         const CREATOR_SLOT_ID = "creator_rainbowlord16_official";
         // Static hosting cannot establish administrator identity securely.
-        const ADMIN_AUTH_BACKEND_ENABLED = false;
+        const ADMIN_AUTH_BACKEND_ENABLED = true;
         const SAVE_KEY = "duckQuackUltimateSave_v11";
 
         const NUMBER_SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg"];
@@ -934,9 +934,8 @@
 
         function saveGame() {
             try {
-                state.isAdminAuthenticated = false;
-                sessionStorage.removeItem("dqCreatorUnlocked");
-                localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+                const snapshot = { ...state, isAdminAuthenticated: false };
+                localStorage.setItem(SAVE_KEY, JSON.stringify(snapshot));
             } catch (e) {}
         }
 
@@ -1322,11 +1321,7 @@
                 const rosterSince = "30s";
                 // Fetch a wider boss snapshot once per page session, then use short deltas.
                 const bossSince = relaySuccessfulTopics.has(RELAY_TOPIC_BOSS) ? "30s" : "24h";
-                const [rosterPackets, eventPackets, bossPackets] = await Promise.all([
-                    fetchNtfyRelayMessages(RELAY_TOPIC_ROSTER, rosterSince, 1048576),
-                    fetchNtfyRelayMessages(RELAY_TOPIC_EVENTS, "30s"),
-                    fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, bossSince, 524288)
-                ]);
+                const [rosterPackets, bossPackets] = await Promise.all([fetchNtfyRelayMessages(RELAY_TOPIC_ROSTER, rosterSince, 1048576), fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, bossSince, 524288)]);
                 const relayStatus = Date.now() - relayLastSuccessAt < 15000 ? "HTTP RELAY SYNC" : "SYNC OFFLINE";
                 if (!mqttConnected && cloudSyncStatusText !== relayStatus) {
                     cloudSyncStatusText = relayStatus;
@@ -1340,10 +1335,7 @@
                     renderLeaderboardUI();
                     renderWorldLivePlayers();
                 }
-                for (const evt of eventPackets) {
-                    if (evt && evt.id) applyAdminAbuseEvent(evt, false);
-                }
-                for (const packet of bossPackets) {
+for (const packet of bossPackets) {
                     applySharedCoopBossUpdate(packet);
                 }
             } finally {
@@ -2035,24 +2027,36 @@
            9. ADMIN AUTHENTICATION, MAX-OUT & 77 COMMAND ENGINE
            ========================================================================= */
         async function verifyAdminPasscode() {
-            return false;
+            return Boolean(sessionStorage.getItem("dq_creator_admin_session_v1"));
         }
 
         async function unlockAdminVault() {
-            showToast("Creator Admin Vault is unavailable until secure server authentication is configured.", "error");
+            if (!window.DuckQuackApi) { showToast("Secure backend is still connecting.", "error"); return; }
+            try {
+                await window.DuckQuackApi.creatorLogin();
+                state.isAdminAuthenticated = true;
+                openModal("profile");
+                showToast("Creator passkey verified. Admin Vault unlocked.", "success");
+            } catch (error) { showToast(error?.message || "Creator passkey login failed.", "error"); }
         }
 
-        function lockAdminAccount() {
+        async function enrollCreatorPasskey() {
+            const input = document.getElementById("creatorEnrollmentSecret");
+            if (!window.DuckQuackApi) { showToast("Secure backend is still connecting.", "error"); return; }
+            try {
+                await window.DuckQuackApi.creatorEnroll(input?.value || "");
+                if (input) input.value = "";
+                showToast("Creator passkey enrolled. You can now unlock the vault.", "success");
+                openModal("profile");
+            } catch (error) { showToast(error?.message || "Passkey enrollment failed.", "error"); }
+        }
+
+        async function lockAdminAccount() {
+            try { await window.DuckQuackApi?.creatorLogout?.(); } catch (error) {}
             state.isAdminAuthenticated = false;
-            sessionStorage.removeItem("dqCreatorUnlocked");
-            const randId = Math.floor(100 + Math.random() * 899);
-            state.accountSlotId = "guest_" + Date.now().toString(36) + "_" + randId;
-            state.playerName = "DuckGuest_" + randId;
-            saveGame();
-            window.syncLeaderboardScore(true);
             renderAll();
             openModal("profile");
-            showToast("Locked Admin Vault & Switched to Guest Account.", "info");
+            showToast("Creator Admin Vault locked.", "info");
         }
 
         function adminMaxOutEverything(silent = false) {
@@ -2087,36 +2091,18 @@
             if (!silent) showToast("⚡ ALL STATS, WORLDS, SKINS & CREATOR PETS MAXED TO LIMIT!", "success");
         }
 
-        function triggerAdminCommand(cmdType, customArg = "") {
+        async function triggerAdminCommand(cmdType, customArg = "") {
             if (!state.isAdminAuthenticated || !ADMIN_AUTH_BACKEND_ENABLED) return;
             const targetSel = document.getElementById("adminTargetSelect");
             const targetPlayer = targetSel ? targetSel.value : (state.adminTargetPlayer || "ALL");
-            state.adminTargetPlayer = targetPlayer;
-
-            const upper = cmdType.toUpperCase();
-            const message = customArg
-                ? `[${CREATOR_USERNAME} → ${targetPlayer}] ${upper}: ${customArg}`
-                : `[${CREATOR_USERNAME} → ${targetPlayer}] triggered ${upper}!`;
-
-            const payload = {
-                id: "adm_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
-                type: upper,
-                arg: customArg,
-                sender: CREATOR_USERNAME,
-                targetPlayer,
-                message,
-                timestamp: Date.now()
-            };
-
-            applyAdminAbuseEvent(payload, true);
-            try { localStorage.setItem("dqLatestAdminEvent", JSON.stringify(payload)); } catch (e) {}
-            if (adminBroadcastChannel) adminBroadcastChannel.postMessage(payload);
-            publishMqttPacket("events", payload, false);
-            appendLocalChatMessage("ADMIN ABUSE", message, true, true);
-            fetch(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}`, {
-                method: "POST",
-                body: JSON.stringify(payload)
-            }).catch(() => {});
+            try {
+                const result = await window.DuckQuackApi.adminCommand({ type: cmdType, arg: customArg, target: targetPlayer });
+                if (result.event) {
+                    const event = { ...result.event, sender: CREATOR_USERNAME, timestamp: Date.now() };
+                    applyAdminAbuseEvent(event, true);
+                    appendLocalChatMessage("ADMIN ABUSE", event.message, true, true);
+                }
+            } catch (error) { showToast(error?.message || "Admin command was rejected by the server.", "error"); }
         }
 
         function executeAdminCommandLine(rawCommandString = "") {
@@ -2128,10 +2114,26 @@
         }
 
         const processedAdminEventIds = new Set();
+        let adminEventCursor = 0;
+        let adminEventPollInFlight = false;
+        async function refreshVerifiedAdminEvents() {
+            if (adminEventPollInFlight || !navigator.onLine || !window.DuckQuackApi) return;
+            adminEventPollInFlight = true;
+            try {
+                const result = await window.DuckQuackApi.adminEvents(adminEventCursor);
+                for (const event of (result.events || [])) {
+                    adminEventCursor = Math.max(adminEventCursor, Number(event.id) || 0);
+                    if (Number(event.createdAt) * 1000 < Date.now() - 15000) continue;
+                    applyAdminAbuseEvent({ ...event, sender: CREATOR_USERNAME, timestamp: Date.now() }, true);
+                }
+                adminEventCursor = Math.max(adminEventCursor, Number(result.cursor) || 0);
+            } catch (error) {}
+            finally { adminEventPollInFlight = false; }
+        }
 
-        function applyAdminAbuseEvent(evt, isSender = false) {
-            // MQTT and ntfy topics are public. Reject every remote admin/gift event until server signing exists.
-            if (state.safeVisualsMode || !isSender || !evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
+        function applyAdminAbuseEvent(evt, isVerifiedServerEvent = false) {
+            // Only server-ledger events are trusted; public MQTT and ntfy event packets are ignored.
+            if (state.safeVisualsMode || !isVerifiedServerEvent || !evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
             rememberBoundedId(processedAdminEventIds, evt.id);
 
 
@@ -2139,13 +2141,12 @@
             const isTargetedAtMe =
                 target === "ALL" ||
                 target.toLowerCase() === state.playerName.toLowerCase() ||
-                target === state.accountSlotId ||
-                isSender;
+                target === state.accountSlotId;
 
             if (!isTargetedAtMe) return;
 
-            // Ignore events older than 15 seconds so stale messages don't replay on reload
-            if (evt.timestamp && Date.now() - evt.timestamp > 15000 && !isSender) return;
+            // Ignore stale events even when they came from the trusted server ledger.
+            if (evt.timestamp && Date.now() - evt.timestamp > 15000) return;
 
             const type = (evt.type || "").toUpperCase();
             const root = document.getElementById("gameAppRoot");
@@ -3335,9 +3336,11 @@
                         </label>
                         <p class="text-[11px] text-slate-400">Reduces motion and suppresses jumpscares, strobing, and full-screen flash effects on this device.</p>
                     </div>
-                    <div class="panel-subcard rounded-2xl p-4 border border-amber-400/30 space-y-2">
+                    <div class="panel-subcard rounded-2xl p-4 border border-amber-400/30 space-y-3">
                         <div class="font-display font-extrabold text-sm text-amber-300">🔐 Creator Admin Vault</div>
-                        <p class="text-xs text-slate-300">Admin controls are disabled until server-side authentication and signed event authorization are configured. This browser cannot securely verify a creator passcode.</p>
+                        <p class="text-xs text-slate-300">Unlock with your registered Creator passkey. Ordinary players do not need to sign in.</p>
+                        <button onclick="unlockAdminVault()" class="w-full px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold">👑 Unlock with Passkey</button>
+                        <details class="text-xs text-slate-400"><summary class="cursor-pointer font-bold">First-time Creator passkey setup</summary><p class="my-2">Paste the one-time secret configured in Cloudflare Worker secrets. It is sent only to the Worker and is not saved in this browser.</p><input id="creatorEnrollmentSecret" type="password" autocomplete="off" placeholder="One-time enrollment secret" class="w-full p-2 rounded-xl bg-slate-950 border border-slate-700 text-white"><button onclick="enrollCreatorPasskey()" class="w-full mt-2 px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold">Register this device passkey</button></details>
                     </div>
                     ${state.isAdminAuthenticated ? `
                         <div class="panel-subcard rounded-2xl p-4 border border-amber-400/50 space-y-3">
@@ -3613,6 +3616,7 @@
             pullHttpCloudRosterAndEvents();
             refreshServerChat();
             refreshServerLeaderboard();
+            refreshVerifiedAdminEvents();
         }, 4000);
     </script>
     <script type="module" src="./backend/recovery-bridge.js"></script>

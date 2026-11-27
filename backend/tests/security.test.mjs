@@ -5,7 +5,9 @@ import { readFile } from "node:fs/promises";
 const worker = await readFile(new URL("../worker.js", import.meta.url), "utf8");
 const schema = await readFile(new URL("../migrations/0001_initial.sql", import.meta.url), "utf8");
 const gameSchema = await readFile(new URL("../migrations/0002_authoritative_game.sql", import.meta.url), "utf8");
+const adminSchema = await readFile(new URL("../migrations/0003_creator_admin.sql", import.meta.url), "utf8");
 const client = await readFile(new URL("../client.js", import.meta.url), "utf8");
+const frontend = await readFile(new URL("../../index.html", import.meta.url), "utf8");
 
 test("anonymous identity is server-generated and recovery uses a high-entropy key", () => {
   assert.match(worker, /crypto\.getRandomValues/);
@@ -71,4 +73,49 @@ test("D1 migration creates all tables and required chat polling index", () => {
   assert.match(schema, /CREATE TABLE IF NOT EXISTS chat_messages/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS leaderboard/);
   assert.match(schema, /CREATE INDEX IF NOT EXISTS chat_created_idx ON chat_messages\(created_at DESC\)/);
+});
+
+test("Creator passkey enrollment is secret-gated and WebAuthn assertions are verified server-side", () => {
+  assert.match(worker, /CREATOR_ENROLLMENT_SECRET/);
+  assert.match(worker, /webauthn\.create/);
+  assert.match(worker, /webauthn\.get/);
+  assert.match(worker, /crypto\.subtle\.verify/);
+  assert.match(worker, /ADMIN_RP_ID/);
+  assert.match(worker, /ADMIN_ORIGIN/);
+  assert.match(worker, /admin_sessions/);
+  assert.match(worker, /DELETE FROM admin_challenges WHERE challenge_hash=\? AND purpose=\? AND expires_at>=\? RETURNING/);
+  assert.match(client, /navigator\.credentials\.create/);
+  assert.match(client, /navigator\.credentials\.get/);
+});
+
+test("admin commands require a server Creator session and are persisted in the trusted event ledger", () => {
+  assert.match(worker, /getAdminSession\(req,env\)/);
+  assert.match(worker, /Creator passkey authentication required/);
+  assert.match(worker, /ADMIN_COMMANDS\.has\(type\)/);
+  assert.match(worker, /INSERT INTO admin_events/);
+  assert.match(worker, /SELECT id,event_id AS eventId,type,arg,target_player_id/);
+  assert.match(worker, /limit\(env,"admin-event",12,10\)/);
+  assert.match(adminSchema, /CREATE TABLE IF NOT EXISTS admin_events/);
+  assert.match(adminSchema, /slot INTEGER NOT NULL DEFAULT 1 UNIQUE/);
+  assert.match(adminSchema, /CREATE TABLE IF NOT EXISTS creator_passkeys/);
+  assert.match(client, /adminCommand\(/);
+});
+
+test("admin event effects require trusted server delivery and honor target player IDs", () => {
+  assert.match(worker, /admin-events-read:/);
+  assert.match(worker, /admin-login:/);
+  assert.match(worker, /admin-enroll:/);
+  assert.match(worker, /DELETE FROM admin_events WHERE created_at</);
+  assert.match(client, /adminEvents\(since=0\)/);
+  assert.match(frontend, /target === state\.accountSlotId/);
+});
+
+test("every restored frontend abuse command is explicitly allowlisted by the Worker", () => {
+  const ui = frontend.match(/const ALL_ADMIN_COMMANDS = \[([\s\S]*?)\];/);
+  const server = worker.match(/const ADMIN_COMMANDS=new Set\(\[([\s\S]*?)\]\);/);
+  assert.ok(ui && server);
+  const uiCommands = [...ui[1].matchAll(/"([^"]+)"/g)].map(x => x[1].toUpperCase()).sort();
+  const serverCommands = [...server[1].matchAll(/"([^"]+)"/g)].map(x => x[1]).sort();
+  assert.deepEqual(serverCommands, uiCommands);
+  assert.doesNotMatch(frontend, /target === state\.accountSlotId \|\|\s*isVerifiedServerEvent/);
 });

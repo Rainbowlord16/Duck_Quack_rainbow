@@ -91,8 +91,11 @@ for forbidden in (
 ):
     assert forbidden not in SOURCE, f"Forbidden client-side pattern remains: {forbidden}"
 
-assert "ADMIN_AUTH_BACKEND_ENABLED = false" in SOURCE
-assert "state.safeVisualsMode || !isSender" in SOURCE
+assert "ADMIN_AUTH_BACKEND_ENABLED = true" in SOURCE
+assert "state.safeVisualsMode || !isVerifiedServerEvent" in SOURCE
+assert "navigator.credentials.get" in (ROOT / "backend/client.js").read_text(encoding="utf-8")
+assert "refreshVerifiedAdminEvents" in SOURCE
+assert "target === state.accountSlotId" in SOURCE
 assert "Photosensitive / Safe Visuals Mode" in SOURCE
 assert "rememberBoundedId(seenChatIds, message.id)" in SOURCE
 assert "window.DuckQuackApi.chatHistory()" in SOURCE
