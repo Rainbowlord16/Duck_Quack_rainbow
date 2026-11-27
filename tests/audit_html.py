@@ -113,8 +113,12 @@ assert "response.body.getReader()" in SOURCE
 assert "body.length > maxChars" in SOURCE
 assert "message.timestamp >= Date.now() - 86400000" in SOURCE
 assert "fetchNtfyRelayMessages(RELAY_TOPIC_CHAT, \"15s\")" in SOURCE
-assert "fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, \"24h\"" in SOURCE
-assert "if (mqttConnected || relayPollInFlight || !navigator.onLine) return" in SOURCE
+assert "fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, bossSince, 524288)" in SOURCE
+assert "if (relayPollInFlight || !navigator.onLine) return" in SOURCE
+assert "relaySuccessfulTopics.has(RELAY_TOPIC_ROSTER)" in SOURCE
+assert "relaySuccessfulTopics.has(RELAY_TOPIC_BOSS)" in SOURCE
+assert "if (mqttConnected) publishMqttPacket(`roster/${compactCard.accountSlotId}`, compactCard, true)" in SOURCE
+assert "fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}`" in SOURCE
 assert "function syncGlobalWeatherFromClock" in SOURCE
 assert "Math.floor(now / 45000)" in SOURCE
 assert "mqttClient.subscribe(`${MQTT_BASE_TOPIC}/world`" not in SOURCE
@@ -123,6 +127,10 @@ assert "now - Number(e.updatedAt) <= 20000" in SOURCE
 assert 'localStorage.setItem("dq_sync_chat_outbox_v1"' in SOURCE
 assert "function queuePendingChatMessage" in SOURCE
 assert "function flushPendingChatOutbox" in SOURCE
+assert "message.mqttDelivered" in SOURCE
+assert "message.ntfyDelivered" in SOURCE
+assert "mqttClient.publish(`${MQTT_BASE_TOPIC}/chat`" in SOURCE
+assert "RELAY_TOPIC_CHAT" in SOURCE
 assert "pendingChatOutbox = pendingChatOutbox.slice(-50)" in SOURCE
 assert "finish(!error)" in SOURCE
 assert "syncGlobalWeatherFromClock();" in SOURCE
