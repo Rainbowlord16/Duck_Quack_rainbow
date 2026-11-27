@@ -2987,13 +2987,9 @@ for (const packet of bossPackets) {
                     rebirths: Math.max(0, Number(entry.rebirths) || 0),
                     currentWorld: 1,
                     bossKills: 0,
-                    profilePic: ""
+                    profilePic: "",
+                    isCreator: entry.creator === 1 || entry.creator === true
                 })).filter(entry => entry.accountSlotId);
-                if (state.isAdminAuthenticated && state.accountSlotId) {
-                    const ownGame = ownState?.game || {};
-                    serverLeaderboardEntries = serverLeaderboardEntries.filter(entry => entry.accountSlotId !== state.accountSlotId);
-                    serverLeaderboardEntries.push({ accountSlotId: state.accountSlotId, playerName: CREATOR_USERNAME, lifetimeQuacks: Math.max(0, Number(ownGame.lifetimeQuacks) || 0), rebirths: Math.max(0, Number(ownGame.rebirths) || 0), currentWorld: 1, bossKills: 0, profilePic: "" });
-                }
                 serverLeaderboardStatus = "VERIFIED SERVER RANKINGS";
             } catch (error) {
                 serverLeaderboardStatus = "Leaderboard temporarily unavailable";
@@ -3006,10 +3002,8 @@ for (const packet of bossPackets) {
 
         function getDisplayLeaderboardEntries() {
             const entries = (serverLeaderboardEntries || []).slice().sort((a, b) => (b.lifetimeQuacks || 0) - (a.lifetimeQuacks || 0));
-            if (state.isAdminAuthenticated && state.accountSlotId) {
-                const creatorIndex = entries.findIndex(entry => entry.accountSlotId === state.accountSlotId);
-                if (creatorIndex >= 0) entries.unshift(entries.splice(creatorIndex, 1)[0]);
-            }
+            const creatorIndex = entries.findIndex(entry => entry.isCreator || (state.isAdminAuthenticated && entry.accountSlotId === state.accountSlotId));
+            if (creatorIndex >= 0) entries.unshift(entries.splice(creatorIndex, 1)[0]);
             return entries;
         }
 
@@ -3025,7 +3019,7 @@ for (const packet of bossPackets) {
                     <button onclick="refreshServerLeaderboard(true)" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold">↻ Refresh</button>
                 </div>
                 ${entries.length ? `<div class="space-y-1.5">
-                    ${entries.map((p, idx) => { const isCreator = state.isAdminAuthenticated && p.accountSlotId === state.accountSlotId; return `<div class="p-3 rounded-2xl border ${isCreator ? "rainbow-aura bg-gradient-to-r from-fuchsia-500/20 via-amber-400/10 to-cyan-400/20 border-amber-300/70 shadow-lg" : "panel-subcard"} flex items-center justify-between gap-3">
+                    ${entries.map((p, idx) => { const isCreator = p.isCreator || (state.isAdminAuthenticated && p.accountSlotId === state.accountSlotId); return `<div class="p-3 rounded-2xl border ${isCreator ? "rainbow-aura bg-gradient-to-r from-fuchsia-500/20 via-amber-400/10 to-cyan-400/20 border-amber-300/70 shadow-lg" : "panel-subcard"} flex items-center justify-between gap-3">
                         <div class="min-w-0">
                             <div class="font-extrabold text-xs sm:text-sm truncate ${isCreator ? "creator-name-glow" : "text-white"}">#${idx + 1} · ${escapeHtmlText(isCreator ? CREATOR_USERNAME : p.playerName)} ${isCreator ? '<span class="ml-1 text-[9px] tracking-wider">CREATOR</span>' : ""}</div>
                             <div class="text-[10px] text-slate-400">Player ID: ${escapeHtmlText(p.accountSlotId)} · Rebirths: ${formatNum(p.rebirths)}</div>
