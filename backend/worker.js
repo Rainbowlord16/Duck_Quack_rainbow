@@ -132,6 +132,51 @@ async function adminRoutes(req,env,u){
  if(u.pathname==="/api/admin/logout"&&req.method==="POST"){const a=await getAdminSession(req,env);if(a)await env.DB.prepare("DELETE FROM admin_sessions WHERE token_hash=?").bind(a.tokenHash).run();return reply({ok:true});}
  if(u.pathname==="/api/admin/events"&&req.method==="GET"){if(!await limit(env,"admin-events-read:"+ip(req),90,60))return reply({error:"Admin event polling is rate limited."},429);const since=Math.max(0,Math.floor(Number(u.searchParams.get("since"))||0));const rows=since?await env.DB.prepare("SELECT id,event_id AS eventId,type,arg,target_player_id AS targetPlayer,target_label AS targetLabel,message,created_at AS createdAt FROM admin_events WHERE id>? ORDER BY id ASC LIMIT 100").bind(since).all():await env.DB.prepare("SELECT id,event_id AS eventId,type,arg,target_player_id AS targetPlayer,target_label AS targetLabel,message,created_at AS createdAt FROM admin_events ORDER BY id DESC LIMIT 100").all();const events=rows.results||[];if(!since)events.reverse();return reply({events,cursor:events.length?events[events.length-1].id:since});}
  if(u.pathname==="/api/admin/events"&&req.method==="POST"){const a=await getAdminSession(req,env);if(!a)return reply({error:"Creator passkey authentication required."},401);if(!await limit(env,"admin-event",12,10))return reply({error:"Admin command rate limit reached."},429);const b=await readJson(req,1024).catch(()=>null),type=String(b?.type||"").toUpperCase(),rawArg=typeof b?.arg==="string"?b.arg.trim().slice(0,160):"",target=String(b?.target||"ALL").trim();if(!ADMIN_COMMANDS.has(type)||!target||target.length>80)return reply({error:"Unknown command or invalid target."},400);const family=type.replace(/_\d{2}$/,""),isIntensity=INTENSITY_COMMAND_FAMILIES.has(family),isVariant=type!==family&&isIntensity;let arg=rawArg;if(isIntensity){if(rawArg!==""&&!/^\d+$/.test(rawArg))return reply({error:"Intensity must be a whole number from 1 to 5000."},400);const value=rawArg===""?100:Number(rawArg);if(!Number.isSafeInteger(value)||value<1||value>INTENSITY_COMMAND_MAX)return reply({error:"Intensity must be a whole number from 1 to 5000."},400);arg=String(value);}let targetId=null,targetLabel="ALL";if(target.toUpperCase()!=="ALL"){const p=await env.DB.prepare("SELECT player_id,username FROM players WHERE player_id=? OR username=? COLLATE NOCASE LIMIT 1").bind(target,target).first();if(!p)return reply({error:"Target player was not found. Refresh the player list."},404);targetId=p.player_id;targetLabel=p.username;}const eventId=random(16),message=arg?("[RainbowLord16 → "+targetLabel+"] "+type+": "+arg):("[RainbowLord16 → "+targetLabel+"] triggered "+type+"!");const saved=await env.DB.prepare("INSERT INTO admin_events(event_id,type,arg,target_player_id,target_label,message,created_at) VALUES(?,?,?,?,?,?,?) RETURNING id").bind(eventId,type,arg,targetId,targetLabel,message,now).first();await env.DB.prepare("DELETE FROM admin_events WHERE created_at<?").bind(now-604800).run();return reply({event:{id:saved.id,eventId,type,arg,targetPlayer:targetId,targetLabel,message,createdAt:now}},201);}
+
+ if(u.pathname==="/api/admin/players"&&req.method==="GET"){
+  const a=await getAdminSession(req,env);if(!a)return reply({error:"Creator passkey authentication required."},401);
+  if(!await limit(env,"creator-player-search:"+ip(req),30,60))return reply({error:"Player search is rate limited."},429);
+  const q=(u.searchParams.get("q")||"").trim().slice(0,64);
+  const rows=await env.DB.prepare("SELECT player_id AS playerId,username FROM players WHERE banned=0 AND player_id NOT IN (SELECT player_id FROM creator_passkeys WHERE slot=1 AND player_id IS NOT NULL) AND (?='' OR instr(lower(username),lower(?))>0 OR instr(player_id,upper(?))>0) ORDER BY updated_at DESC LIMIT 100").bind(q,q,q).all();
+  return reply({players:rows.results||[]});
+ }
+ if(u.pathname==="/api/admin/gifts"&&req.method==="GET"){
+  const a=await getAdminSession(req,env);if(!a)return reply({error:"Creator passkey authentication required."},401);
+  if(!await limit(env,"creator-gift-history:"+ip(req),30,60))return reply({error:"Gift history is rate limited."},429);
+  const rows=await env.DB.prepare("SELECT g.gift_id AS giftId,g.target_player_id AS targetPlayer,p.username AS targetName,g.resource,g.amount,g.created_at AS createdAt FROM gift_transactions g JOIN players p ON p.player_id=g.target_player_id ORDER BY g.created_at DESC LIMIT 50").all();
+  return reply({gifts:rows.results||[]});
+ }
+ if(u.pathname==="/api/admin/gifts"&&req.method==="POST"){
+  const a=await getAdminSession(req,env);if(!a)return reply({error:"Creator passkey authentication required."},401);
+  if(!await limit(env,"creator-gift-send",20,60))return reply({error:"Creator gift rate limit reached."},429);
+  const b=await readJson(req,1024).catch(()=>null);
+  const targetId=typeof b?.targetPlayerId==="string"?b.targetPlayerId.trim():"";
+  const resource=typeof b?.resource==="string"?b.resource.toLowerCase():"";
+  const amount=b?.amount;
+  const requestId=typeof b?.requestId==="string"?b.requestId:"";
+  if(!/^PLY-[A-F0-9]{16}$/.test(targetId)||resource!=="quacks"||!Number.isSafeInteger(amount)||amount<1||amount>1000000000||!/^[A-Za-z0-9_-]{16,64}$/.test(requestId))
+   return reply({error:"Invalid gift. Only 1 to 1,000,000,000 Quacks can be granted per transaction."},400);
+  const creator=await env.DB.prepare("SELECT p.player_id FROM creator_passkeys c JOIN players p ON p.player_id=c.player_id WHERE c.slot=1 AND p.banned=0 LIMIT 1").first();
+  if(!creator)return reply({error:"Creator identity is not linked to an active player."},403);
+  if(targetId===creator.player_id)return reply({error:"Creator gifts must target another player."},400);
+  const target=await env.DB.prepare("SELECT player_id,username,banned FROM players WHERE player_id=?").bind(targetId).first();
+  if(!target||target.banned)return reply({error:"Target player was not found or is unavailable."},404);
+  const now=Math.floor(Date.now()/1000);
+  await env.DB.prepare("INSERT OR IGNORE INTO player_game_state(player_id,quacks,lifetime_quacks,rebirths,upgrades_json,last_accrual,updated_at) VALUES(?,0,0,0,'{}',?,?)").bind(targetId,now,now).run();
+  try{
+   await env.DB.batch([
+    env.DB.prepare("INSERT OR IGNORE INTO gift_transactions(gift_id,actor_player_id,target_player_id,resource,amount,created_at,applied) VALUES(?,?,?,?,?,?,0)").bind(requestId,creator.player_id,targetId,resource,amount,now),
+    env.DB.prepare("UPDATE player_game_state SET quacks=MIN(quacks+?,?),updated_at=? WHERE player_id=? AND EXISTS(SELECT 1 FROM gift_transactions WHERE gift_id=? AND applied=0)").bind(amount,GAME_CAP,now,targetId,requestId),
+    env.DB.prepare("UPDATE gift_transactions SET applied=1 WHERE gift_id=? AND applied=0").bind(requestId)
+   ]);
+  }catch(e){return reply({error:"Gift transaction could not be completed."},409);}
+  const gift=await env.DB.prepare("SELECT gift_id AS giftId,actor_player_id AS actorPlayer,target_player_id AS targetPlayer,resource,amount,created_at AS createdAt,applied FROM gift_transactions WHERE gift_id=?").bind(requestId).first();
+  if(!gift||gift.actorPlayer!==creator.player_id||gift.targetPlayer!==targetId||gift.resource!==resource||Number(gift.amount)!==amount)
+   return reply({error:"Gift request ID was already used for a different transaction."},409);
+  if(!gift.applied)return reply({error:"Gift was not applied. Please retry with a new request ID."},409);
+  const balance=await env.DB.prepare("SELECT quacks FROM player_game_state WHERE player_id=?").bind(targetId).first();
+  return reply({gift:{...gift,targetName:target.username},balance:{quacks:Number(balance?.quacks)||0}},201);
+ }
  return null;
 }
 

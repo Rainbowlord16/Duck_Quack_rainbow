@@ -7,6 +7,7 @@ const schema = await readFile(new URL("../migrations/0001_initial.sql", import.m
 const gameSchema = await readFile(new URL("../migrations/0002_authoritative_game.sql", import.meta.url), "utf8");
 const adminSchema = await readFile(new URL("../migrations/0003_creator_admin.sql", import.meta.url), "utf8");
 const creatorStatsSchema = await readFile(new URL("../migrations/0004_creator_infinite_stats.sql", import.meta.url), "utf8");
+const giftSchema = await readFile(new URL("../migrations/0005_creator_gifting.sql", import.meta.url), "utf8");
 const client = await readFile(new URL("../client.js", import.meta.url), "utf8");
 const frontend = await readFile(new URL("../../index.html", import.meta.url), "utf8");
 
@@ -197,6 +198,32 @@ test("Creator-only controls require a live server-verified passkey session", () 
   assert.match(frontend, /id="giftPlazaButton"/);
   assert.match(frontend, /giftButton\.classList\.toggle\("hidden", !state\.isAdminAuthenticated\)/);
   assert.match(frontend, /This console is restricted to RainbowLord16/);
-  assert.match(frontend, /async function sendPlayerGift\(targetSlotId, targetName, giftType\) \{\s*if \(!state\.isAdminAuthenticated \|\| !await requireCreatorSession\(\)\) return;/);
-  assert.match(frontend, /Transfers remain paused until the server-backed gift ledger is implemented/);
+  assert.match(frontend, /async function sendPlayerGift\(targetSlotId, targetName, giftType, rawAmount\) \{\s*if \(!state\.isAdminAuthenticated \|\| !await requireCreatorSession\(\)\) return;/);
+  assert.match(frontend, /Creator Quack Grant/);
+});
+
+
+test("Creator gifts are passkey-authorized, idempotent, rate-limited, and ledger-backed", () => {
+  assert.match(worker, /u\.pathname==="\/api\/admin\/gifts"&&req\.method==="POST"/);
+  assert.match(worker, /u\.pathname==="\/api\/admin\/players"&&req\.method==="GET"/);
+  assert.match(worker, /creator-player-search/);
+  assert.match(client, /creatorPlayers\(query=""/);
+  assert.match(frontend, /creatorGiftSearch/);
+  assert.match(worker, /getAdminSession\(req,env\)/);
+  assert.match(worker, /creator-gift-send/);
+  assert.match(worker, /Number\.isSafeInteger\(amount\)/);
+  assert.match(worker, /resource!=="quacks"/);
+  assert.match(worker, /env\.DB\.batch\(\[/);
+  assert.match(worker, /INSERT OR IGNORE INTO gift_transactions/);
+  assert.match(worker, /applied=0/);
+  assert.match(worker, /SELECT gift_id AS giftId,actor_player_id AS actorPlayer/);
+  assert.match(giftSchema, /gift_id TEXT PRIMARY KEY/);
+  assert.match(giftSchema, /CHECK\(resource IN \('quacks'\)\)/);
+  assert.match(client, /creatorGiftHistory\(\)/);
+  assert.match(client, /creatorGift\(\{/);
+  assert.match(frontend, /renderCreatorGiftConsole\(\)/);
+  assert.match(frontend, /Creator Quack Grant/);
+  assert.match(frontend, /server-owned Quack balance/);
+  assert.doesNotMatch(frontend, /Gift Gems/);
+  assert.doesNotMatch(frontend, /Gift Eggs/);
 });
