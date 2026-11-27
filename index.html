@@ -1303,16 +1303,13 @@
                 profilePic: entry.tinyAvatar || "",
                 updatedAt: entry.updatedAt || Date.now()
             };
-            // Retain each player's card on their own MQTT topic. Use ntfy only as fallback.
-            if (mqttConnected) {
-                publishMqttPacket(`roster/${compactCard.accountSlotId}`, compactCard, true);
-            } else {
-                const ntfySafeCard = { ...compactCard, profilePic: "" };
-                fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}`, {
-                    method: "POST",
-                    body: JSON.stringify(ntfySafeCard)
-                }).catch(() => {});
-            }
+            // Publish to both relays so MQTT-connected and HTTP-fallback clients share one roster.
+            if (mqttConnected) publishMqttPacket(`roster/${compactCard.accountSlotId}`, compactCard, true);
+            const ntfySafeCard = { ...compactCard, profilePic: "" };
+            fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}`, {
+                method: "POST",
+                body: JSON.stringify(ntfySafeCard)
+            }).catch(() => {});
         }
 
         async function fetchNtfyRelayMessages(topic, since, maxChars = 524288) {
