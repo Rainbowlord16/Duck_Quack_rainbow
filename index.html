@@ -1038,7 +1038,8 @@
             }
             feed.innerHTML = globalChatMessages.map(msg => {
                 const isSystem = Boolean(msg.isSystem);
-                const isCreator = Boolean(msg.isCreator) || msg.sender === CREATOR_USERNAME;
+                // Public chat fields cannot authenticate a creator identity.
+                const isCreator = false;
                 if (isSystem) {
                     return `<div class="px-2 py-1 rounded-lg bg-fuchsia-500/15 border border-fuchsia-400/30 text-fuchsia-200 font-bold text-[11px]">⚡ ${escapeHtmlText(msg.text)}</div>`;
                 }
@@ -1171,17 +1172,17 @@
         }
 
         function applySharedCoopBossUpdate(data) {
-            if (!data) return;
-            coopBossState = { ...coopBossState, ...data };
-            if (data.defeatEventId && data.defeatEventId !== lastBossDefeatEventId) {
-                lastBossDefeatEventId = data.defeatEventId;
-                const gemReward = 150 + (data.stage || 1) * 50;
-                const shardReward = 15 + (data.stage || 1) * 5;
-                state.gems += gemReward;
-                state.shards += shardReward;
-                saveGame();
-                showToast(`Co-Op Boss Defeated by ${data.lastAttacker || "Squad"}! +${gemReward} Gems & +${shardReward} Shards!`, "success");
-            }
+            if (!data || typeof data !== "object") return;
+            // Public MQTT/ntfy messages are untrusted. They may update the displayed
+            // encounter, but can never mint local currency or progression rewards.
+            coopBossState = {
+                stage: Math.max(0, Math.min(100000, Number(data.stage) || 0)),
+                hp: Math.max(0, Math.min(1e12, Number(data.hp) || 0)),
+                maxHp: Math.max(1, Math.min(1e12, Number(data.maxHp) || 5000)),
+                lastAttacker: String(data.lastAttacker || "Unknown").slice(0, 32),
+                updatedAt: Math.max(0, Number(data.updatedAt) || 0),
+                defeatEventId: ""
+            };
             if (activeModalId === "boss") openModal("boss");
         }
 
@@ -2016,7 +2017,7 @@
 
         function applyAdminAbuseEvent(evt, isSender = false) {
             // MQTT and ntfy topics are public. Reject every remote admin/gift event until server signing exists.
-            if (!isSender || !evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
+            if (state.safeVisualsMode || !isSender || !evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
             rememberBoundedId(processedAdminEventIds, evt.id);
 
 
@@ -2657,7 +2658,8 @@
             const mini = document.getElementById("miniLeaderboardList");
             if (mini) {
                 mini.innerHTML = entries.slice(0, 5).map((p, idx) => {
-                    const isCreator = p.accountSlotId === CREATOR_SLOT_ID || p.isAdmin;
+                    // Public roster fields are unverified and cannot grant creator styling.
+                    const isCreator = false;
                     return `<div class="px-2.5 py-1.5 rounded-xl border ${isCreator ? "bg-gradient-to-r from-fuchsia-500/15 via-amber-500/10 to-cyan-500/15 border-amber-400/40" : "panel-subcard"} flex items-center justify-between gap-2 text-xs">
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="font-display font-extrabold text-[11px] ${idx === 0 ? "text-amber-300" : "text-slate-400"}">#${idx + 1}</span>
@@ -2988,7 +2990,8 @@
                     </div>
                     <div class="space-y-1.5">
                         ${entries.map((p, idx) => {
-                            const isCreator = p.accountSlotId === CREATOR_SLOT_ID || p.isAdmin;
+                            // Public roster fields are unverified and cannot grant creator styling.
+                    const isCreator = false;
                             return `<div class="p-3 rounded-2xl border ${isCreator ? "bg-gradient-to-r from-fuchsia-500/20 via-amber-500/15 to-cyan-500/20 border-amber-400/50" : "panel-subcard"} flex items-center justify-between gap-3">
                                 <div class="flex items-center gap-2.5 min-w-0">
                                     <span class="font-display font-extrabold text-sm ${idx === 0 ? "text-amber-300" : "text-slate-400"}">#${idx + 1}</span>
