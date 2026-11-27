@@ -3461,7 +3461,10 @@
 
         setInterval(() => {
             window.syncLeaderboardScore(true);
-            if (!mqttConnected) pullHttpCloudRosterAndEvents();
+            if (!mqttConnected) {
+                pullHttpCloudRosterAndEvents();
+                flushPendingChatOutbox();
+            }
         }, 4000);
     </script>
 </body>
