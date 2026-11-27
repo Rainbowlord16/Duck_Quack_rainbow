@@ -115,7 +115,7 @@ assert "message.timestamp >= Date.now() - 86400000" in SOURCE
 assert "fetchNtfyRelayMessages(RELAY_TOPIC_CHAT, \"30s\")" in SOURCE
 assert "fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, bossSince, 524288)" in SOURCE
 assert "if (relayPollInFlight || !navigator.onLine) return" in SOURCE
-assert "relaySuccessfulTopics.has(RELAY_TOPIC_ROSTER)" in SOURCE
+assert 'const rosterSince = "30s"' in SOURCE
 assert "relaySuccessfulTopics.has(RELAY_TOPIC_BOSS)" in SOURCE
 assert "if (mqttConnected) publishMqttPacket(`roster/${compactCard.accountSlotId}`, compactCard, true)" in SOURCE
 assert "fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}`" in SOURCE
