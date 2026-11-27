@@ -3424,15 +3424,15 @@ for (const packet of bossPackets) {
                         <p class="text-[11px] text-slate-400">Reduces motion and suppresses jumpscares, strobing, and full-screen flash effects on this device.</p>
                     </div>
                     <div class="panel-subcard rounded-2xl p-4 border border-amber-400/30 space-y-3">
-                        <div class="font-display font-extrabold text-sm text-amber-300">🔐 Creator Admin Vault</div>
+                        <div class="font-display font-extrabold text-sm text-amber-300">${adminCommandIcon("unlock")} Creator Admin Vault</div>
                         <p class="text-xs text-slate-300">Unlock with your registered Creator passkey. Ordinary players do not need to sign in.</p>
-                        <button onclick="unlockAdminVault()" class="w-full px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold">👑 Unlock with Passkey</button>
+                        <button onclick="unlockAdminVault()" class="w-full px-3 py-2 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-extrabold">${adminCommandIcon("unlock")} Unlock with Passkey</button>
                         <details class="text-xs text-slate-400"><summary class="cursor-pointer font-bold">First-time Creator passkey setup</summary><p class="my-2">Paste the one-time secret configured in Cloudflare Worker secrets. It is sent only to the Worker and is not saved in this browser.</p><input id="creatorEnrollmentSecret" type="password" autocomplete="off" placeholder="One-time enrollment secret" class="w-full p-2 rounded-xl bg-slate-950 border border-slate-700 text-white"><button onclick="enrollCreatorPasskey()" class="w-full mt-2 px-3 py-2 rounded-xl bg-sky-500 hover:bg-sky-400 text-slate-950 font-extrabold">Register this device passkey</button></details>
                     </div>
                     ${state.isAdminAuthenticated ? `
                         <div class="panel-subcard rounded-2xl p-4 border border-amber-400/50 space-y-3">
                             <div class="flex flex-wrap items-center justify-between gap-2">
-                                <div class="font-display font-extrabold text-sm creator-name-glow">👑 RAINBOWLORD16 CREATOR ADMIN VAULT</div>
+                                <div class="font-display font-extrabold text-sm creator-name-glow">${adminCommandIcon("unlock")} RAINBOWLORD16 CREATOR ADMIN VAULT</div>
                                 <div class="flex gap-2">
                                     <button onclick="adminMaxOutEverything()" class="px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-400 to-pink-500 text-slate-950 font-extrabold text-xs shadow-lg">⚡ MAX OUT EVERYTHING</button>
                                     <button onclick="lockAdminAccount()" class="px-3 py-1.5 rounded-xl bg-slate-800 text-slate-300 font-bold text-xs">Lock & Exit</button>
@@ -3463,7 +3463,7 @@ for (const packet of bossPackets) {
                             </div>
 
                             <div>
-                                <div class="text-[11px] font-bold text-slate-400 mb-1">🔊 Live Speaker Troll Soundboard</div>
+                                <div class="text-[11px] font-bold text-slate-400 mb-1">${adminCommandIcon("airhorn")} Live Speaker Troll Soundboard</div>
                                 <div class="flex flex-wrap gap-1.5">
                                     <button onclick="triggerAdminCommand('airhorn')" class="px-2.5 py-1 rounded-lg bg-amber-500/20 border border-amber-400/40 text-amber-200 text-xs font-bold"><span class="inline-flex items-center gap-2">${adminCommandIcon("airhorn")} Airhorn</span></button>
                                     <button onclick="triggerAdminCommand('siren')" class="px-2.5 py-1 rounded-lg bg-rose-500/20 border border-rose-400/40 text-rose-200 text-xs font-bold"><span class="inline-flex items-center gap-2">${adminCommandIcon("siren")} Nuclear Siren</span></button>
@@ -3474,9 +3474,9 @@ for (const packet of bossPackets) {
                             </div>
 
                             <div>
-                                <div class="text-[11px] font-bold text-slate-400 mb-1">📜 All ${ALL_ADMIN_COMMANDS.length} Quick-Click Commands</div>
+                                <div class="text-[11px] font-bold text-slate-400 mb-1">${adminCommandIcon("matrix")} All ${ALL_ADMIN_COMMANDS.length} Quick-Click Commands</div>
                                 <div class="flex flex-wrap gap-1 max-h-28 overflow-y-auto custom-scroll p-2 rounded-xl bg-slate-950/90 border border-slate-800">
-                                    ${ALL_ADMIN_COMMANDS.map(c => `<button onclick="triggerAdminCommand('${c}')" class="px-2 py-0.5 rounded bg-slate-900 hover:bg-fuchsia-600 text-[10px] font-bold text-slate-300 hover:text-white transition">/${c}</button>`).join("")}
+                                    ${ALL_ADMIN_COMMANDS.map(c => `<button onclick="triggerAdminCommand('${c}')" class="inline-flex items-center gap-1 px-2 py-1 rounded bg-slate-900 hover:bg-fuchsia-600 text-[10px] font-bold text-slate-300 hover:text-white transition">${adminCommandIcon(c)}<span>/${c}</span></button>`).join("")}
                                 </div>
                             </div>
                         </div>
