@@ -1142,7 +1142,12 @@
                 pullHttpCloudRosterAndEvents();
             }
         });
+        window.addEventListener("offline", () => {
+            cloudSyncStatusText = "SYNC OFFLINE";
+            renderLeaderboardUI();
+        });
         window.addEventListener("online", () => {
+            cloudSyncStatusText = "Reconnecting global sync...";
             connectGlobalMqttSync();
             window.syncLeaderboardScore(true);
             pullHttpCloudRosterAndEvents();
