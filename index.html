@@ -7,7 +7,6 @@
     <link id="dynamicFavicon" rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
@@ -206,6 +205,28 @@
         .choir-singing {
             animation: choirDuckSing 0.34s cubic-bezier(0.22, 1, 0.36, 1);
         }
+        body.safe-visuals-mode #jumpscareOverlay,
+        body.safe-visuals-mode #adminFxOverlay {
+            display: none !important;
+            animation: none !important;
+            filter: none !important;
+        }
+        body.safe-visuals-mode .screen-shaking,
+        body.safe-visuals-mode .admin-glitch-active,
+        body.safe-visuals-mode .admin-acid-active,
+        body.safe-visuals-mode .scare-active {
+            animation: none !important;
+            filter: none !important;
+            transform: none !important;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                scroll-behavior: auto !important;
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
     </style>
 </head>
 <body class="antialiased selection:bg-amber-400 selection:text-slate-950">
@@ -342,18 +363,6 @@
             <div class="panel-card rounded-2xl p-3.5">
                 <div class="flex items-center justify-between mb-2.5">
                     <h2 class="font-display font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                        <svg viewBox="0 0 24 24" class="w-3.5 h-3.5 text-amber-400" fill="currentColor"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                        Core Upgrades
-                    </h2>
-                    <span id="worldBoostBadge" class="text-[11px] font-extrabold text-emerald-300 bg-emerald-500/15 border border-emerald-400/30 px-2 py-0.5 rounded-lg">1.00x Boost</span>
-                </div>
-                <div id="worldsList" class="space-y-1.5 max-h-[225px] overflow-y-auto custom-scroll pr-1"></div>
-            </div>
-
-            <!-- Core Upgrades -->
-            <div class="panel-card rounded-2xl p-3.5">
-                <div class="flex items-center justify-between mb-2.5">
-                    <h2 class="font-display font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
                         <span class="text-amber-400">⚡</span> Core Upgrades
                     </h2>
                     <div class="flex items-center gap-1 bg-slate-950/90 p-0.5 rounded-lg border border-slate-800">
@@ -423,8 +432,8 @@
                         type="button"
                         onpointerdown="startHoldQuack(event)"
                         onpointerup="stopHoldQuack()"
-                        onpointerleave="stopHoldQuack()"
                         onpointercancel="stopHoldQuack()"
+                        onlostpointercapture="stopHoldQuack()"
                         class="duck-stage-btn relative z-20 w-32 h-32 sm:w-36 sm:h-36 rounded-full flex items-center justify-center focus:outline-none transition-transform duration-75 active:scale-90 cursor-pointer"
                         aria-label="Quack Duck"
                     >
@@ -597,10 +606,10 @@
 
     <!-- UNIVERSAL SYSTEM MODAL BACKDROP -->
     <div id="systemModalBackdrop" onclick="if(event.target===this) closeModal()" class="hidden fixed inset-0 z-40 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-5">
-        <div class="panel-card w-full max-w-3xl max-h-[88dvh] rounded-3xl border border-slate-700/80 shadow-2xl flex flex-col overflow-hidden">
+        <div role="dialog" aria-modal="true" aria-labelledby="systemModalTitle" class="panel-card w-full max-w-3xl max-h-[88dvh] rounded-3xl border border-slate-700/80 shadow-2xl flex flex-col overflow-hidden">
             <div class="px-5 py-3.5 border-b border-slate-800 flex items-center justify-between bg-slate-900/90">
                 <h3 id="systemModalTitle" class="font-display font-extrabold text-base sm:text-lg text-white">System</h3>
-                <button onclick="closeModal()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold flex items-center justify-center transition">✕</button>
+                <button id="systemModalCloseBtn" type="button" aria-label="Close dialog" onclick="closeModal()" class="w-8 h-8 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold flex items-center justify-center transition">✕</button>
             </div>
             <div id="systemModalBody" class="p-4 sm:p-5 overflow-y-auto custom-scroll space-y-4 text-sm"></div>
         </div>
@@ -615,7 +624,8 @@
            ========================================================================= */
         const CREATOR_USERNAME = "RainbowLord16";
         const CREATOR_SLOT_ID = "creator_rainbowlord16_official";
-        const CREATOR_PASSCODE_HASH = "ABC202616Rainbow_AI@129";
+        // Static hosting cannot establish administrator identity securely.
+        const ADMIN_AUTH_BACKEND_ENABLED = false;
         const SAVE_KEY = "duckQuackUltimateSave_v11";
 
         const NUMBER_SUFFIXES = ["", "K", "M", "B", "T", "Qa", "Qi", "Sx", "Sp", "Oc", "No", "Dc", "Ud", "Dd", "Td", "Qad", "Qid", "Sxd", "Spd", "Ocd", "Nod", "Vg"];
@@ -638,6 +648,63 @@
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#39;");
+        }
+
+        function safeAvatarDataUrl(value) {
+            if (typeof value !== "string" || value.length > 120000) return "";
+            return /^data:image[/](?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value) ? value : "";
+        }
+
+        function normalizePublicRosterEntry(data) {
+            if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+            const accountSlotId = typeof data.accountSlotId === "string" ? data.accountSlotId : "";
+            if (!/^[a-zA-Z0-9_-]{1,64}$/.test(accountSlotId)) return null;
+            const now = Date.now();
+            const updatedAt = Number(data.updatedAt);
+            if (!Number.isFinite(updatedAt) || updatedAt < now - 86400000 || updatedAt > now + 10000) return null;
+            const boundedNumber = (value, max) => {
+                const n = Number(value);
+                return Number.isFinite(n) ? Math.max(0, Math.min(max, n)) : 0;
+            };
+            return {
+                accountSlotId,
+                playerName: (typeof data.playerName === "string" ? data.playerName : "DuckGuest").trim().slice(0, 22) || "DuckGuest",
+                lifetimeQuacks: boundedNumber(data.lifetimeQuacks, 1e18),
+                rebirths: boundedNumber(data.rebirths, 1e9),
+                bossKills: boundedNumber(data.bossKills, 1e9),
+                eggsHatched: boundedNumber(data.eggsHatched, 1e9),
+                currentWorld: Math.max(1, Math.min(WORLDS.length, Math.floor(boundedNumber(data.currentWorld, WORLDS.length)) || 1)),
+                profilePic: safeAvatarDataUrl(data.tinyAvatar || data.profilePic),
+                updatedAt
+            };
+        }
+
+        function storePublicRosterEntry(data, expectedSlotId = "") {
+            const entry = normalizePublicRosterEntry(data);
+            if (!entry || (expectedSlotId && entry.accountSlotId !== expectedSlotId)) return false;
+            const previous = liveHttpEntries[entry.accountSlotId];
+            if (previous && entry.updatedAt <= previous.updatedAt) return false;
+            if (!previous && Object.keys(liveHttpEntries).length >= 100) {
+                const oldestId = Object.keys(liveHttpEntries).reduce((oldest, id) =>
+                    !oldest || liveHttpEntries[id].updatedAt < liveHttpEntries[oldest].updatedAt ? id : oldest, "");
+                if (oldestId) delete liveHttpEntries[oldestId];
+            }
+            liveHttpEntries[entry.accountSlotId] = entry;
+            return true;
+        }
+
+        function normalizePublicChatMessage(data) {
+            if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+            if (typeof data.id !== "string" || data.id.length < 1 || data.id.length > 100) return null;
+            if (typeof data.text !== "string" || !data.text.trim()) return null;
+            return {
+                id: data.id,
+                sender: (typeof data.sender === "string" ? data.sender : "DuckGuest").trim().slice(0, 22) || "DuckGuest",
+                text: data.text.slice(0, 280),
+                timestamp: Number.isFinite(Number(data.timestamp)) ? Number(data.timestamp) : Date.now(),
+                isSystem: false,
+                isCreator: false
+            };
         }
 
         const WORLDS = [
@@ -763,13 +830,7 @@
             "confetti", "hearts", "skull_rain", "matrix", "blur", "shake_screen", "reset_size", "clear"
         ];
 
-        const JUMPSCARE_IMAGE_URLS = [
-            "https://i.pinimg.com/564x/c3/fe/8a/c3fe8a0d6bcbcdeeb4d310e4f5e598e4.jpg",
-            "https://i.pinimg.com/236x/47/f5/ed/47f5ed484f0bf76fbd1e618ac9b092c9.jpg",
-            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQPKh7st5AligOkK4BC1KSiXcXyE1ipH1N5qFz_FxJhfDfEmyi0gce7K0VT&s=10",
-            "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRlSrAFt6QKRmXtE2PZ9UnTaoz2jg1Y-vcnJIUaMzxt1-xBKZ8tVcmxcJcR&s=10",
-            "./jumpscare.png"
-        ];
+        const JUMPSCARE_IMAGE_URLS = ["./jumpscare.png"];
 
         /* =========================================================================
            2. PERSISTENT PLAYER STATE
@@ -813,6 +874,7 @@
                 autoTap: false,
                 autoHatch: false,
                 soundOn: true,
+                safeVisualsMode: false,
                 compactStage: true,
                 buyMult: 1,
                 adminTargetPlayer: "ALL",
@@ -830,6 +892,19 @@
         let currentWeather = WEATHERS[0];
         let weatherTimer = 45;
         let activeModalId = null;
+
+        // Every device derives the same world weather from the same UTC 45-second slot.
+        // Public MQTT/ntfy writes cannot hijack the global weather state.
+        function syncGlobalWeatherFromClock(now = Date.now()) {
+            const slot = Math.floor(now / 45000);
+            const weatherIndex = ((slot % WEATHERS.length) + WEATHERS.length) % WEATHERS.length;
+            const nextWeather = WEATHERS[weatherIndex];
+            const changed = currentWeather.id !== nextWeather.id;
+            currentWeather = nextWeather;
+            weatherTimer = 45 - Math.floor((now % 45000) / 1000);
+            return changed;
+        }
+        let modalPreviousFocus = null;
         let wheelAngle = 0;
         let isWheelSpinning = false;
         let cloudSyncStatusText = "Connecting Global WSS...";
@@ -841,67 +916,73 @@
                     const parsed = JSON.parse(raw);
                     state = { ...createDefaultState(), ...parsed };
                 }
-                if (sessionStorage.getItem("dqCreatorUnlocked") === "1") {
-                    state.isAdminAuthenticated = true;
-                    state.playerName = CREATOR_USERNAME;
-                    state.accountSlotId = CREATOR_SLOT_ID;
-                } else if (state.isAdminAuthenticated) {
-                    sessionStorage.setItem("dqCreatorUnlocked", "1");
-                }
+                // Browser storage is user-controlled and must never restore admin privileges.
+                state.isAdminAuthenticated = false;
+                sessionStorage.removeItem("dqCreatorUnlocked");
             } catch (e) {}
         }
 
         function saveGame() {
             try {
-                if (state.isAdminAuthenticated) {
-                    state.playerName = CREATOR_USERNAME;
-                    state.accountSlotId = CREATOR_SLOT_ID;
-                    sessionStorage.setItem("dqCreatorUnlocked", "1");
-                }
+                state.isAdminAuthenticated = false;
+                sessionStorage.removeItem("dqCreatorUnlocked");
                 localStorage.setItem(SAVE_KEY, JSON.stringify(state));
             } catch (e) {}
         }
 
         /* =========================================================================
-           3. ZERO-LOGIN MULTI-DEVICE REAL-TIME SYNC (MQTT WSS RETAINED + SSE + GUNJS)
+           3. PUBLIC MULTI-DEVICE SYNC (MQTT WSS PRIMARY + NTfy FALLBACK)
            ========================================================================= */
-        const MQTT_BASE_TOPIC = "duckquack/rainbowlord16/gag_sync_v11";
+        const MQTT_BASE_TOPIC = "duckquack/rainbowlord16/gag_sync_v12";
         const MQTT_BROKERS = [
             "wss://broker.emqx.io:8084/mqtt",
             "wss://broker.hivemq.com:8884/mqtt"
         ];
-        const RELAY_TOPIC_ROSTER = "duck_quack_rainbowlord16_roster_v11";
-        const RELAY_TOPIC_EVENTS = "duck_quack_rainbowlord16_events_v11";
-        const RELAY_TOPIC_CHAT = "duck_quack_rainbowlord16_chat_v11";
-        const RELAY_TOPIC_BOSS = "duck_quack_rainbowlord16_boss_v11";
-        const RELAY_TOPIC_WORLD = "duck_quack_rainbowlord16_world_v11";
+        const RELAY_TOPIC_ROSTER = "duck_quack_rainbowlord16_roster_v12";
+        const RELAY_TOPIC_EVENTS = "duck_quack_rainbowlord16_events_v12";
+        const RELAY_TOPIC_CHAT = "duck_quack_rainbowlord16_chat_v12";
+        const RELAY_TOPIC_BOSS = "duck_quack_rainbowlord16_boss_v12";
+        const RELAY_TOPIC_WORLD = "duck_quack_rainbowlord16_world_v12";
 
         let mqttClient = null;
         let mqttBrokerIndex = 0;
         let mqttConnected = false;
-        let liveHttpEntries = {};
+        let mqttReconnectTimer = null;
+        let mqttReconnectAttempt = 0;
+        let relayPollInFlight = false;
+        const relaySuccessfulTopics = new Set();
+        let relayLastSuccessAt = 0;
+        let pendingChatOutbox = [];
+        let chatFlushInFlight = false;
+        let liveHttpEntries = Object.create(null);
         let globalChatMessages = [];
         let seenChatIds = new Set();
+        let inboundChatWindowAt = Date.now();
+        let inboundChatCount = 0;
+
+        function allowIncomingChatPacket() {
+            const now = Date.now();
+            if (now - inboundChatWindowAt >= 10000) {
+                inboundChatWindowAt = now;
+                inboundChatCount = 0;
+            }
+            if (inboundChatCount >= 30) return false;
+            inboundChatCount++;
+            return true;
+        }
+
+        function rememberBoundedId(idSet, id, limit = 200) {
+            if (!idSet || !id || idSet.has(id)) return;
+            idSet.add(id);
+            while (idSet.size > limit) idSet.delete(idSet.values().next().value);
+        }
         let coopBossState = { stage: 0, hp: 5000, maxHp: 5000, lastAttacker: "", updatedAt: 0 };
         let lastBossDefeatEventId = "";
         let lastWorldSyncTs = 0;
 
-        let gunInstance = null;
-        let gunLeaderboardNode = null;
-        let gunAdminEventNode = null;
-        try {
-            if (typeof Gun !== "undefined") {
-                gunInstance = Gun([
-                    "https://gun-manhattan.up.railway.app/gun",
-                    "https://peer.wallie.io/gun"
-                ]);
-                gunLeaderboardNode = gunInstance.get("duck_quack_v11_roster");
-                gunAdminEventNode = gunInstance.get("duck_quack_v11_events");
-            }
-        } catch (e) {}
-
+        // MQTT WSS and ntfy HTTP are mirrored so clients on mixed transports still synchronize.
         const adminBroadcastChannel = ("BroadcastChannel" in window)
-            ? new BroadcastChannel("dq_gag_admin_abuse_v11")
+            ? new BroadcastChannel("dq_gag_admin_abuse_v12")
             : null;
 
         function compressTinyAvatarForMqtt(dataUrl, callback) {
@@ -923,57 +1004,98 @@
         }
 
         function publishMqttPacket(subTopic, payloadObj, retain = false) {
-            if (!mqttClient || !mqttConnected) return;
+            if (!mqttClient || !mqttConnected) return false;
             try {
                 mqttClient.publish(`${MQTT_BASE_TOPIC}/${subTopic}`, JSON.stringify(payloadObj), {
                     qos: 1,
                     retain: Boolean(retain)
                 });
-            } catch (e) {}
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function scheduleMqttReconnect(failedClient) {
+            if (failedClient && mqttClient !== failedClient) return;
+            mqttConnected = false;
+            if (mqttReconnectTimer) return;
+            cloudSyncStatusText = "Global sync reconnecting...";
+            mqttBrokerIndex = (mqttBrokerIndex + 1) % MQTT_BROKERS.length;
+            const delay = Math.min(30000, 1500 * Math.pow(2, Math.min(mqttReconnectAttempt, 4)));
+            mqttReconnectAttempt++;
+            mqttReconnectTimer = setTimeout(() => {
+                mqttReconnectTimer = null;
+                connectGlobalMqttSync();
+            }, delay);
         }
 
         function connectGlobalMqttSync() {
             if (typeof mqtt === "undefined") return;
             try {
+                if (mqttReconnectTimer) {
+                    clearTimeout(mqttReconnectTimer);
+                    mqttReconnectTimer = null;
+                }
                 if (mqttClient) {
-                    try { mqttClient.end(true); } catch (e) {}
+                    const previousClient = mqttClient;
+                    mqttClient = null;
+                    try { previousClient.end(true); } catch (e) {}
                 }
                 const brokerUrl = MQTT_BROKERS[mqttBrokerIndex % MQTT_BROKERS.length];
-                const clientId = "dq_" + (state.accountSlotId || "guest").slice(0, 14) + "_" + Math.random().toString(36).slice(2, 7);
+                const clientNonce = (window.crypto && typeof window.crypto.randomUUID === "function")
+                    ? window.crypto.randomUUID().replace(/-/g, "")
+                    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+                const clientId = "dq_" + clientNonce.slice(0, 20);
                 cloudSyncStatusText = "Connecting Global WSS...";
 
                 mqttClient = mqtt.connect(brokerUrl, {
                     clientId,
                     clean: true,
                     connectTimeout: 6000,
-                    reconnectPeriod: 3000,
+                    reconnectPeriod: 0,
                     keepalive: 25
                 });
+                const activeClient = mqttClient;
 
-                mqttClient.on("connect", () => {
+                activeClient.on("connect", () => {
+                    if (mqttClient !== activeClient) return;
+                    mqttReconnectAttempt = 0;
+                    if (mqttReconnectTimer) {
+                        clearTimeout(mqttReconnectTimer);
+                        mqttReconnectTimer = null;
+                    }
                     mqttConnected = true;
-                    cloudSyncStatusText = "GLOBAL WSS LIVE";
+                    cloudSyncStatusText = "GLOBAL SYNC LIVE";
                     mqttClient.subscribe(`${MQTT_BASE_TOPIC}/roster/+`, { qos: 1 });
                     mqttClient.subscribe(`${MQTT_BASE_TOPIC}/events`, { qos: 1 });
                     mqttClient.subscribe(`${MQTT_BASE_TOPIC}/chat`, { qos: 1 });
                     mqttClient.subscribe(`${MQTT_BASE_TOPIC}/boss`, { qos: 1 });
-                    mqttClient.subscribe(`${MQTT_BASE_TOPIC}/world`, { qos: 1 });
+                    // Shared weather is deterministic from UTC; no public write topic is trusted.
 
                     window.syncLeaderboardScore(true);
+                    if (coopBossState.updatedAt > 0) {
+                        publishMqttPacket("boss", coopBossState, true);
+                        fetch(`https://ntfy.sh/${RELAY_TOPIC_BOSS}`, {
+                            method: "POST",
+                            body: JSON.stringify(coopBossState)
+                        }).catch(() => {});
+                    }
+                    flushPendingChatOutbox();
                     renderLeaderboardUI();
                 });
 
-                mqttClient.on("message", (topic, messageBuf) => {
+                activeClient.on("message", (topic, messageBuf) => {
+                    if (mqttClient !== activeClient) return;
                     try {
                         const rawStr = messageBuf.toString();
-                        if (!rawStr) return;
+                        if (!rawStr || rawStr.length > 16384) return;
                         const data = JSON.parse(rawStr);
 
                         if (topic.startsWith(`${MQTT_BASE_TOPIC}/roster/`)) {
                             if (data && data.accountSlotId) {
-                                const prev = liveHttpEntries[data.accountSlotId];
-                                if (!prev || (data.updatedAt || 0) >= (prev.updatedAt || 0)) {
-                                    liveHttpEntries[data.accountSlotId] = data;
+                                const expectedSlotId = topic.slice(`${MQTT_BASE_TOPIC}/roster/`.length);
+                                if (storePublicRosterEntry(data, expectedSlotId)) {
                                     renderLeaderboardUI();
                                     renderWorldLivePlayers();
                                 }
@@ -983,9 +1105,10 @@
                                 applyAdminAbuseEvent(data, false);
                             }
                         } else if (topic === `${MQTT_BASE_TOPIC}/chat`) {
-                            if (data && data.id && !seenChatIds.has(data.id)) {
-                                seenChatIds.add(data.id);
-                                globalChatMessages.push(data);
+                            const chatMessage = normalizePublicChatMessage(data);
+                            if (chatMessage && !seenChatIds.has(chatMessage.id) && allowIncomingChatPacket()) {
+                                rememberBoundedId(seenChatIds, chatMessage.id);
+                                globalChatMessages.push(chatMessage);
                                 globalChatMessages = globalChatMessages.slice(-60);
                                 renderGlobalChat();
                             }
@@ -993,29 +1116,20 @@
                             if (data && (data.updatedAt || 0) > coopBossState.updatedAt) {
                                 applySharedCoopBossUpdate(data);
                             }
-                        } else if (topic === `${MQTT_BASE_TOPIC}/world`) {
-                            if (data && (data.updatedAt || 0) > lastWorldSyncTs) {
-                                lastWorldSyncTs = data.updatedAt;
-                                const found = WEATHERS.find(w => w.id === data.weatherId);
-                                if (found && found.id !== currentWeather.id) {
-                                    currentWeather = found;
-                                    weatherTimer = data.weatherTimer || 45;
-                                    renderAll();
-                                    showToast(`Global Weather Synced: ${found.name} (${found.mult}x)!`, "info");
-                                }
-                            }
                         }
                     } catch (err) {}
                 });
 
-                mqttClient.on("error", () => {
-                    mqttConnected = false;
-                    mqttBrokerIndex++;
+                activeClient.on("error", () => {
+                    scheduleMqttReconnect(activeClient);
                 });
 
-                mqttClient.on("offline", () => {
-                    mqttConnected = false;
-                    cloudSyncStatusText = "Reconnecting WSS...";
+                activeClient.on("offline", () => {
+                    scheduleMqttReconnect(activeClient);
+                });
+
+                activeClient.on("close", () => {
+                    scheduleMqttReconnect(activeClient);
                 });
             } catch (e) {}
         }
@@ -1028,10 +1142,16 @@
                 pullHttpCloudRosterAndEvents();
             }
         });
+        window.addEventListener("offline", () => {
+            cloudSyncStatusText = "SYNC OFFLINE";
+            renderLeaderboardUI();
+        });
         window.addEventListener("online", () => {
+            cloudSyncStatusText = "Reconnecting global sync...";
             connectGlobalMqttSync();
             window.syncLeaderboardScore(true);
             pullHttpCloudRosterAndEvents();
+            flushPendingChatOutbox();
         });
         window.addEventListener("pageshow", () => {
             if (!mqttClient || !mqttConnected) connectGlobalMqttSync();
@@ -1042,12 +1162,13 @@
             const feed = document.getElementById("globalChatFeed");
             if (!feed) return;
             if (globalChatMessages.length === 0) {
-                feed.innerHTML = `<div class="text-slate-500 italic">Connected to global GAG-style chat & Admin Abuse stream...</div>`;
+                feed.innerHTML = `<div class="text-slate-500 italic">Global chat is ready. Messages from other players will appear here.</div>`;
                 return;
             }
             feed.innerHTML = globalChatMessages.map(msg => {
                 const isSystem = Boolean(msg.isSystem);
-                const isCreator = Boolean(msg.isCreator) || msg.sender === CREATOR_USERNAME;
+                // Public chat fields cannot authenticate a creator identity.
+                const isCreator = false;
                 if (isSystem) {
                     return `<div class="px-2 py-1 rounded-lg bg-fuchsia-500/15 border border-fuchsia-400/30 text-fuchsia-200 font-bold text-[11px]">⚡ ${escapeHtmlText(msg.text)}</div>`;
                 }
@@ -1060,6 +1181,110 @@
             feed.scrollTop = feed.scrollHeight;
         }
 
+        function savePendingChatOutbox() {
+            try {
+                localStorage.setItem("dq_sync_chat_outbox_v1", JSON.stringify(pendingChatOutbox.slice(-50)));
+            } catch (e) {}
+        }
+
+        function queuePendingChatMessage(message) {
+            if (!message || !message.id || pendingChatOutbox.some(item => item.id === message.id)) return;
+            pendingChatOutbox.push({
+                id: String(message.id).slice(0, 100),
+                sender: String(message.sender || "DuckGuest").slice(0, 22),
+                text: String(message.text || "").slice(0, 280),
+                timestamp: Number(message.timestamp) || Date.now(),
+                isSystem: false,
+                isCreator: false,
+                mqttDelivered: false,
+                ntfyDelivered: false
+            });
+            pendingChatOutbox = pendingChatOutbox.slice(-50);
+            savePendingChatOutbox();
+        }
+
+        function loadPendingChatOutbox() {
+            try {
+                const saved = JSON.parse(localStorage.getItem("dq_sync_chat_outbox_v1") || "[]");
+                pendingChatOutbox = Array.isArray(saved)
+                    ? saved.slice(-50).map(item => {
+                        const message = normalizePublicChatMessage(item);
+                        if (!message || message.timestamp < Date.now() - 86400000 ||
+                            message.timestamp > Date.now() + 60000) return null;
+                        return {
+                            ...message,
+                            mqttDelivered: Boolean(item.mqttDelivered),
+                            ntfyDelivered: Boolean(item.ntfyDelivered)
+                        };
+                    }).filter(Boolean).slice(-50)
+                    : [];
+                savePendingChatOutbox();
+            } catch (e) {
+                pendingChatOutbox = [];
+            }
+        }
+
+        async function flushPendingChatOutbox() {
+            if (chatFlushInFlight || !pendingChatOutbox.length || !navigator.onLine) return;
+            chatFlushInFlight = true;
+            try {
+                while (pendingChatOutbox.length) {
+                    const message = pendingChatOutbox[0];
+                    if (message.timestamp < Date.now() - 86400000) {
+                        pendingChatOutbox.shift();
+                        savePendingChatOutbox();
+                        continue;
+                    }
+
+                    if (!message.mqttDelivered && mqttConnected && mqttClient) {
+                        const mqttDelivered = await new Promise(resolve => {
+                            let settled = false;
+                            const finish = value => {
+                                if (settled) return;
+                                settled = true;
+                                clearTimeout(timeoutId);
+                                resolve(value);
+                            };
+                            const timeoutId = setTimeout(() => finish(false), 5000);
+                            try {
+                                mqttClient.publish(`${MQTT_BASE_TOPIC}/chat`, JSON.stringify(message), { qos: 1, retain: false }, error => finish(!error));
+                            } catch (e) {
+                                finish(false);
+                            }
+                        });
+                        if (mqttDelivered) {
+                            message.mqttDelivered = true;
+                            savePendingChatOutbox();
+                        }
+                    }
+
+                    if (!message.ntfyDelivered) {
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 6000);
+                        try {
+                            const response = await fetch("https://ntfy.sh/" + RELAY_TOPIC_CHAT, {
+                                method: "POST",
+                                body: JSON.stringify(message),
+                                signal: controller.signal
+                            });
+                            message.ntfyDelivered = response.ok;
+                            savePendingChatOutbox();
+                        } catch (e) {
+                            message.ntfyDelivered = false;
+                        } finally {
+                            clearTimeout(timeoutId);
+                        }
+                    }
+
+                    if (!message.mqttDelivered || !message.ntfyDelivered) break;
+                    pendingChatOutbox.shift();
+                    savePendingChatOutbox();
+                }
+            } finally {
+                chatFlushInFlight = false;
+            }
+        }
+
         function appendLocalChatMessage(sender, text, isCreator = false, isSystem = false) {
             const msgObj = {
                 id: "chat_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
@@ -1069,7 +1294,7 @@
                 isSystem,
                 timestamp: Date.now()
             };
-            seenChatIds.add(msgObj.id);
+            rememberBoundedId(seenChatIds, msgObj.id);
             globalChatMessages.push(msgObj);
             globalChatMessages = globalChatMessages.slice(-60);
             renderGlobalChat();
@@ -1079,33 +1304,22 @@
         function sendGlobalChatMessage() {
             const input = document.getElementById("globalChatInput");
             if (!input) return;
-            const text = input.value.trim();
-            if (!text) return;
+            const messageText = input.value.trim();
+            if (!messageText) return;
             input.value = "";
 
-            if (text.startsWith("/") && state.isAdminAuthenticated) {
-                const cmdInput = document.getElementById("adminCommandInput");
-                if (cmdInput) {
-                    cmdInput.value = text;
-                    executeAdminCommandLine();
-                } else {
-                    const fakeInput = document.createElement("input");
-                    fakeInput.id = "adminCommandInput";
-                    fakeInput.value = text;
-                    fakeInput.style.display = "none";
-                    document.body.appendChild(fakeInput);
-                    executeAdminCommandLine();
-                    fakeInput.remove();
+            if (messageText.startsWith("/")) {
+                if (!state.isAdminAuthenticated || !ADMIN_AUTH_BACKEND_ENABLED) {
+                    showToast("Admin commands are disabled until server authorization is available.", "error");
+                    return;
                 }
+                executeAdminCommandLine(messageText);
                 return;
             }
 
-            const msgObj = appendLocalChatMessage(state.playerName, text, Boolean(state.isAdminAuthenticated), false);
-            publishMqttPacket("chat", msgObj, false);
-            fetch(`https://ntfy.sh/${RELAY_TOPIC_CHAT}`, {
-                method: "POST",
-                body: JSON.stringify(msgObj)
-            }).catch(() => {});
+            const msgObj = appendLocalChatMessage(state.playerName, messageText, false, false);
+            queuePendingChatMessage(msgObj);
+            flushPendingChatOutbox();
         }
 
         function pushHttpCloudRoster(entry) {
@@ -1123,9 +1337,8 @@
                 profilePic: entry.tinyAvatar || "",
                 updatedAt: entry.updatedAt || Date.now()
             };
-            // Retain each player's card on their own topic so new devices immediately see all players
-            publishMqttPacket(`roster/${compactCard.accountSlotId}`, compactCard, true);
-
+            // Publish to both relays so MQTT-connected and HTTP-fallback clients share one roster.
+            if (mqttConnected) publishMqttPacket(`roster/${compactCard.accountSlotId}`, compactCard, true);
             const ntfySafeCard = { ...compactCard, profilePic: "" };
             fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}`, {
                 method: "POST",
@@ -1133,162 +1346,123 @@
             }).catch(() => {});
         }
 
-        function pullHttpCloudRosterAndEvents() {
-            fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}/json?poll=1&since=24h`)
-                .then(r => r.text())
-                .then(txt => {
-                    txt.trim().split("\n").forEach(line => {
-                        if (!line) return;
-                        try {
-                            const wrapper = JSON.parse(line);
-                            if (!wrapper.message) return;
-                            const card = JSON.parse(wrapper.message);
-                            if (card && card.accountSlotId) {
-                                const prev = liveHttpEntries[card.accountSlotId];
-                                if (!prev || (card.updatedAt || 0) > (prev.updatedAt || 0)) {
-                                    liveHttpEntries[card.accountSlotId] = { ...prev, ...card };
-                                }
-                            }
-                        } catch (e) {}
-                    });
-                    renderLeaderboardUI();
-                    renderWorldLivePlayers();
-                })
-                .catch(() => {});
-
-            fetch(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}/json?poll=1&since=15s`)
-                .then(r => r.text())
-                .then(txt => {
-                    txt.trim().split("\n").forEach(line => {
-                        if (!line) return;
-                        try {
-                            const wrapper = JSON.parse(line);
-                            if (!wrapper.message) return;
-                            const evt = JSON.parse(wrapper.message);
-                            if (evt && evt.id) applyAdminAbuseEvent(evt, false);
-                        } catch (e) {}
-                    });
-                })
-                .catch(() => {});
+        async function fetchNtfyRelayMessages(topic, since, maxChars = 524288) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 6500);
+            try {
+                const response = await fetch(`https://ntfy.sh/${topic}/json?poll=1&since=${encodeURIComponent(since)}`, {
+                    signal: controller.signal,
+                    cache: "no-store"
+                });
+                if (!response.ok) return [];
+                let body = "";
+                if (response.body && typeof response.body.getReader === "function") {
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    while (true) {
+                        const chunk = await reader.read();
+                        if (chunk.done) break;
+                        body += decoder.decode(chunk.value, { stream: true });
+                        if (body.length > maxChars) {
+                            controller.abort();
+                            try { await reader.cancel(); } catch (e) {}
+                            return [];
+                        }
+                    }
+                    body += decoder.decode();
+                } else {
+                    body = await response.text();
+                    if (body.length > maxChars) return [];
+                }
+                const messages = [];
+                for (const line of body.split("\n").slice(-250)) {
+                    if (!line) continue;
+                    try {
+                        const wrapper = JSON.parse(line);
+                        if (typeof wrapper.message !== "string") continue;
+                        const payload = JSON.parse(wrapper.message);
+                        if (payload && typeof payload === "object" && !Array.isArray(payload)) messages.push(payload);
+                    } catch (e) {}
+                }
+                relaySuccessfulTopics.add(topic);
+                relayLastSuccessAt = Date.now();
+                return messages;
+            } catch (e) {
+                return [];
+            } finally {
+                clearTimeout(timeoutId);
+            }
         }
 
-        function startInstantRealtimeStreams() {
+        async function pullHttpCloudRosterAndEvents() {
+            if (relayPollInFlight || !navigator.onLine) return;
+            relayPollInFlight = true;
             try {
-                const evtStream = new EventSource(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}/sse`);
-                evtStream.onmessage = (e) => {
-                    try {
-                        const wrapper = JSON.parse(e.data);
-                        if (!wrapper.message) return;
-                        const evt = JSON.parse(wrapper.message);
-                        if (evt && evt.id) applyAdminAbuseEvent(evt, false);
-                    } catch (err) {}
-                };
-            } catch (e) {}
-
-            try {
-                const chatStream = new EventSource(`https://ntfy.sh/${RELAY_TOPIC_CHAT}/sse`);
-                chatStream.onmessage = (e) => {
-                    try {
-                        const wrapper = JSON.parse(e.data);
-                        if (!wrapper.message) return;
-                        const msg = JSON.parse(wrapper.message);
-                        if (msg && msg.id && !seenChatIds.has(msg.id)) {
-                            seenChatIds.add(msg.id);
-                            globalChatMessages.push(msg);
-                            globalChatMessages = globalChatMessages.slice(-60);
-                            renderGlobalChat();
-                        }
-                    } catch (err) {}
-                };
-            } catch (e) {}
-
-            try {
-                const rosterStream = new EventSource(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}/sse`);
-                rosterStream.onmessage = (e) => {
-                    try {
-                        const wrapper = JSON.parse(e.data);
-                        if (!wrapper.message) return;
-                        const card = JSON.parse(wrapper.message);
-                        if (card && card.accountSlotId) {
-                            const prev = liveHttpEntries[card.accountSlotId];
-                            if (!prev || (card.updatedAt || 0) >= (prev.updatedAt || 0)) {
-                                liveHttpEntries[card.accountSlotId] = { ...prev, ...card };
-                                renderLeaderboardUI();
-                                renderWorldLivePlayers();
-                            }
-                        }
-                    } catch (err) {}
-                };
-            } catch (e) {}
-
-            try {
-                const bossStream = new EventSource(`https://ntfy.sh/${RELAY_TOPIC_BOSS}/sse`);
-                bossStream.onmessage = (e) => {
-                    try {
-                        const wrapper = JSON.parse(e.data);
-                        if (!wrapper.message) return;
-                        const bossData = JSON.parse(wrapper.message);
-                        if (bossData && (bossData.updatedAt || 0) > coopBossState.updatedAt) {
-                            applySharedCoopBossUpdate(bossData);
-                        }
-                    } catch (err) {}
-                };
-            } catch (e) {}
-
-            if (gunLeaderboardNode) {
-                try {
-                    gunLeaderboardNode.map().on((data) => {
-                        if (data && data.accountSlotId) {
-                            const prev = liveHttpEntries[data.accountSlotId];
-                            if (!prev || (data.updatedAt || 0) > (prev.updatedAt || 0)) {
-                                liveHttpEntries[data.accountSlotId] = { ...prev, ...data };
-                                renderLeaderboardUI();
-                            }
-                        }
-                    });
-                } catch (e) {}
-            }
-
-            if (gunAdminEventNode) {
-                try {
-                    gunAdminEventNode.on((data) => {
-                        if (data && data.payloadJson) {
-                            try {
-                                const evt = JSON.parse(data.payloadJson);
-                                if (evt && evt.id) applyAdminAbuseEvent(evt, false);
-                            } catch (e) {}
-                        }
-                    });
-                } catch (e) {}
+                // Roster is a live heartbeat, so only the recent window is needed.
+                const rosterSince = "30s";
+                // Fetch a wider boss snapshot once per page session, then use short deltas.
+                const bossSince = relaySuccessfulTopics.has(RELAY_TOPIC_BOSS) ? "30s" : "24h";
+                const [rosterPackets, eventPackets, chatPackets, bossPackets] = await Promise.all([
+                    fetchNtfyRelayMessages(RELAY_TOPIC_ROSTER, rosterSince, 1048576),
+                    fetchNtfyRelayMessages(RELAY_TOPIC_EVENTS, "30s"),
+                    fetchNtfyRelayMessages(RELAY_TOPIC_CHAT, "30s"),
+                    fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, bossSince, 524288)
+                ]);
+                const relayStatus = Date.now() - relayLastSuccessAt < 15000 ? "HTTP RELAY SYNC" : "SYNC OFFLINE";
+                if (!mqttConnected && cloudSyncStatusText !== relayStatus) {
+                    cloudSyncStatusText = relayStatus;
+                    renderLeaderboardUI();
+                }
+                let rosterChanged = false;
+                for (const card of rosterPackets) {
+                    if (storePublicRosterEntry(card)) rosterChanged = true;
+                }
+                if (rosterChanged) {
+                    renderLeaderboardUI();
+                    renderWorldLivePlayers();
+                }
+                for (const evt of eventPackets) {
+                    if (evt && evt.id) applyAdminAbuseEvent(evt, false);
+                }
+                for (const packet of chatPackets) {
+                    const chatMessage = normalizePublicChatMessage(packet);
+                    if (chatMessage && !seenChatIds.has(chatMessage.id) && allowIncomingChatPacket()) {
+                        rememberBoundedId(seenChatIds, chatMessage.id);
+                        globalChatMessages.push(chatMessage);
+                        globalChatMessages = globalChatMessages.slice(-60);
+                        renderGlobalChat();
+                    }
+                }
+                for (const packet of bossPackets) {
+                    applySharedCoopBossUpdate(packet);
+                }
+            } finally {
+                relayPollInFlight = false;
             }
         }
 
         function broadcastSharedWorldWeather() {
-            const payload = {
-                weatherId: currentWeather.id,
-                weatherTimer,
-                updatedAt: Date.now()
-            };
-            lastWorldSyncTs = payload.updatedAt;
-            publishMqttPacket("world", payload, true);
-            fetch(`https://ntfy.sh/${RELAY_TOPIC_WORLD}`, {
-                method: "POST",
-                body: JSON.stringify(payload)
-            }).catch(() => {});
+            // Weather is a deterministic shared UTC schedule, not a client-authored event.
+            return false;
         }
 
         function applySharedCoopBossUpdate(data) {
-            if (!data) return;
-            coopBossState = { ...coopBossState, ...data };
-            if (data.defeatEventId && data.defeatEventId !== lastBossDefeatEventId) {
-                lastBossDefeatEventId = data.defeatEventId;
-                const gemReward = 150 + (data.stage || 1) * 50;
-                const shardReward = 15 + (data.stage || 1) * 5;
-                state.gems += gemReward;
-                state.shards += shardReward;
-                saveGame();
-                showToast(`Co-Op Boss Defeated by ${data.lastAttacker || "Squad"}! +${gemReward} Gems & +${shardReward} Shards!`, "success");
-            }
+            if (!data || typeof data !== "object") return;
+            // Public MQTT/ntfy messages are untrusted. Ignore stale/future packets,
+            // and never let them mint local currency or progression rewards.
+            const incomingUpdatedAt = Number(data.updatedAt);
+            if (!Number.isFinite(incomingUpdatedAt) ||
+                incomingUpdatedAt < Date.now() - 86400000 ||
+                incomingUpdatedAt > Date.now() + 10000 ||
+                incomingUpdatedAt <= coopBossState.updatedAt) return;
+            coopBossState = {
+                stage: Math.max(0, Math.min(100000, Number(data.stage) || 0)),
+                hp: Math.max(0, Math.min(1e12, Number(data.hp) || 0)),
+                maxHp: Math.max(1, Math.min(1e12, Number(data.maxHp) || 5000)),
+                lastAttacker: String(data.lastAttacker || "Unknown").slice(0, 32),
+                updatedAt: incomingUpdatedAt,
+                defeatEventId: ""
+            };
             if (activeModalId === "boss") openModal("boss");
         }
 
@@ -1297,20 +1471,12 @@
             let nextHp = coopBossState.hp - dmg;
             let nextStage = coopBossState.stage;
             let nextMaxHp = coopBossState.maxHp;
-            let defeatEventId = coopBossState.defeatEventId || "";
-
             if (nextHp <= 0) {
-                state.bossKills++;
-                nextStage++;
-                nextMaxHp = Math.floor(5000 * Math.pow(2.2, nextStage));
+                nextStage = Math.min(100000, nextStage + 1);
+                nextMaxHp = Math.min(1e12, Math.floor(5000 * Math.pow(2.2, nextStage)));
                 nextHp = nextMaxHp;
-                defeatEventId = "boss_kill_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
-                const gemReward = 150 + nextStage * 50;
-                const shardReward = 15 + nextStage * 5;
-                state.gems += gemReward;
-                state.shards += shardReward;
                 playQuackSound(1.45);
-                showToast(`CO-OP BOSS SLAIN! +${gemReward} Gems & +${shardReward} Shards!`, "success");
+                showToast("CO-OP BOSS DEFEATED! Rewards are paused until a trusted server can verify the raid.", "info");
             } else {
                 playQuackSound(1.1);
             }
@@ -1320,11 +1486,12 @@
                 hp: nextHp,
                 maxHp: nextMaxHp,
                 lastAttacker: state.playerName,
-                defeatEventId,
+                defeatEventId: "",
                 updatedAt: Date.now()
             };
             coopBossState = syncPayload;
-            publishMqttPacket("boss", syncPayload, true);
+            // Mirror the same timestamped state to both relays for mixed-transport clients.
+            if (mqttConnected) publishMqttPacket("boss", syncPayload, true);
             fetch(`https://ntfy.sh/${RELAY_TOPIC_BOSS}`, {
                 method: "POST",
                 body: JSON.stringify(syncPayload)
@@ -1337,67 +1504,11 @@
 
         function sendPlayerGift(targetSlotId, targetName, giftType) {
             if (!targetSlotId) return;
-            const isCreator = Boolean(state.isAdminAuthenticated);
-            let amount = 0;
-            let eventType = "GIFT_GEMS";
-
-            if (giftType === "gems") {
-                amount = isCreator ? 1000000 : 250;
-                if (!isCreator) {
-                    if (state.gems < amount) {
-                        showToast("Need 250 Gems to gift!", "error");
-                        return;
-                    }
-                    state.gems -= amount;
-                }
-                eventType = "GIFT_GEMS";
-            } else if (giftType === "quacks") {
-                amount = isCreator ? 1e18 : Math.max(5000, Math.floor(state.quacks * 0.1));
-                if (!isCreator) {
-                    if (state.quacks < amount) {
-                        showToast("Not enough Quacks to gift!", "error");
-                        return;
-                    }
-                    state.quacks -= amount;
-                }
-                eventType = "GIFT_QUACKS";
-            } else if (giftType === "eggs") {
-                amount = isCreator ? 100 : 1;
-                if (!isCreator) {
-                    if (state.gems < 500) {
-                        showToast("Need 500 Gems to gift a Cyber Egg!", "error");
-                        return;
-                    }
-                    state.gems -= 500;
-                }
-                eventType = "GIFT_EGGS";
-            }
-
-            const payload = {
-                id: "gift_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
-                type: eventType,
-                amount,
-                sender: state.playerName,
-                targetPlayer: targetName,
-                message: `${state.playerName} gifted ${formatNum(amount)} ${giftType.toUpperCase()} to ${targetName}!`,
-                timestamp: Date.now()
-            };
-
-            appendLocalChatMessage("PLAZA", payload.message, false, true);
-            publishMqttPacket("events", payload, false);
-            try { localStorage.setItem("dqLatestAdminEvent", JSON.stringify(payload)); } catch (e) {}
-            fetch(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}`, {
-                method: "POST",
-                body: JSON.stringify(payload)
-            }).catch(() => {});
-
-            saveGame();
-            renderAll();
-            showToast(`Sent ${formatNum(amount)} ${giftType.toUpperCase()} to ${targetName}!`, "success");
+            showToast("Player gifting is paused until gifts can be verified by a trusted server.", "error");
         }
 
         function getMergedLeaderboardEntries() {
-            const merged = {};
+            const merged = Object.create(null);
             Object.values(liveHttpEntries).forEach(entry => {
                 if (entry && entry.accountSlotId) {
                     merged[entry.accountSlotId] = entry;
@@ -1419,22 +1530,8 @@
                 updatedAt: Date.now()
             };
 
-            // Permanent Untouchable #1 RainbowLord16 Creator Throne
-            const creatorEntry = merged[CREATOR_SLOT_ID] || {};
-            merged[CREATOR_SLOT_ID] = {
-                ...creatorEntry,
-                accountSlotId: CREATOR_SLOT_ID,
-                playerName: CREATOR_USERNAME,
-                isAdmin: true,
-                lifetimeQuacks: 9.99e300,
-                rebirths: 999999999,
-                bossKills: 999999999,
-                eggsHatched: 999999999,
-                currentWorld: 21,
-                skin: state.isAdminAuthenticated ? state.skin : (creatorEntry.skin || "rainbow_creator"),
-                profilePic: state.isAdminAuthenticated ? (state.profilePic || state.tinyAvatar || "") : (creatorEntry.profilePic || ""),
-                updatedAt: Date.now()
-            };
+            // Creator status and scores must come from a trusted backend. Public roster data
+            // cannot reserve a privileged slot or fabricate an authenticated creator record.
 
             return Object.values(merged);
         }
@@ -1461,9 +1558,6 @@
                 pushHttpCloudRoster(entry);
             }
 
-            if (gunLeaderboardNode) {
-                try { gunLeaderboardNode.get(entry.accountSlotId).put(entry); } catch (e) {}
-            }
         };
 
         /* =========================================================================
@@ -1647,6 +1741,7 @@
         }
 
         function triggerPhotoJumpscare() {
+            if (state.safeVisualsMode) return;
             const overlay = document.getElementById("jumpscareOverlay");
             const imgEl = document.getElementById("jumpscareImg");
             const svgBackup = document.getElementById("jumpscareSvgBackup");
@@ -1782,6 +1877,9 @@
 
         function startHoldQuack(e) {
             if (e && e.cancelable) e.preventDefault();
+            if (e && e.currentTarget && e.pointerId !== undefined) {
+                try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {}
+            }
             performDuckQuack(true);
             if (holdQuackTimer) clearInterval(holdQuackTimer);
             holdQuackTimer = setInterval(() => performDuckQuack(true), 95);
@@ -1849,29 +1947,30 @@
             </svg>`;
         }
 
+        let lastFaviconKey = "";
+
         function updateDynamicFavicon(isHorror = false) {
             try {
                 const link = document.getElementById("dynamicFavicon");
-                if (!link) return;
+                const skin = SKINS.find(s => s.id === state.skin) || SKINS[0];
+                const titleText = `${formatNum(state.quacks)} Quacks — Duck Quack Simulator`;
+                if (document.title !== titleText) document.title = titleText;
+                const rainbowPhase = skin.id === "rainbow_creator" ? Math.floor(Date.now() / 1500) : 0;
+                const key = [skin.id, skin.body, skin.beak, feverActive, Boolean(isHorror), rainbowPhase, formatNum(state.quacks)].join("|");
+                if (!link || key === lastFaviconKey) return;
+
                 const canvas = document.createElement("canvas");
                 canvas.width = 64;
                 canvas.height = 64;
                 const ctx = canvas.getContext("2d");
-                const skin = SKINS.find(s => s.id === state.skin) || SKINS[0];
-
+                if (!ctx) return;
                 ctx.clearRect(0, 0, 64, 64);
                 ctx.beginPath();
                 ctx.arc(32, 34, 24, 0, Math.PI * 2);
-                if (isHorror) {
-                    ctx.fillStyle = "#dc2626";
-                } else if (feverActive) {
-                    ctx.fillStyle = "#f97316";
-                } else if (skin.id === "rainbow_creator") {
-                    const hue = Math.floor((Date.now() / 15) % 360);
-                    ctx.fillStyle = `hsl(${hue}, 90%, 60%)`;
-                } else {
-                    ctx.fillStyle = skin.body;
-                }
+                if (isHorror) ctx.fillStyle = "#dc2626";
+                else if (feverActive) ctx.fillStyle = "#f97316";
+                else if (skin.id === "rainbow_creator") ctx.fillStyle = `hsl(${(rainbowPhase * 24) % 360}, 90%, 60%)`;
+                else ctx.fillStyle = skin.body;
                 ctx.fill();
                 ctx.lineWidth = 4;
                 ctx.strokeStyle = "#0f172a";
@@ -1891,7 +1990,7 @@
                 ctx.fill();
 
                 link.href = canvas.toDataURL("image/png");
-                document.title = `${formatNum(state.quacks)} Quacks — Duck Quack Simulator`;
+                lastFaviconKey = key;
             } catch (e) {}
         }
 
@@ -2018,34 +2117,12 @@
         /* =========================================================================
            9. ADMIN AUTHENTICATION, MAX-OUT & 77 COMMAND ENGINE
            ========================================================================= */
-        async function verifyAdminPasscode(inputCode) {
-            const clean = (inputCode || "").trim();
-            if (!clean) return false;
-            try {
-                const res = await fetch("./admin.secret.json", { cache: "no-store" });
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data && data.passcode && clean === data.passcode) return true;
-                }
-            } catch (e) {}
-            return clean === CREATOR_PASSCODE_HASH;
+        async function verifyAdminPasscode() {
+            return false;
         }
 
         async function unlockAdminVault() {
-            const input = document.getElementById("adminPasscodeInput");
-            const code = input ? input.value : "";
-            const ok = await verifyAdminPasscode(code);
-            if (!ok) {
-                showToast("Invalid RainbowLord16 Creator Passcode!", "error");
-                return;
-            }
-            state.isAdminAuthenticated = true;
-            state.playerName = CREATOR_USERNAME;
-            state.accountSlotId = CREATOR_SLOT_ID;
-            sessionStorage.setItem("dqCreatorUnlocked", "1");
-            adminMaxOutEverything(true);
-            openModal("profile");
-            showToast("👑 RainbowLord16 Creator Vault Unlocked & Maxed!", "success");
+            showToast("Creator Admin Vault is unavailable until secure server authentication is configured.", "error");
         }
 
         function lockAdminAccount() {
@@ -2094,7 +2171,7 @@
         }
 
         function triggerAdminCommand(cmdType, customArg = "") {
-            if (!state.isAdminAuthenticated) return;
+            if (!state.isAdminAuthenticated || !ADMIN_AUTH_BACKEND_ENABLED) return;
             const targetSel = document.getElementById("adminTargetSelect");
             const targetPlayer = targetSel ? targetSel.value : (state.adminTargetPlayer || "ALL");
             state.adminTargetPlayer = targetPlayer;
@@ -2119,32 +2196,27 @@
             if (adminBroadcastChannel) adminBroadcastChannel.postMessage(payload);
             publishMqttPacket("events", payload, false);
             appendLocalChatMessage("ADMIN ABUSE", message, true, true);
-            if (gunAdminEventNode) {
-                try { gunAdminEventNode.put({ payloadJson: JSON.stringify(payload), updatedAt: Date.now() }); } catch (e) {}
-            }
             fetch(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}`, {
                 method: "POST",
                 body: JSON.stringify(payload)
             }).catch(() => {});
         }
 
-        function executeAdminCommandLine() {
-            const input = document.getElementById("adminCommandInput");
-            if (!input) return;
-            const raw = input.value.trim().replace(/^\//, "");
+        function executeAdminCommandLine(rawCommandString = "") {
+            if (!state.isAdminAuthenticated || !ADMIN_AUTH_BACKEND_ENABLED) return;
+            const raw = String(rawCommandString).trim().replace(/^\//, "");
             if (!raw) return;
-            input.value = "";
             const parts = raw.split(/\s+/);
-            const cmd = parts[0].toLowerCase();
-            const arg = parts.slice(1).join(" ");
-            triggerAdminCommand(cmd, arg);
+            triggerAdminCommand(parts[0].toLowerCase(), parts.slice(1).join(" "));
         }
 
         const processedAdminEventIds = new Set();
 
         function applyAdminAbuseEvent(evt, isSender = false) {
-            if (!evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
-            processedAdminEventIds.add(evt.id);
+            // MQTT and ntfy topics are public. Reject every remote admin/gift event until server signing exists.
+            if (state.safeVisualsMode || !isSender || !evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
+            rememberBoundedId(processedAdminEventIds, evt.id);
+
 
             const target = (evt.targetPlayer || "ALL").trim();
             const isTargetedAtMe =
@@ -2555,14 +2627,24 @@
         }
 
         function compressAvatarDataUrl(file, callback) {
+            if (!file || !["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024) {
+                showToast("Choose a JPEG, PNG or WebP image under 5 MB.", "error");
+                return;
+            }
             const reader = new FileReader();
+            reader.onerror = () => showToast("The selected image could not be read.", "error");
             reader.onload = (ev) => {
                 const img = new Image();
+                img.onerror = () => showToast("The selected file is not a valid image.", "error");
                 img.onload = () => {
                     const canvas = document.createElement("canvas");
                     canvas.width = 128;
                     canvas.height = 128;
                     const ctx = canvas.getContext("2d");
+                    if (!ctx) {
+                        showToast("Image processing is unavailable in this browser.", "error");
+                        return;
+                    }
                     ctx.drawImage(img, 0, 0, 128, 128);
                     callback(canvas.toDataURL("image/jpeg", 0.78));
                 };
@@ -2577,12 +2659,12 @@
             compressAvatarDataUrl(file, (dataUrl) => {
                 state.profilePic = dataUrl;
                 compressTinyAvatarForMqtt(dataUrl, (tinyUrl) => {
-                    state.tinyAvatar = tinyUrl;
+                    state.tinyAvatar = safeAvatarDataUrl(tinyUrl);
                     saveGame();
                     window.syncLeaderboardScore(true);
                     renderAll();
                     if (activeModalId === "profile") openModal("profile");
-                    showToast("Profile picture updated & synced globally across devices!", "success");
+                    showToast("Profile picture updated and optimized.", "success");
                 });
             });
         }
@@ -2669,8 +2751,8 @@
 
             const avatarWrap = document.getElementById("hudAvatarWrap");
             if (avatarWrap) {
-                avatarWrap.innerHTML = state.profilePic
-                    ? `<img src="${state.profilePic}" alt="" class="w-full h-full object-cover">`
+                avatarWrap.innerHTML = safeAvatarDataUrl(state.profilePic)
+                    ? `<img src="${safeAvatarDataUrl(state.profilePic)}" alt="" class="w-full h-full object-cover">`
                     : buildMiniDuckBadgeSvg("#facc15", "#f97316", "w-4 h-4");
             }
 
@@ -2763,11 +2845,14 @@
         function renderWorldLivePlayers() {
             const layer = document.getElementById("worldLivePlayersLayer");
             const onlineBadge = document.getElementById("chatOnlineBadge");
+            const now = Date.now();
             const entries = getMergedLeaderboardEntries();
-            if (onlineBadge) onlineBadge.textContent = `${entries.length} SYNCED`;
+            const onlineEntries = entries.filter(e => e.accountSlotId === state.accountSlotId ||
+                (Number.isFinite(Number(e.updatedAt)) && now - Number(e.updatedAt) <= 20000));
+            if (onlineBadge) onlineBadge.textContent = `${onlineEntries.length} ONLINE`;
             if (!layer) return;
 
-            const othersInWorld = entries.filter(e => e.accountSlotId !== state.accountSlotId && (e.currentWorld || 1) === state.currentWorld).slice(0, 5);
+            const othersInWorld = onlineEntries.filter(e => e.accountSlotId !== state.accountSlotId && (e.currentWorld || 1) === state.currentWorld).slice(0, 5);
             layer.innerHTML = othersInWorld.map((p, idx) => {
                 const leftPct = 14 + (idx * 18) % 72;
                 const topPct = 18 + (idx * 23) % 62;
@@ -2783,12 +2868,13 @@
             const mini = document.getElementById("miniLeaderboardList");
             if (mini) {
                 mini.innerHTML = entries.slice(0, 5).map((p, idx) => {
-                    const isCreator = p.accountSlotId === CREATOR_SLOT_ID || p.isAdmin;
+                    // Public roster fields are unverified and cannot grant creator styling.
+                    const isCreator = false;
                     return `<div class="px-2.5 py-1.5 rounded-xl border ${isCreator ? "bg-gradient-to-r from-fuchsia-500/15 via-amber-500/10 to-cyan-500/15 border-amber-400/40" : "panel-subcard"} flex items-center justify-between gap-2 text-xs">
                         <div class="flex items-center gap-2 min-w-0">
                             <span class="font-display font-extrabold text-[11px] ${idx === 0 ? "text-amber-300" : "text-slate-400"}">#${idx + 1}</span>
                             <span class="w-5 h-5 rounded-full overflow-hidden bg-slate-800 flex items-center justify-center shrink-0">
-                                ${p.profilePic ? `<img src="${p.profilePic}" alt="" class="w-full h-full object-cover">` : buildMiniDuckBadgeSvg(isCreator ? "#ec4899" : "#facc15", "#38bdf8", "w-4 h-4")}
+                                ${safeAvatarDataUrl(p.profilePic) ? `<img src="${safeAvatarDataUrl(p.profilePic)}" alt="" class="w-full h-full object-cover">` : buildMiniDuckBadgeSvg(isCreator ? "#ec4899" : "#facc15", "#38bdf8", "w-4 h-4")}
                             </span>
                             <span class="font-extrabold truncate ${isCreator ? "creator-name-glow" : "text-white"}">${escapeHtmlText(p.playerName)}</span>
                         </div>
@@ -2811,12 +2897,15 @@
         }
 
         function openModal(id) {
-            activeModalId = id;
             const backdrop = document.getElementById("systemModalBackdrop");
+            if (backdrop && backdrop.classList.contains("hidden")) modalPreviousFocus = document.activeElement;
+            activeModalId = id;
             const title = document.getElementById("systemModalTitle");
             const body = document.getElementById("systemModalBody");
             if (!backdrop || !title || !body) return;
             backdrop.classList.remove("hidden");
+            const closeButton = document.getElementById("systemModalCloseBtn");
+            if (closeButton) closeButton.focus();
 
             if (id === "eggs") {
                 title.textContent = "Hatch Duck Eggs";
@@ -3111,12 +3200,13 @@
                     </div>
                     <div class="space-y-1.5">
                         ${entries.map((p, idx) => {
-                            const isCreator = p.accountSlotId === CREATOR_SLOT_ID || p.isAdmin;
+                            // Public roster fields are unverified and cannot grant creator styling.
+                    const isCreator = false;
                             return `<div class="p-3 rounded-2xl border ${isCreator ? "bg-gradient-to-r from-fuchsia-500/20 via-amber-500/15 to-cyan-500/20 border-amber-400/50" : "panel-subcard"} flex items-center justify-between gap-3">
                                 <div class="flex items-center gap-2.5 min-w-0">
                                     <span class="font-display font-extrabold text-sm ${idx === 0 ? "text-amber-300" : "text-slate-400"}">#${idx + 1}</span>
                                     <span class="w-8 h-8 rounded-full overflow-hidden bg-slate-800 border border-white/20 flex items-center justify-center shrink-0">
-                                        ${p.profilePic ? `<img src="${p.profilePic}" alt="" class="w-full h-full object-cover">` : buildMiniDuckBadgeSvg(isCreator ? "#ec4899" : "#facc15", "#38bdf8", "w-6 h-6")}
+                                        ${safeAvatarDataUrl(p.profilePic) ? `<img src="${safeAvatarDataUrl(p.profilePic)}" alt="" class="w-full h-full object-cover">` : buildMiniDuckBadgeSvg(isCreator ? "#ec4899" : "#facc15", "#38bdf8", "w-6 h-6")}
                                     </span>
                                     <div class="min-w-0">
                                         <div class="font-extrabold text-xs sm:text-sm truncate ${isCreator ? "creator-name-glow" : "text-white"}">
@@ -3141,7 +3231,7 @@
                     <div class="panel-subcard rounded-2xl p-4 space-y-3">
                         <div class="flex flex-wrap items-center gap-3">
                             <div class="w-14 h-14 rounded-2xl overflow-hidden bg-slate-900 border border-indigo-400/40 flex items-center justify-center">
-                                ${state.profilePic ? `<img src="${state.profilePic}" alt="" class="w-full h-full object-cover">` : buildMiniDuckBadgeSvg("#facc15", "#f97316", "w-10 h-10")}
+                                ${safeAvatarDataUrl(state.profilePic) ? `<img src="${safeAvatarDataUrl(state.profilePic)}" alt="" class="w-full h-full object-cover">` : buildMiniDuckBadgeSvg("#facc15", "#f97316", "w-10 h-10")}
                             </div>
                             <div class="flex-1 min-w-[200px] space-y-1.5">
                                 <label class="text-[11px] font-bold text-slate-400 block">Display Name</label>
@@ -3157,15 +3247,18 @@
                         </div>
                     </div>
 
-                    ${!state.isAdminAuthenticated ? `
-                        <div class="panel-subcard rounded-2xl p-4 border border-fuchsia-500/30 space-y-2.5">
-                            <div class="font-display font-extrabold text-sm text-fuchsia-300">🔐 RainbowLord16 Creator Admin Vault</div>
-                            <div class="flex gap-2">
-                                <input id="adminPasscodeInput" type="password" onkeydown="if(event.key==='Enter') unlockAdminVault()" placeholder="Enter Creator Passcode..." class="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white">
-                                <button onclick="unlockAdminVault()" class="px-4 py-2 rounded-xl bg-gradient-to-r from-fuchsia-500 to-amber-400 text-slate-950 font-extrabold text-xs">Unlock</button>
-                            </div>
-                        </div>
-                    ` : `
+                    <div class="panel-subcard rounded-2xl p-4 border border-cyan-400/25 space-y-2">
+                        <label class="flex items-center justify-between gap-3 text-xs font-bold text-slate-200" for="safeVisualsModeToggle">
+                            <span>🛡️ Photosensitive / Safe Visuals Mode</span>
+                            <input id="safeVisualsModeToggle" type="checkbox" ${state.safeVisualsMode ? "checked" : ""} onchange="toggleSafeVisualsMode(this.checked)" class="w-5 h-5 accent-cyan-400">
+                        </label>
+                        <p class="text-[11px] text-slate-400">Reduces motion and suppresses jumpscares, strobing, and full-screen flash effects on this device.</p>
+                    </div>
+                    <div class="panel-subcard rounded-2xl p-4 border border-amber-400/30 space-y-2">
+                        <div class="font-display font-extrabold text-sm text-amber-300">🔐 Creator Admin Vault</div>
+                        <p class="text-xs text-slate-300">Admin controls are disabled until server-side authentication and signed event authorization are configured. This browser cannot securely verify a creator passcode.</p>
+                    </div>
+                    ${state.isAdminAuthenticated ? `
                         <div class="panel-subcard rounded-2xl p-4 border border-amber-400/50 space-y-3">
                             <div class="flex flex-wrap items-center justify-between gap-2">
                                 <div class="font-display font-extrabold text-sm creator-name-glow">👑 RAINBOWLORD16 CREATOR ADMIN VAULT</div>
@@ -3216,7 +3309,7 @@
                                 </div>
                             </div>
                         </div>
-                    `}
+                    ` : ""}
                 </div>`;
             }
         }
@@ -3225,7 +3318,45 @@
             activeModalId = null;
             const backdrop = document.getElementById("systemModalBackdrop");
             if (backdrop) backdrop.classList.add("hidden");
+            if (modalPreviousFocus && typeof modalPreviousFocus.focus === "function") modalPreviousFocus.focus();
+            modalPreviousFocus = null;
         }
+
+        function toggleSafeVisualsMode(enabled) {
+            state.safeVisualsMode = Boolean(enabled);
+            document.body.classList.toggle("safe-visuals-mode", state.safeVisualsMode);
+            saveGame();
+            if (activeModalId === "profile") openModal("profile");
+            showToast(state.safeVisualsMode ? "Safe Visuals Mode enabled." : "Safe Visuals Mode disabled.", "success");
+        }
+
+        document.addEventListener("keydown", (event) => {
+            const backdrop = document.getElementById("systemModalBackdrop");
+            if (!backdrop || backdrop.classList.contains("hidden")) return;
+            if (event.key === "Escape") {
+                event.preventDefault();
+                closeModal();
+                return;
+            }
+            if (event.key !== "Tab") return;
+            const dialog = backdrop.querySelector('[role="dialog"]');
+            if (!dialog) return;
+            const focusable = Array.from(dialog.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+                .filter(el => el.offsetParent !== null);
+            if (!focusable.length) {
+                event.preventDefault();
+                return;
+            }
+            const first = focusable[0];
+            const last = focusable[focusable.length - 1];
+            if (event.shiftKey && document.activeElement === first) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && document.activeElement === last) {
+                event.preventDefault();
+                first.focus();
+            }
+        });
 
         function equipOrBuySkin(skinId) {
             const s = SKINS.find(item => item.id === skinId);
@@ -3342,10 +3473,12 @@
            12. MAIN GAME LOOP & INITIALIZATION
            ========================================================================= */
         loadGame();
+        loadPendingChatOutbox();
+        syncGlobalWeatherFromClock();
+        document.body.classList.toggle("safe-visuals-mode", Boolean(state.safeVisualsMode));
         renderAll();
         renderGlobalChat();
         connectGlobalMqttSync();
-        startInstantRealtimeStreams();
         pullHttpCloudRosterAndEvents();
         window.syncLeaderboardScore(true);
 
@@ -3371,14 +3504,10 @@
             if (state.potions.quack2x > 0) state.potions.quack2x--;
             if (state.potions.gem2x > 0) state.potions.gem2x--;
 
-            // Weather cycle
-            weatherTimer--;
-            if (weatherTimer <= 0) {
-                weatherTimer = 45;
-                if (state.isAdminAuthenticated) {
-                    currentWeather = WEATHERS[Math.floor(Math.random() * WEATHERS.length)];
-                    broadcastSharedWorldWeather();
-                }
+            // Deterministic world clock keeps weather identical across devices and reconnects.
+            if (syncGlobalWeatherFromClock()) {
+                renderAll();
+                showToast(`Global Weather: ${currentWeather.name} (${currentWeather.mult}x)`, "info");
             }
 
             renderHud();
@@ -3387,7 +3516,9 @@
 
         setInterval(() => {
             window.syncLeaderboardScore(true);
+            // Poll ntfy even while MQTT is live: some players may be on HTTP fallback.
             pullHttpCloudRosterAndEvents();
+            flushPendingChatOutbox();
         }, 4000);
     </script>
 </body>
