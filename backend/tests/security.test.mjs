@@ -43,7 +43,7 @@ test("leaderboard writes come from server-validated game actions, never browser 
   assert.ok(worker.includes('gameclick:'));
   assert.ok(worker.includes('const gain=Math.max(1,g.clickPower)'));
   assert.ok(worker.includes('UPDATE leaderboard SET lifetime_quacks='));
-  assert.doesNotMatch(worker, /body\\.lifetimeQuacks|body\\.lifetime_quacks/);
+  assert.ok(!worker.includes("body.lifetimeQuacks") && !worker.includes("body.lifetime_quacks"));
   assert.ok(worker.includes('/api/game/upgrade'));
   assert.ok(worker.includes('Not enough server-verified Quacks'));
   assert.ok(worker.includes('/api/game/rebirth'));
