@@ -158,7 +158,7 @@ for function_name, next_function in (
     body = SOURCE[start:end]
     assert "if (mqttConnected)" in body, f"{function_name} must gate HTTP fallback on MQTT state"
 assert 'file.size > 5 * 1024 * 1024' in SOURCE
-assert "Player gifting is paused until gifts can be verified" in SOURCE
+assert "Transfers remain paused until the server-backed gift ledger is implemented" in SOURCE
 assert "const isCreator = false" in SOURCE
 assert "Permanent Untouchable #1" not in SOURCE
 
