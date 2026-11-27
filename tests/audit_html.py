@@ -94,7 +94,14 @@ for forbidden in (
 assert "ADMIN_AUTH_BACKEND_ENABLED = false" in SOURCE
 assert "state.safeVisualsMode || !isSender" in SOURCE
 assert "Photosensitive / Safe Visuals Mode" in SOURCE
-assert "rememberBoundedId(seenChatIds, chatMessage.id)" in SOURCE
+assert "rememberBoundedId(seenChatIds, message.id)" in SOURCE
+assert "window.DuckQuackApi.chatHistory()" in SOURCE
+assert "window.DuckQuackApi.sendChat(messageText)" in SOURCE
+assert "window.DuckQuackApi.leaderboard()" in SOURCE
+assert "VERIFIED SERVER RANKINGS" in SOURCE
+assert "refreshServerLeaderboard" in SOURCE
+assert "RELAY_TOPIC_CHAT" not in SOURCE
+assert "flushPendingChatOutbox" not in SOURCE
 assert "defeatEventId: \"\"" in SOURCE, "Remote boss events must not grant client-side rewards"
 boss_attack_start = SOURCE.index("function attackCoopBoss()")
 boss_attack_end = SOURCE.index("function sendPlayerGift", boss_attack_start)
@@ -108,15 +115,12 @@ assert "incomingUpdatedAt > Date.now() + 10000" in SOURCE
 assert "Player gifting is paused until gifts can be verified" in SOURCE
 assert "safeAvatarDataUrl" in SOURCE
 assert "normalizePublicRosterEntry" in SOURCE
-assert "normalizePublicChatMessage" in SOURCE
 assert "Object.keys(liveHttpEntries).length >= 100" in SOURCE
-assert "allowIncomingChatPacket()" in SOURCE
 assert "rawStr.length > 16384" in SOURCE
 assert "storePublicRosterEntry(data, expectedSlotId)" in SOURCE
 assert "function scheduleMqttReconnect" in SOURCE
 assert "gag_sync_v12" in SOURCE
 assert "roster_v12" in SOURCE
-assert "chat_v12" in SOURCE
 assert "boss_v12" in SOURCE
 assert "reconnectPeriod: 0" in SOURCE
 assert "mqttReconnectAttempt" in SOURCE
@@ -129,8 +133,6 @@ assert 'cloudSyncStatusText = "Reconnecting global sync..."' in SOURCE
 assert "AbortController" in SOURCE
 assert "response.body.getReader()" in SOURCE
 assert "body.length > maxChars" in SOURCE
-assert "message.timestamp < Date.now() - 86400000" in SOURCE
-assert "fetchNtfyRelayMessages(RELAY_TOPIC_CHAT, \"30s\")" in SOURCE
 assert "fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, bossSince, 524288)" in SOURCE
 assert "if (relayPollInFlight || !navigator.onLine) return" in SOURCE
 assert 'const rosterSince = "30s"' in SOURCE
@@ -142,21 +144,8 @@ assert "Math.floor(now / 45000)" in SOURCE
 assert "mqttClient.subscribe(`${MQTT_BASE_TOPIC}/world`" not in SOURCE
 assert 'publishMqttPacket("world"' not in SOURCE
 assert "now - Number(e.updatedAt) <= 20000" in SOURCE
-assert 'localStorage.setItem("dq_sync_chat_outbox_v1"' in SOURCE
-assert "function queuePendingChatMessage" in SOURCE
-assert "saved.slice(-50).map(item =>" in SOURCE
-assert "chatMessage && !seenChatIds.has(chatMessage.id) && allowIncomingChatPacket()" in SOURCE
-assert "function flushPendingChatOutbox" in SOURCE
-assert "message.mqttDelivered" in SOURCE
-assert "message.ntfyDelivered" in SOURCE
-assert "mqttClient.publish(`${MQTT_BASE_TOPIC}/chat`" in SOURCE
-assert "RELAY_TOPIC_CHAT" in SOURCE
-assert "pendingChatOutbox = pendingChatOutbox.slice(-50)" in SOURCE
-assert "finish(!error)" in SOURCE
 assert "syncGlobalWeatherFromClock();" in SOURCE
 assert 'publishMqttPacket("boss", coopBossState, true)' in SOURCE
-assert "queuePendingChatMessage(msgObj)" in SOURCE
-assert "flushPendingChatOutbox()" in SOURCE
 for function_name, next_function in (
     ("function pushHttpCloudRoster", "async function fetchNtfyRelayMessages"),
     ("function attackCoopBoss()", "function sendPlayerGift"),
