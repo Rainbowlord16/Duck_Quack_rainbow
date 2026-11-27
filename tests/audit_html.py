@@ -139,6 +139,8 @@ assert 'publishMqttPacket("world"' not in SOURCE
 assert "now - Number(e.updatedAt) <= 20000" in SOURCE
 assert 'localStorage.setItem("dq_sync_chat_outbox_v1"' in SOURCE
 assert "function queuePendingChatMessage" in SOURCE
+assert "saved.slice(-50).map(item =>" in SOURCE
+assert "chatMessage && !seenChatIds.has(chatMessage.id) && allowIncomingChatPacket()" in SOURCE
 assert "function flushPendingChatOutbox" in SOURCE
 assert "message.mqttDelivered" in SOURCE
 assert "message.ntfyDelivered" in SOURCE
