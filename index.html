@@ -877,7 +877,7 @@
         let mqttClient = null;
         let mqttBrokerIndex = 0;
         let mqttConnected = false;
-        let liveHttpEntries = {};
+        let liveHttpEntries = Object.create(null);
         let globalChatMessages = [];
         let seenChatIds = new Set();
 
@@ -1173,14 +1173,19 @@
 
         function applySharedCoopBossUpdate(data) {
             if (!data || typeof data !== "object") return;
-            // Public MQTT/ntfy messages are untrusted. They may update the displayed
-            // encounter, but can never mint local currency or progression rewards.
+            // Public MQTT/ntfy messages are untrusted. Ignore stale/future packets,
+            // and never let them mint local currency or progression rewards.
+            const incomingUpdatedAt = Number(data.updatedAt);
+            if (!Number.isFinite(incomingUpdatedAt) ||
+                incomingUpdatedAt < Date.now() - 86400000 ||
+                incomingUpdatedAt > Date.now() + 60000 ||
+                incomingUpdatedAt <= coopBossState.updatedAt) return;
             coopBossState = {
                 stage: Math.max(0, Math.min(100000, Number(data.stage) || 0)),
                 hp: Math.max(0, Math.min(1e12, Number(data.hp) || 0)),
                 maxHp: Math.max(1, Math.min(1e12, Number(data.maxHp) || 5000)),
                 lastAttacker: String(data.lastAttacker || "Unknown").slice(0, 32),
-                updatedAt: Math.max(0, Number(data.updatedAt) || 0),
+                updatedAt: incomingUpdatedAt,
                 defeatEventId: ""
             };
             if (activeModalId === "boss") openModal("boss");
@@ -1231,6 +1236,8 @@
 
         function sendPlayerGift(targetSlotId, targetName, giftType) {
             if (!targetSlotId) return;
+            showToast("Player gifting is paused until gifts can be verified by a trusted server.", "error");
+            return;
             const isCreator = Boolean(state.isAdminAuthenticated);
             let amount = 0;
             let eventType = "GIFT_GEMS";
