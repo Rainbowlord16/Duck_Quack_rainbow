@@ -7,6 +7,7 @@ const schema = await readFile(new URL("../migrations/0001_initial.sql", import.m
 const gameSchema = await readFile(new URL("../migrations/0002_authoritative_game.sql", import.meta.url), "utf8");
 const adminSchema = await readFile(new URL("../migrations/0003_creator_admin.sql", import.meta.url), "utf8");
 const client = await readFile(new URL("../client.js", import.meta.url), "utf8");
+const frontend = await readFile(new URL("../../index.html", import.meta.url), "utf8");
 
 test("anonymous identity is server-generated and recovery uses a high-entropy key", () => {
   assert.match(worker, /crypto\.getRandomValues/);
