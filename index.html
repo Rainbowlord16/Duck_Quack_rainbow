@@ -655,6 +655,58 @@
             return /^data:image[/](?:jpeg|png|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(value) ? value : "";
         }
 
+        function normalizePublicRosterEntry(data) {
+            if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+            const accountSlotId = typeof data.accountSlotId === "string" ? data.accountSlotId : "";
+            if (!/^[a-zA-Z0-9_-]{1,64}$/.test(accountSlotId)) return null;
+            const now = Date.now();
+            const updatedAt = Number(data.updatedAt);
+            if (!Number.isFinite(updatedAt) || updatedAt < now - 86400000 || updatedAt > now + 60000) return null;
+            const boundedNumber = (value, max) => {
+                const n = Number(value);
+                return Number.isFinite(n) ? Math.max(0, Math.min(max, n)) : 0;
+            };
+            return {
+                accountSlotId,
+                playerName: (typeof data.playerName === "string" ? data.playerName : "DuckGuest").trim().slice(0, 22) || "DuckGuest",
+                lifetimeQuacks: boundedNumber(data.lifetimeQuacks, 1e18),
+                rebirths: boundedNumber(data.rebirths, 1e9),
+                bossKills: boundedNumber(data.bossKills, 1e9),
+                eggsHatched: boundedNumber(data.eggsHatched, 1e9),
+                currentWorld: Math.max(1, Math.min(WORLDS.length, Math.floor(boundedNumber(data.currentWorld, WORLDS.length)) || 1)),
+                profilePic: safeAvatarDataUrl(data.tinyAvatar || data.profilePic),
+                updatedAt
+            };
+        }
+
+        function storePublicRosterEntry(data) {
+            const entry = normalizePublicRosterEntry(data);
+            if (!entry) return false;
+            const previous = liveHttpEntries[entry.accountSlotId];
+            if (previous && entry.updatedAt <= previous.updatedAt) return false;
+            if (!previous && Object.keys(liveHttpEntries).length >= 100) {
+                const oldestId = Object.keys(liveHttpEntries).reduce((oldest, id) =>
+                    !oldest || liveHttpEntries[id].updatedAt < liveHttpEntries[oldest].updatedAt ? id : oldest, "");
+                if (oldestId) delete liveHttpEntries[oldestId];
+            }
+            liveHttpEntries[entry.accountSlotId] = entry;
+            return true;
+        }
+
+        function normalizePublicChatMessage(data) {
+            if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+            if (typeof data.id !== "string" || data.id.length < 1 || data.id.length > 100) return null;
+            if (typeof data.text !== "string" || !data.text.trim()) return null;
+            return {
+                id: data.id,
+                sender: (typeof data.sender === "string" ? data.sender : "DuckGuest").trim().slice(0, 22) || "DuckGuest",
+                text: data.text.slice(0, 280),
+                timestamp: Number.isFinite(Number(data.timestamp)) ? Number(data.timestamp) : Date.now(),
+                isSystem: false,
+                isCreator: false
+            };
+        }
+
         const WORLDS = [
             { id: 1, name: "Sunny Pond", mult: 1, cost: 0, color: "#38bdf8" },
             { id: 2, name: "Golden Meadow", mult: 2, cost: 2500, color: "#facc15" },
@@ -969,8 +1021,7 @@
                         if (topic.startsWith(`${MQTT_BASE_TOPIC}/roster/`)) {
                             if (data && data.accountSlotId) {
                                 const prev = liveHttpEntries[data.accountSlotId];
-                                if (!prev || (data.updatedAt || 0) >= (prev.updatedAt || 0)) {
-                                    liveHttpEntries[data.accountSlotId] = data;
+                                if (storePublicRosterEntry(data)) {
                                     renderLeaderboardUI();
                                     renderWorldLivePlayers();
                                 }
@@ -980,9 +1031,10 @@
                                 applyAdminAbuseEvent(data, false);
                             }
                         } else if (topic === `${MQTT_BASE_TOPIC}/chat`) {
-                            if (data && data.id && !seenChatIds.has(data.id)) {
-                                rememberBoundedId(seenChatIds, data.id);
-                                globalChatMessages.push(data);
+                            const chatMessage = normalizePublicChatMessage(data);
+                            if (chatMessage && !seenChatIds.has(chatMessage.id)) {
+                                rememberBoundedId(seenChatIds, chatMessage.id);
+                                globalChatMessages.push(chatMessage);
                                 globalChatMessages = globalChatMessages.slice(-60);
                                 renderGlobalChat();
                             }
@@ -991,12 +1043,17 @@
                                 applySharedCoopBossUpdate(data);
                             }
                         } else if (topic === `${MQTT_BASE_TOPIC}/world`) {
-                            if (data && (data.updatedAt || 0) > lastWorldSyncTs) {
-                                lastWorldSyncTs = data.updatedAt;
-                                const found = WEATHERS.find(w => w.id === data.weatherId);
-                                if (found && found.id !== currentWeather.id) {
+                            const packetTime = Number(data && data.updatedAt);
+                            const found = WEATHERS.find(w => w.id === (data && data.weatherId));
+                            if (found && Number.isFinite(packetTime) &&
+                                packetTime >= Date.now() - 86400000 &&
+                                packetTime <= Date.now() + 60000 &&
+                                packetTime > lastWorldSyncTs) {
+                                lastWorldSyncTs = packetTime;
+                                if (found.id !== currentWeather.id) {
                                     currentWeather = found;
-                                    weatherTimer = data.weatherTimer || 45;
+                                    const timer = Number(data.weatherTimer);
+                                    weatherTimer = Number.isFinite(timer) ? Math.max(1, Math.min(45, timer)) : 45;
                                     renderAll();
                                     showToast(`Global Weather Synced: ${found.name} (${found.mult}x)!`, "info");
                                 }
@@ -1135,10 +1192,7 @@
                             if (!wrapper.message) return;
                             const card = JSON.parse(wrapper.message);
                             if (card && card.accountSlotId) {
-                                const prev = liveHttpEntries[card.accountSlotId];
-                                if (!prev || (card.updatedAt || 0) > (prev.updatedAt || 0)) {
-                                    liveHttpEntries[card.accountSlotId] = { ...prev, ...card };
-                                }
+                                storePublicRosterEntry(card);
                             }
                         } catch (e) {}
                     });
@@ -1304,7 +1358,7 @@
         }
 
         function getMergedLeaderboardEntries() {
-            const merged = {};
+            const merged = Object.create(null);
             Object.values(liveHttpEntries).forEach(entry => {
                 if (entry && entry.accountSlotId) {
                     merged[entry.accountSlotId] = entry;
@@ -2537,8 +2591,8 @@
 
             const avatarWrap = document.getElementById("hudAvatarWrap");
             if (avatarWrap) {
-                avatarWrap.innerHTML = state.profilePic
-                    ? `<img src="${state.profilePic}" alt="" class="w-full h-full object-cover">`
+                avatarWrap.innerHTML = safeAvatarDataUrl(state.profilePic)
+                    ? `<img src="${safeAvatarDataUrl(state.profilePic)}" alt="" class="w-full h-full object-cover">`
                     : buildMiniDuckBadgeSvg("#facc15", "#f97316", "w-4 h-4");
             }
 
