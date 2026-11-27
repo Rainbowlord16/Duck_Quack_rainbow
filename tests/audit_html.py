@@ -124,8 +124,9 @@ assert "pendingChatOutbox = pendingChatOutbox.slice(-50)" in SOURCE
 assert "finish(!error)" in SOURCE
 assert "syncGlobalWeatherFromClock();" in SOURCE
 assert "if (mqttConnected) publishMqttPacket(\"boss\", coopBossState, true)" in SOURCE
+assert "queuePendingChatMessage(msgObj)" in SOURCE
+assert "flushPendingChatOutbox()" in SOURCE
 for function_name, next_function in (
-    ("function sendGlobalChatMessage()", "function pushHttpCloudRoster"),
     ("function pushHttpCloudRoster", "async function fetchNtfyRelayMessages"),
     ("function attackCoopBoss()", "function sendPlayerGift"),
 ):
