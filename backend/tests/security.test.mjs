@@ -107,5 +107,5 @@ test("admin event effects require trusted server delivery and honor target playe
   assert.match(worker, /admin-enroll:/);
   assert.match(worker, /DELETE FROM admin_events WHERE created_at</);
   assert.match(client, /adminEvents\(since=0\)/);
-  assert.match(await readFile(new URL("../../index.html", import.meta.url), "utf8"), /target === state\.accountSlotId/);
+  assert.match(frontend, /target === state\.accountSlotId/);
 });
