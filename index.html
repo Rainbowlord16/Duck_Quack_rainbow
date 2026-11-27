@@ -2669,6 +2669,65 @@
             });
         }
 
+        function exportSaveString() {
+            const box = document.getElementById("saveStringBox");
+            if (!box) return;
+            const backup = { ...state, isAdminAuthenticated: false };
+            delete backup.adminTargetPlayer;
+            box.value = btoa(unescape(encodeURIComponent(JSON.stringify(backup))));
+            box.select();
+            try { document.execCommand("copy"); } catch (e) {}
+            showToast("Game save backup generated and copied!", "success");
+        }
+
+        function importSaveString() {
+            const box = document.getElementById("saveStringBox");
+            if (!box || !box.value.trim()) { showToast("Paste a game save backup first.", "warn"); return; }
+            try {
+                const decoded = JSON.parse(decodeURIComponent(escape(atob(box.value.trim()))));
+                if (!decoded || typeof decoded !== "object" || Array.isArray(decoded)) throw new Error("Invalid save");
+                const keepPlayerId = state.accountSlotId;
+                const keepName = state.playerName;
+                state = Object.assign(createDefaultState(), decoded);
+                state.accountSlotId = keepPlayerId;
+                state.playerName = keepName || state.playerName;
+                state.isAdminAuthenticated = false;
+                sessionStorage.removeItem("dqCreatorUnlocked");
+                saveGame();
+                renderAll();
+                showToast("Game progress restored. Player identity and admin access were kept separate.", "success");
+                if (activeModalId === "profile") openModal("profile");
+            } catch (e) {
+                showToast("Invalid game save backup.", "warn");
+            }
+        }
+
+        async function recoverPlayerIdentity() {
+            const input = document.getElementById("playerRecoveryCodeInput");
+            const code = input?.value?.trim();
+            if (!code) { showToast("Paste your player recovery code first.", "warn"); return; }
+            if (!window.DuckQuackApi) {
+                showToast("Backend URL is not connected yet. Your code is ready to use once the API is connected.", "info");
+                return;
+            }
+            try {
+                const result = await window.DuckQuackApi.recover(code);
+                if (!result?.player?.id) throw new Error("The recovery response was incomplete.");
+                state.accountSlotId = result.player.id;
+                if (result.player.username) state.playerName = result.player.username;
+                state.isAdminAuthenticated = false;
+                sessionStorage.removeItem("dqCreatorUnlocked");
+                saveGame();
+                window.syncLeaderboardScore(true);
+                renderAll();
+                if (activeModalId === "profile") openModal("profile");
+                if (input) input.value = "";
+                showToast("Player ID restored successfully on this device!", "success");
+            } catch (error) {
+                showToast(error?.message || "Player recovery failed. Check the code and try again.", "error");
+            }
+        }
+
         function savePlayerDisplayName() {
             const input = document.getElementById("profileNameInput");
             if (!input) return;
@@ -3247,6 +3306,24 @@
                         </div>
                     </div>
 
+                    <div class="panel-subcard rounded-2xl p-4 border border-emerald-400/30 space-y-3">
+                        <div class="font-display font-extrabold text-sm text-emerald-300">🛟 Player Recovery</div>
+                        <p class="text-xs text-slate-300">Restore your Player ID on this device with your personal recovery code. This works independently of Creator Admin access.</p>
+                        <textarea id="playerRecoveryCodeInput" rows="2" autocomplete="off" spellcheck="false" placeholder="Paste your player recovery code here..." class="w-full p-2 rounded-xl bg-slate-950 border border-slate-700 text-[11px] text-slate-200"></textarea>
+                        <button onclick="recoverPlayerIdentity()" class="w-full px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 text-xs font-extrabold">Restore Player ID</button>
+                        <p class="text-[10px] text-slate-500">Keep this code private. Anyone with it can recover your player account.</p>
+                    </div>
+
+                    <div class="panel-subcard rounded-2xl p-4 border border-sky-400/25 space-y-2">
+                        <div class="font-display font-extrabold text-sm text-sky-300">💾 Local Save Backup</div>
+                        <p class="text-[11px] text-slate-400">Export or import your game progress backup. This is separate from your Player ID recovery code.</p>
+                        <textarea id="saveStringBox" rows="2" placeholder="Your Base64 game save appears here..." class="w-full p-2 rounded-xl bg-slate-950 border border-slate-700 text-[11px] text-slate-300"></textarea>
+                        <div class="flex flex-wrap gap-2">
+                            <button onclick="exportSaveString()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-extrabold text-white">Export &amp; Copy Save</button>
+                            <button onclick="importSaveString()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-extrabold text-white">Import Save</button>
+                        </div>
+                    </div>
+
                     <div class="panel-subcard rounded-2xl p-4 border border-cyan-400/25 space-y-2">
                         <label class="flex items-center justify-between gap-3 text-xs font-bold text-slate-200" for="safeVisualsModeToggle">
                             <span>🛡️ Photosensitive / Safe Visuals Mode</span>
@@ -3521,5 +3598,6 @@
             flushPendingChatOutbox();
         }, 4000);
     </script>
+    <script type="module" src="./backend/recovery-bridge.js"></script>
 </body>
 </html>
