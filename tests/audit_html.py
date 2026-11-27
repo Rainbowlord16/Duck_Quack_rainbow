@@ -111,12 +111,19 @@ assert "relayPollInFlight" in SOURCE
 assert "AbortController" in SOURCE
 assert "fetchNtfyRelayMessages(RELAY_TOPIC_CHAT, \"15s\")" in SOURCE
 assert "fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, \"24h\"" in SOURCE
-assert "if (mqttConnected) return" in SOURCE
+assert "if (mqttConnected || relayPollInFlight || !navigator.onLine) return" in SOURCE
 assert "function syncGlobalWeatherFromClock" in SOURCE
 assert "Math.floor(now / 45000)" in SOURCE
 assert "mqttClient.subscribe(`${MQTT_BASE_TOPIC}/world`" not in SOURCE
 assert 'publishMqttPacket("world"' not in SOURCE
 assert "now - Number(e.updatedAt) <= 20000" in SOURCE
+assert 'localStorage.setItem("dq_sync_chat_outbox_v1"' in SOURCE
+assert "function queuePendingChatMessage" in SOURCE
+assert "function flushPendingChatOutbox" in SOURCE
+assert "pendingChatOutbox = pendingChatOutbox.slice(-50)" in SOURCE
+assert "finish(!error)" in SOURCE
+assert "syncGlobalWeatherFromClock();" in SOURCE
+assert "if (mqttConnected) publishMqttPacket(\"boss\", coopBossState, true)" in SOURCE
 for function_name, next_function in (
     ("function sendGlobalChatMessage()", "function pushHttpCloudRoster"),
     ("function pushHttpCloudRoster", "async function fetchNtfyRelayMessages"),
