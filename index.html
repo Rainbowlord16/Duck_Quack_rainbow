@@ -1234,41 +1234,73 @@
             }
         }
 
-        function pullHttpCloudRosterAndEvents() {
-            if (mqttConnected) return;
-            fetch(`https://ntfy.sh/${RELAY_TOPIC_ROSTER}/json?poll=1&since=24h`)
-                .then(r => r.text())
-                .then(txt => {
-                    txt.trim().split("\n").forEach(line => {
-                        if (!line) return;
-                        try {
-                            const wrapper = JSON.parse(line);
-                            if (!wrapper.message) return;
-                            const card = JSON.parse(wrapper.message);
-                            if (card && card.accountSlotId) {
-                                storePublicRosterEntry(card);
-                            }
-                        } catch (e) {}
-                    });
+        async function fetchNtfyRelayMessages(topic, since, maxChars = 524288) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 6500);
+            try {
+                const response = await fetch(`https://ntfy.sh/${topic}/json?poll=1&since=${encodeURIComponent(since)}`, {
+                    signal: controller.signal,
+                    cache: "no-store"
+                });
+                if (!response.ok) return [];
+                const body = await response.text();
+                if (body.length > maxChars) return [];
+                const messages = [];
+                for (const line of body.split("\n").slice(-250)) {
+                    if (!line) continue;
+                    try {
+                        const wrapper = JSON.parse(line);
+                        if (typeof wrapper.message !== "string") continue;
+                        const payload = JSON.parse(wrapper.message);
+                        if (payload && typeof payload === "object" && !Array.isArray(payload)) messages.push(payload);
+                    } catch (e) {}
+                }
+                return messages;
+            } catch (e) {
+                return [];
+            } finally {
+                clearTimeout(timeoutId);
+            }
+        }
+
+        async function pullHttpCloudRosterAndEvents() {
+            if (mqttConnected || relayPollInFlight || !navigator.onLine) return;
+            relayPollInFlight = true;
+            try {
+                const [rosterPackets, eventPackets, chatPackets, bossPackets] = await Promise.all([
+                    fetchNtfyRelayMessages(RELAY_TOPIC_ROSTER, "24h", 1048576),
+                    fetchNtfyRelayMessages(RELAY_TOPIC_EVENTS, "15s"),
+                    fetchNtfyRelayMessages(RELAY_TOPIC_CHAT, "15s"),
+                    fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, "15s")
+                ]);
+                // If MQTT recovered during the HTTP requests, discard the fallback batch.
+                if (mqttConnected) return;
+                let rosterChanged = false;
+                for (const card of rosterPackets) {
+                    if (storePublicRosterEntry(card)) rosterChanged = true;
+                }
+                if (rosterChanged) {
                     renderLeaderboardUI();
                     renderWorldLivePlayers();
-                })
-                .catch(() => {});
-
-            fetch(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}/json?poll=1&since=15s`)
-                .then(r => r.text())
-                .then(txt => {
-                    txt.trim().split("\n").forEach(line => {
-                        if (!line) return;
-                        try {
-                            const wrapper = JSON.parse(line);
-                            if (!wrapper.message) return;
-                            const evt = JSON.parse(wrapper.message);
-                            if (evt && evt.id) applyAdminAbuseEvent(evt, false);
-                        } catch (e) {}
-                    });
-                })
-                .catch(() => {});
+                }
+                for (const evt of eventPackets) {
+                    if (evt && evt.id) applyAdminAbuseEvent(evt, false);
+                }
+                for (const packet of chatPackets) {
+                    const chatMessage = normalizePublicChatMessage(packet);
+                    if (chatMessage && allowIncomingChatPacket() && !seenChatIds.has(chatMessage.id)) {
+                        rememberBoundedId(seenChatIds, chatMessage.id);
+                        globalChatMessages.push(chatMessage);
+                        globalChatMessages = globalChatMessages.slice(-60);
+                        renderGlobalChat();
+                    }
+                }
+                for (const packet of bossPackets) {
+                    applySharedCoopBossUpdate(packet);
+                }
+            } finally {
+                relayPollInFlight = false;
+            }
         }
 
         function broadcastSharedWorldWeather() {
