@@ -37,10 +37,18 @@ async function loadGame(env,id){
  const levels={};for(const [k,v] of Object.entries(GAME_UPGRADES))levels[k]=Math.max(0,Math.min(100000,Math.floor(Number(upgrades[k])||0)));
  const elapsed=Math.max(0,Math.min(30,now-Number(g.last_accrual||now)));
  let cps=0;for(const [k,v] of Object.entries(GAME_UPGRADES))if(v.type==="cps")cps+=levels[k]*v.val;
- const earned=safeInt(cps*elapsed),quacks=safeInt(Number(g.quacks)+earned),lifetime=safeInt(Number(g.lifetime_quacks)+earned);
- await env.DB.prepare("UPDATE player_game_state SET quacks=?,lifetime_quacks=?,last_accrual=?,updated_at=? WHERE player_id=?").bind(quacks,lifetime,now,now,id).run();
- if(earned)await env.DB.prepare("UPDATE leaderboard SET lifetime_quacks=?,rebirths=?,updated_at=? WHERE player_id=?").bind(lifetime,Number(g.rebirths)||0,now,id).run();
- return {quacks,lifetimeQuacks:lifetime,rebirths:Number(g.rebirths)||0,upgrades:levels,clickPower:safeInt(1+Object.entries(GAME_UPGRADES).reduce((n,[k,v])=>n+(v.type==="click"?levels[k]*v.val:0),0)),cps:safeInt(cps)};
+ const earned=safeInt(cps*elapsed),oldLast=Number(g.last_accrual||now);
+ if(earned>0){
+  await env.DB.prepare("UPDATE player_game_state SET quacks=MIN(quacks+?,?),lifetime_quacks=MIN(lifetime_quacks+?,?),last_accrual=?,updated_at=? WHERE player_id=? AND last_accrual=?").bind(earned,GAME_CAP,earned,GAME_CAP,now,now,id,oldLast).run();
+ }else{
+  await env.DB.prepare("UPDATE player_game_state SET last_accrual=?,updated_at=? WHERE player_id=? AND last_accrual=?").bind(now,now,id,oldLast).run();
+ }
+ const fresh=await env.DB.prepare("SELECT quacks,lifetime_quacks,rebirths,upgrades_json FROM player_game_state WHERE player_id=?").bind(id).first();
+ let freshUpgrades={};try{freshUpgrades=JSON.parse(fresh.upgrades_json||"{}");}catch{}
+ const freshLevels={};for(const k of Object.keys(GAME_UPGRADES))freshLevels[k]=Math.max(0,Math.min(100000,Math.floor(Number(freshUpgrades[k])||0)));
+ const freshCps=safeInt(Object.entries(GAME_UPGRADES).reduce((n,[k,v])=>n+(v.type==="cps"?freshLevels[k]*v.val:0),0));
+ if(earned>0)await env.DB.prepare("UPDATE leaderboard SET lifetime_quacks=?,rebirths=?,updated_at=? WHERE player_id=?").bind(Number(fresh.lifetime_quacks),Number(fresh.rebirths)||0,now,id).run();
+ return {quacks:Number(fresh.quacks),lifetimeQuacks:Number(fresh.lifetime_quacks),rebirths:Number(fresh.rebirths)||0,upgrades:freshLevels,upgradesJson:fresh.upgrades_json,clickPower:safeInt(1+Object.entries(GAME_UPGRADES).reduce((n,[k,v])=>n+(v.type==="click"?freshLevels[k]*v.val:0),0)),cps:freshCps};
 }
 async function gameApi(req,env,p,u){
  const now=Math.floor(Date.now()/1000),id=p.player_id;
@@ -48,10 +56,9 @@ async function gameApi(req,env,p,u){
  if(u.pathname==="/api/game/click"&&req.method==="POST"){
   if(!await limit(env,"gameclick:"+id,12,1))return reply({error:"Click rate limit reached."},429);
   const g=await loadGame(env,id),gain=Math.max(1,g.clickPower);
-  const lifetime=safeInt(g.lifetimeQuacks+gain),quacks=safeInt(g.quacks+gain);
-  await env.DB.prepare("UPDATE player_game_state SET quacks=?,lifetime_quacks=?,updated_at=? WHERE player_id=?").bind(quacks,lifetime,now,id).run();
-  await env.DB.prepare("UPDATE leaderboard SET lifetime_quacks=?,updated_at=? WHERE player_id=?").bind(lifetime,now,id).run();
-  return reply({game:{...g,quacks,lifetimeQuacks:lifetime,clickPower:gain}},200);
+  const fresh=await env.DB.prepare("UPDATE player_game_state SET quacks=MIN(quacks+?,?),lifetime_quacks=MIN(lifetime_quacks+?,?),updated_at=? WHERE player_id=? RETURNING quacks,lifetime_quacks,rebirths").bind(gain,GAME_CAP,gain,GAME_CAP,now,id).first();
+  await env.DB.prepare("UPDATE leaderboard SET lifetime_quacks=?,rebirths=?,updated_at=? WHERE player_id=?").bind(Number(fresh.lifetime_quacks),Number(fresh.rebirths)||0,now,id).run();
+  return reply({game:{...g,quacks:Number(fresh.quacks),lifetimeQuacks:Number(fresh.lifetime_quacks),clickPower:gain}},200);
  }
  if(u.pathname==="/api/game/upgrade"&&req.method==="POST"){
   if(!await limit(env,"gameupgrade:"+id,8,10))return reply({error:"Upgrade rate limit reached."},429);
@@ -61,14 +68,16 @@ async function gameApi(req,env,p,u){
   const cost=safeInt(Math.floor(def.base*Math.pow(def.growth,level)));
   if(!Number.isSafeInteger(cost)||cost<1||g.quacks<cost)return reply({error:"Not enough server-verified Quacks."},409);
   const upgrades={...g.upgrades,[key]:level+1},quacks=g.quacks-cost;
-  await env.DB.prepare("UPDATE player_game_state SET quacks=?,upgrades_json=?,updated_at=? WHERE player_id=?").bind(quacks,JSON.stringify(upgrades),now,id).run();
+  const saved=await env.DB.prepare("UPDATE player_game_state SET quacks=quacks-?,upgrades_json=?,updated_at=? WHERE player_id=? AND quacks>=? AND upgrades_json=?").bind(cost,JSON.stringify(upgrades),now,id,cost,g.upgradesJson).run();
+  if(!saved.meta?.changes)return reply({error:"Game state changed. Retry the upgrade."},409);
   return reply({game:{...g,quacks,upgrades,cps:safeInt(Object.entries(GAME_UPGRADES).reduce((n,[k,v])=>n+(v.type==="cps"?upgrades[k]*v.val:0),0)),clickPower:safeInt(1+Object.entries(GAME_UPGRADES).reduce((n,[k,v])=>n+(v.type==="click"?upgrades[k]*v.val:0),0))}});
  }
  if(u.pathname==="/api/game/rebirth"&&req.method==="POST"){
   const g=await loadGame(env,id),required=50000*Math.pow(2.4,g.rebirths);
   if(!Number.isSafeInteger(required)||g.quacks<required)return reply({error:"Rebirth requirement not met on the server."},409);
   const rebirths=g.rebirths+1;
-  await env.DB.prepare("UPDATE player_game_state SET quacks=0,rebirths=?,upgrades_json='{}',last_accrual=?,updated_at=? WHERE player_id=?").bind(rebirths,now,now,id).run();
+  const saved=await env.DB.prepare("UPDATE player_game_state SET quacks=0,rebirths=?,upgrades_json='{}',last_accrual=?,updated_at=? WHERE player_id=? AND rebirths=? AND quacks>=? AND upgrades_json=?").bind(rebirths,now,now,id,g.rebirths,required,g.upgradesJson).run();
+  if(!saved.meta?.changes)return reply({error:"Game state changed. Retry rebirth."},409);
   await env.DB.prepare("UPDATE leaderboard SET lifetime_quacks=?,rebirths=?,updated_at=? WHERE player_id=?").bind(g.lifetimeQuacks,rebirths,now,id).run();
   return reply({game:{...g,quacks:0,rebirths,upgrades:{},clickPower:1,cps:0}});
  }
