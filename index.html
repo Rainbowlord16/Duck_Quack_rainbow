@@ -892,6 +892,18 @@
         let currentWeather = WEATHERS[0];
         let weatherTimer = 45;
         let activeModalId = null;
+
+        // Every device derives the same world weather from the same UTC 45-second slot.
+        // Public MQTT/ntfy writes cannot hijack the global weather state.
+        function syncGlobalWeatherFromClock(now = Date.now()) {
+            const slot = Math.floor(now / 45000);
+            const weatherIndex = ((slot % WEATHERS.length) + WEATHERS.length) % WEATHERS.length;
+            const nextWeather = WEATHERS[weatherIndex];
+            const changed = currentWeather.id !== nextWeather.id;
+            currentWeather = nextWeather;
+            weatherTimer = 45 - Math.floor((now % 45000) / 1000);
+            return changed;
+        }
         let modalPreviousFocus = null;
         let wheelAngle = 0;
         let isWheelSpinning = false;
@@ -1052,7 +1064,7 @@
                     mqttClient.subscribe(`${MQTT_BASE_TOPIC}/events`, { qos: 1 });
                     mqttClient.subscribe(`${MQTT_BASE_TOPIC}/chat`, { qos: 1 });
                     mqttClient.subscribe(`${MQTT_BASE_TOPIC}/boss`, { qos: 1 });
-                    mqttClient.subscribe(`${MQTT_BASE_TOPIC}/world`, { qos: 1 });
+                    // Shared weather is deterministic from UTC; no public write topic is trusted.
 
                     window.syncLeaderboardScore(true);
                     renderLeaderboardUI();
@@ -1088,22 +1100,6 @@
                         } else if (topic === `${MQTT_BASE_TOPIC}/boss`) {
                             if (data && (data.updatedAt || 0) > coopBossState.updatedAt) {
                                 applySharedCoopBossUpdate(data);
-                            }
-                        } else if (topic === `${MQTT_BASE_TOPIC}/world`) {
-                            const packetTime = Number(data && data.updatedAt);
-                            const found = WEATHERS.find(w => w.id === (data && data.weatherId));
-                            if (found && Number.isFinite(packetTime) &&
-                                packetTime >= Date.now() - 86400000 &&
-                                packetTime <= Date.now() + 60000 &&
-                                packetTime > lastWorldSyncTs) {
-                                lastWorldSyncTs = packetTime;
-                                if (found.id !== currentWeather.id) {
-                                    currentWeather = found;
-                                    const timer = Number(data.weatherTimer);
-                                    weatherTimer = Number.isFinite(timer) ? Math.max(1, Math.min(45, timer)) : 45;
-                                    renderAll();
-                                    showToast(`Global Weather Synced: ${found.name} (${found.mult}x)!`, "info");
-                                }
                             }
                         }
                     } catch (err) {}
@@ -1304,20 +1300,8 @@
         }
 
         function broadcastSharedWorldWeather() {
-            const payload = {
-                weatherId: currentWeather.id,
-                weatherTimer,
-                updatedAt: Date.now()
-            };
-            lastWorldSyncTs = payload.updatedAt;
-            if (mqttConnected) {
-                publishMqttPacket("world", payload, true);
-            } else {
-                fetch(`https://ntfy.sh/${RELAY_TOPIC_WORLD}`, {
-                    method: "POST",
-                    body: JSON.stringify(payload)
-                }).catch(() => {});
-            }
+            // Weather is a deterministic shared UTC schedule, not a client-authored event.
+            return false;
         }
 
         function applySharedCoopBossUpdate(data) {
@@ -3383,14 +3367,10 @@
             if (state.potions.quack2x > 0) state.potions.quack2x--;
             if (state.potions.gem2x > 0) state.potions.gem2x--;
 
-            // Weather cycle
-            weatherTimer--;
-            if (weatherTimer <= 0) {
-                weatherTimer = 45;
-                if (state.isAdminAuthenticated) {
-                    currentWeather = WEATHERS[Math.floor(Math.random() * WEATHERS.length)];
-                    broadcastSharedWorldWeather();
-                }
+            // Deterministic world clock keeps weather identical across devices and reconnects.
+            if (syncGlobalWeatherFromClock()) {
+                renderAll();
+                showToast(`Global Weather: ${currentWeather.name} (${currentWeather.mult}x)`, "info");
             }
 
             renderHud();
