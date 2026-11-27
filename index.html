@@ -950,6 +950,7 @@
         let mqttReconnectTimer = null;
         let mqttReconnectAttempt = 0;
         let relayPollInFlight = false;
+        const relaySuccessfulTopics = new Set();
         let pendingChatOutbox = [];
         let chatFlushInFlight = false;
         let liveHttpEntries = Object.create(null);
@@ -1348,6 +1349,7 @@
                     cache: "no-store"
                 });
                 if (!response.ok) return [];
+                relaySuccessfulTopics.add(topic);
                 let body = "";
                 if (response.body && typeof response.body.getReader === "function") {
                     const reader = response.body.getReader();
@@ -1386,17 +1388,17 @@
         }
 
         async function pullHttpCloudRosterAndEvents() {
-            if (mqttConnected || relayPollInFlight || !navigator.onLine) return;
+            if (relayPollInFlight || !navigator.onLine) return;
             relayPollInFlight = true;
             try {
+                const rosterSince = relaySuccessfulTopics.has(RELAY_TOPIC_ROSTER) ? "30s" : "24h";
+                const bossSince = relaySuccessfulTopics.has(RELAY_TOPIC_BOSS) ? "30s" : "24h";
                 const [rosterPackets, eventPackets, chatPackets, bossPackets] = await Promise.all([
-                    fetchNtfyRelayMessages(RELAY_TOPIC_ROSTER, "24h", 1048576),
-                    fetchNtfyRelayMessages(RELAY_TOPIC_EVENTS, "15s"),
-                    fetchNtfyRelayMessages(RELAY_TOPIC_CHAT, "15s"),
-                    fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, "24h", 524288)
+                    fetchNtfyRelayMessages(RELAY_TOPIC_ROSTER, rosterSince, 1048576),
+                    fetchNtfyRelayMessages(RELAY_TOPIC_EVENTS, "30s"),
+                    fetchNtfyRelayMessages(RELAY_TOPIC_CHAT, "30s"),
+                    fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, bossSince, 524288)
                 ]);
-                // If MQTT recovered during the HTTP requests, discard the fallback batch.
-                if (mqttConnected) return;
                 let rosterChanged = false;
                 for (const card of rosterPackets) {
                     if (storePublicRosterEntry(card)) rosterChanged = true;
@@ -3508,10 +3510,9 @@
 
         setInterval(() => {
             window.syncLeaderboardScore(true);
-            if (!mqttConnected) {
-                pullHttpCloudRosterAndEvents();
-                flushPendingChatOutbox();
-            }
+            // Poll ntfy even while MQTT is live: some players may be on HTTP fallback.
+            pullHttpCloudRosterAndEvents();
+            flushPendingChatOutbox();
         }, 4000);
     </script>
 </body>
