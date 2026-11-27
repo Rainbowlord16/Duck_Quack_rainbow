@@ -12,13 +12,9 @@ migrations_dir = "migrations"
 name = "RATE_LIMITER"
 class_name = "RateLimiter"
 
-[[durable_objects.bindings]]
-name = "CHAT_ROOM"
-class_name = "ChatRoom"
-
 [[migrations]]
 tag = "v1"
-new_sqlite_classes = ["RateLimiter", "ChatRoom"]
+new_sqlite_classes = ["RateLimiter"]
 
 [vars]
 FRONTEND_ORIGIN = "https://rainbowlord16.github.io"
