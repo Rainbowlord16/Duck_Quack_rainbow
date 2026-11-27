@@ -1391,7 +1391,9 @@
             if (relayPollInFlight || !navigator.onLine) return;
             relayPollInFlight = true;
             try {
-                const rosterSince = relaySuccessfulTopics.has(RELAY_TOPIC_ROSTER) ? "30s" : "24h";
+                // Roster is a live heartbeat, so only the recent window is needed.
+                const rosterSince = "30s";
+                // Fetch a wider boss snapshot once per page session, then use short deltas.
                 const bossSince = relaySuccessfulTopics.has(RELAY_TOPIC_BOSS) ? "30s" : "24h";
                 const [rosterPackets, eventPackets, chatPackets, bossPackets] = await Promise.all([
                     fetchNtfyRelayMessages(RELAY_TOPIC_ROSTER, rosterSince, 1048576),
