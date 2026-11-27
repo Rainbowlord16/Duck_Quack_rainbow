@@ -1028,11 +1028,18 @@
                     clientId,
                     clean: true,
                     connectTimeout: 6000,
-                    reconnectPeriod: 3000,
+                    reconnectPeriod: 0,
                     keepalive: 25
                 });
+                const activeClient = mqttClient;
 
-                mqttClient.on("connect", () => {
+                activeClient.on("connect", () => {
+                    if (mqttClient !== activeClient) return;
+                    mqttReconnectAttempt = 0;
+                    if (mqttReconnectTimer) {
+                        clearTimeout(mqttReconnectTimer);
+                        mqttReconnectTimer = null;
+                    }
                     mqttConnected = true;
                     cloudSyncStatusText = "GLOBAL WSS LIVE";
                     mqttClient.subscribe(`${MQTT_BASE_TOPIC}/roster/+`, { qos: 1 });
@@ -1045,7 +1052,8 @@
                     renderLeaderboardUI();
                 });
 
-                mqttClient.on("message", (topic, messageBuf) => {
+                activeClient.on("message", (topic, messageBuf) => {
+                    if (mqttClient !== activeClient) return;
                     try {
                         const rawStr = messageBuf.toString();
                         if (!rawStr || rawStr.length > 16384) return;
@@ -1095,14 +1103,16 @@
                     } catch (err) {}
                 });
 
-                mqttClient.on("error", () => {
-                    mqttConnected = false;
-                    mqttBrokerIndex++;
+                activeClient.on("error", () => {
+                    scheduleMqttReconnect(activeClient);
                 });
 
-                mqttClient.on("offline", () => {
-                    mqttConnected = false;
-                    cloudSyncStatusText = "Reconnecting WSS...";
+                activeClient.on("offline", () => {
+                    scheduleMqttReconnect(activeClient);
+                });
+
+                activeClient.on("close", () => {
+                    scheduleMqttReconnect(activeClient);
                 });
             } catch (e) {}
         }
