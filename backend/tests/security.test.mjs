@@ -44,7 +44,7 @@ test("browser-submitted totals are not accepted as leaderboard writes", () => {
 });
 
 test("chat polling uses a valid incremental query with bounded ascending results", () => {
-  assert.match(worker, /FROM chat_messages WHERE created_at > \\? ORDER BY created_at ASC LIMIT 100/);
+  assert.match(worker, /FROM chat_messages WHERE created_at > \? ORDER BY created_at ASC LIMIT 100/);
   assert.doesNotMatch(worker, /FROM chat_messages undefined/);
 });
 
@@ -53,5 +53,5 @@ test("D1 migration creates all tables and required chat polling index", () => {
   assert.match(schema, /CREATE TABLE IF NOT EXISTS sessions/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS chat_messages/);
   assert.match(schema, /CREATE TABLE IF NOT EXISTS leaderboard/);
-  assert.match(schema, /CREATE INDEX IF NOT EXISTS chat_created_idx ON chat_messages\\(created_at DESC\\)/);
+  assert.match(schema, /CREATE INDEX IF NOT EXISTS chat_created_idx ON chat_messages\(created_at DESC\)/);
 });
