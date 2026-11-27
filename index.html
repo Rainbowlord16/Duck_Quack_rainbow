@@ -2141,13 +2141,12 @@ for (const packet of bossPackets) {
             const isTargetedAtMe =
                 target === "ALL" ||
                 target.toLowerCase() === state.playerName.toLowerCase() ||
-                target === state.accountSlotId ||
-                isSender;
+                target === state.accountSlotId;
 
             if (!isTargetedAtMe) return;
 
-            // Ignore events older than 15 seconds so stale messages don't replay on reload
-            if (evt.timestamp && Date.now() - evt.timestamp > 15000 && !isSender) return;
+            // Ignore stale events even when they came from the trusted server ledger.
+            if (evt.timestamp && Date.now() - evt.timestamp > 15000) return;
 
             const type = (evt.type || "").toUpperCase();
             const root = document.getElementById("gameAppRoot");
