@@ -2,7 +2,7 @@
 
 ## Current trust model
 
-Duck Quack Simulator is a static browser application. It does not currently have a trusted application server.
+Duck Quack Simulator's live deployment is still a static browser application without a deployed trusted application server. A Cloudflare Worker/D1 backend scaffold is present in `backend/`, but it is not deployed or wired into the frontend. Until deployment and integration are complete, the live game must continue to be treated as having no trusted backend.
 
 - Browser storage and client-side game state are controlled by each player.
 - Public MQTT and ntfy topics are unauthenticated and must be treated as attacker-controlled input.
