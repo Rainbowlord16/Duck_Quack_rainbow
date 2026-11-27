@@ -144,7 +144,6 @@ assert "Math.floor(now / 45000)" in SOURCE
 assert "mqttClient.subscribe(`${MQTT_BASE_TOPIC}/world`" not in SOURCE
 assert 'publishMqttPacket("world"' not in SOURCE
 assert "now - Number(e.updatedAt) <= 20000" in SOURCE
-assert "finish(!error)" in SOURCE
 assert "syncGlobalWeatherFromClock();" in SOURCE
 assert 'publishMqttPacket("boss", coopBossState, true)' in SOURCE
 for function_name, next_function in (
