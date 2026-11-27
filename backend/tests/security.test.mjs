@@ -38,10 +38,26 @@ test("client adapter keeps credentials local and does not publish them to public
   assert.doesNotMatch(client, /ntfy\.sh|mqtt/);
 });
 
-test("browser-submitted totals are not accepted as leaderboard writes", () => {
-  assert.match(worker, /SELECT player_id,username,lifetime_quacks/);
-  assert.doesNotMatch(worker, /UPDATE leaderboard SET lifetime_quacks/);
-  assert.doesNotMatch(worker, /INSERT INTO leaderboard\(player_id,username,lifetime_quacks[^)]*\) VALUES\([^)]*body\./);
+test("leaderboard writes come from server-validated game actions, never browser totals", () => {
+  assert.match(worker, /api\\/game\\/click/);
+  assert.match(worker, /gameclick:/);
+  assert.match(worker, /const gain=Math.max\\(1,g.clickPower\\)/);
+  assert.match(worker, /UPDATE leaderboard SET lifetime_quacks=/);
+  assert.doesNotMatch(worker, /body\\.lifetimeQuacks|body\\.lifetime_quacks/);
+  assert.match(worker, /api\\/game\\/upgrade/);
+  assert.match(worker, /Not enough server-verified Quacks/);
+  assert.match(worker, /api\\/game\\/rebirth/);
+  assert.match(client, /gameClick\\(\\)/);
+  assert.match(client, /gameBuyUpgrade\\(upgrade\\)/);
+  assert.match(client, /gameRebirth\\(\\)/);
+});
+
+test("authoritative progression uses bounded server-owned state", () => {
+  assert.match(gameSchema, /CREATE TABLE IF NOT EXISTS player_game_state/);
+  assert.match(gameSchema, /CHECK\\(quacks>=0\\)/);
+  assert.match(gameSchema, /CHECK\\(lifetime_quacks>=0\\)/);
+  assert.match(worker, /GAME_CAP=9007199254740991/);
+  assert.match(worker, /Math.min\\(30,now-Number\\(g.last_accrual/);
 });
 
 test("chat polling uses a valid incremental query with bounded ascending results", () => {
