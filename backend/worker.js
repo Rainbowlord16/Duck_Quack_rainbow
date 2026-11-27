@@ -30,7 +30,16 @@ const GAME_UPGRADES={
 };
 const GAME_CAP=9007199254740991;
 const safeInt=n=>Math.max(0,Math.min(GAME_CAP,Math.floor(Number.isFinite(n)?n:0)));
+async function isCreatorPlayer(env,id){
+ const row=await env.DB.prepare("SELECT 1 AS creator FROM creator_passkeys WHERE slot=1 AND player_id=? LIMIT 1").bind(id).first();
+ return Boolean(row);
+}
+function creatorGame(){
+ const upgrades=Object.fromEntries(Object.keys(GAME_UPGRADES).map(key=>[key,100000]));
+ return {quacks:GAME_CAP,lifetimeQuacks:GAME_CAP,rebirths:GAME_CAP,upgrades,upgradesJson:JSON.stringify(upgrades),clickPower:GAME_CAP,cps:GAME_CAP,creator:true};
+}
 async function loadGame(env,id){
+ if(await isCreatorPlayer(env,id))return creatorGame();
  const now=Math.floor(Date.now()/1000);
  await env.DB.prepare("INSERT OR IGNORE INTO player_game_state(player_id,quacks,lifetime_quacks,rebirths,upgrades_json,last_accrual,updated_at) VALUES(?,0,0,0,'{}',?,?)").bind(id,now,now).run();
  let g=await env.DB.prepare("SELECT * FROM player_game_state WHERE player_id=?").bind(id).first();
@@ -53,6 +62,15 @@ async function loadGame(env,id){
 }
 async function gameApi(req,env,p,u){
  const now=Math.floor(Date.now()/1000),id=p.player_id;
+ if(await isCreatorPlayer(env,id)){
+  const game=creatorGame();
+  if(u.pathname==="/api/game/state"&&req.method==="GET")return reply({game});
+  if(u.pathname==="/api/game/click"&&req.method==="POST"){
+   if(!await limit(env,"gameclick:"+id,12,1))return reply({error:"Click rate limit reached."},429);
+   return reply({game});
+  }
+  if((u.pathname==="/api/game/upgrade"||u.pathname==="/api/game/rebirth")&&req.method==="POST")return reply({game});
+ }
  if(u.pathname==="/api/game/state"&&req.method==="GET")return reply({game:await loadGame(env,id)});
  if(u.pathname==="/api/game/click"&&req.method==="POST"){
   if(!await limit(env,"gameclick:"+id,12,1))return reply({error:"Click rate limit reached."},429);
