@@ -1437,10 +1437,60 @@ for (const packet of bossPackets) {
             if (activeModalId === "boss") openModal("boss");
         }
 
-        async function sendPlayerGift(targetSlotId, targetName, giftType) {
+        async function renderCreatorGiftConsole() {
+            const body = document.getElementById("systemModalBody");
+            if (!body || activeModalId !== "trade") return;
             if (!state.isAdminAuthenticated || !await requireCreatorSession()) return;
-            if (!targetSlotId) return;
-            showToast("Creator-only gift controls are reserved for RainbowLord16. Transfers remain paused until the server-backed gift ledger is implemented.", "error");
+            try {
+                const [rosterResult, historyResult] = await Promise.all([
+                    window.DuckQuackApi.leaderboard(),
+                    window.DuckQuackApi.creatorGiftHistory()
+                ]);
+                if (activeModalId !== "trade") return;
+                const players = (rosterResult.entries || []).filter(p => p.player_id && !p.creator);
+                const history = historyResult.gifts || [];
+                body.innerHTML = `<div class="space-y-4">
+                    <div class="panel-subcard rounded-2xl p-4 space-y-3">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="font-display font-extrabold text-white">Creator Quack Grant</div>
+                            <span class="text-[10px] uppercase tracking-wider text-emerald-300 font-black">Server verified</span>
+                        </div>
+                        <p class="text-xs text-slate-400">Choose a player from the trusted Worker roster. Grants are written to their server-owned Quack balance and recorded in the gift ledger.</p>
+                        ${players.length ? `<label class="block text-[10px] font-bold uppercase text-slate-400">Recipient</label>
+                        <select id="creatorGiftTarget" class="w-full rounded-xl bg-slate-950 border border-slate-700 p-2.5 text-sm text-white">
+                            ${players.map(p => `<option value="${escapeHtmlText(p.player_id)}">${escapeHtmlText(p.username)} · ${escapeHtmlText(p.player_id)}</option>`).join("")}
+                        </select>
+                        <label class="block text-[10px] font-bold uppercase text-slate-400">Quacks to grant</label>
+                        <input id="creatorGiftAmount" type="number" min="1" max="1000000000" step="1" value="1000" class="w-full rounded-xl bg-slate-950 border border-slate-700 p-2.5 text-sm text-white">
+                        <button onclick="sendPlayerGift(document.getElementById('creatorGiftTarget')?.value,'','quacks',document.getElementById('creatorGiftAmount')?.value)" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-yellow-300 text-slate-950 font-black text-xs">Grant Quacks</button>` : `<div class="rounded-xl bg-slate-950/60 p-3 text-xs text-slate-400">No eligible players are registered yet. Ask a player to open the game once.</div>`}
+                    </div>
+                    <div class="space-y-2">
+                        <div class="font-display font-extrabold text-white text-sm">Recent Gift Ledger</div>
+                        ${history.length ? history.map(g => `<div class="panel-subcard rounded-xl p-3 flex items-center justify-between gap-3"><div class="min-w-0"><div class="font-bold text-xs text-white truncate">${escapeHtmlText(g.targetName)} <span class="text-slate-500">(${escapeHtmlText(g.targetPlayer)})</span></div><div class="text-[10px] text-slate-500">${new Date(Number(g.createdAt) * 1000).toLocaleString()}</div></div><div class="text-xs font-black text-amber-300 whitespace-nowrap">+${formatNum(g.amount)} Quacks</div></div>`).join("") : `<div class="panel-subcard rounded-xl p-4 text-xs text-slate-400 text-center">No gifts have been recorded yet.</div>`}
+                    </div>
+                    <p class="text-[10px] text-slate-500">Gems, Eggs, and other items stay unavailable until their balances are migrated to trusted server storage.</p>
+                </div>`;
+            } catch (error) {
+                body.innerHTML = `<div class="panel-subcard rounded-xl p-4 text-sm text-rose-300">${escapeHtmlText(error?.message || "Could not load the Creator Gift Plaza.")}</div><button onclick="renderCreatorGiftConsole()" class="px-3 py-2 rounded-xl bg-slate-700 text-white text-xs font-bold">Retry</button>`;
+            }
+        }
+
+        async function sendPlayerGift(targetSlotId, targetName, giftType, rawAmount) {
+            if (!state.isAdminAuthenticated || !await requireCreatorSession()) return;
+            if (!targetSlotId || giftType !== "quacks" || !window.DuckQuackApi) return;
+            const amount = Number(rawAmount);
+            if (!Number.isSafeInteger(amount) || amount < 1 || amount > 1000000000) {
+                showToast("Enter a whole number from 1 to 1,000,000,000.", "error");
+                return;
+            }
+            if (!confirm(`Grant ${formatNum(amount)} Quacks to this player? This is recorded and cannot be reversed automatically.`)) return;
+            try {
+                const result = await window.DuckQuackApi.creatorGift({ targetPlayerId: targetSlotId, amount, resource: "quacks" });
+                showToast(`Gift delivered to ${result.gift.targetName}: +${formatNum(amount)} Quacks.`, "success");
+                await renderCreatorGiftConsole();
+            } catch (error) {
+                showToast(error?.message || "Gift could not be completed.", "error");
+            }
         }
 
         function getMergedLeaderboardEntries() {
@@ -3366,25 +3416,13 @@ for (const packet of bossPackets) {
                     <div class="text-xs text-slate-400">Active Codes: <span class="text-purple-300 font-bold">${Object.keys(PROMO_CODES).join(", ")}</span></div>
                 </div>`;
             } else if (id === "trade") {
-                title.textContent = "👑 Creator Gift Console";
+                title.textContent = "👑 Creator Gift Plaza";
                 if (!state.isAdminAuthenticated) {
                     body.innerHTML = `<div class="panel-subcard rounded-xl p-5 text-center text-sm text-slate-300">This console is restricted to RainbowLord16. Unlock the Creator passkey to access it.</div>`;
                     return;
                 }
-                const others = getMergedLeaderboardEntries().filter(p => p.accountSlotId !== state.accountSlotId);
-                body.innerHTML = `<div class="space-y-3">
-                    <p class="text-xs text-slate-300">👑 Creator-only gift controls. Transfers remain paused until secure server-side gift transactions are implemented.</p>
-                    ${others.length === 0
-                        ? `<div class="panel-subcard rounded-xl p-4 text-xs text-slate-400 text-center">Open the game on another device or tab to see live players here!</div>`
-                        : others.map(p => `<div class="panel-subcard rounded-xl p-3 flex flex-wrap items-center justify-between gap-2">
-                            <div class="font-extrabold text-xs text-white">${escapeHtmlText(p.playerName)}</div>
-                            <div class="flex gap-1.5">
-                                <button onclick="sendPlayerGift('${p.accountSlotId}','${escapeHtmlText(p.playerName)}','gems')" class="px-2.5 py-1 rounded-lg bg-cyan-500 text-slate-950 font-extrabold text-[11px]">Gift Gems</button>
-                                <button onclick="sendPlayerGift('${p.accountSlotId}','${escapeHtmlText(p.playerName)}','quacks')" class="px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 font-extrabold text-[11px]">Gift Quacks</button>
-                                <button onclick="sendPlayerGift('${p.accountSlotId}','${escapeHtmlText(p.playerName)}','eggs')" class="px-2.5 py-1 rounded-lg bg-emerald-400 text-slate-950 font-extrabold text-[11px]">Gift Eggs</button>
-                            </div>
-                        </div>`).join("")}
-                </div>`;
+                body.innerHTML = `<div class="panel-subcard rounded-xl p-5 text-center text-sm text-slate-300">Loading trusted player roster and gift ledger…</div>`;
+                renderCreatorGiftConsole();
             } else if (id === "choir") {
                 title.textContent = "12-Duck Rainbow Quack Choir";
                 body.innerHTML = `<div class="space-y-4">
