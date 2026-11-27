@@ -1039,7 +1039,10 @@
                     try { previousClient.end(true); } catch (e) {}
                 }
                 const brokerUrl = MQTT_BROKERS[mqttBrokerIndex % MQTT_BROKERS.length];
-                const clientId = "dq_" + (state.accountSlotId || "guest").slice(0, 14) + "_" + Math.random().toString(36).slice(2, 7);
+                const clientNonce = (window.crypto && typeof window.crypto.randomUUID === "function")
+                    ? window.crypto.randomUUID().replace(/-/g, "")
+                    : Math.random().toString(36).slice(2) + Date.now().toString(36);
+                const clientId = "dq_" + clientNonce.slice(0, 20);
                 cloudSyncStatusText = "Connecting Global WSS...";
 
                 mqttClient = mqtt.connect(brokerUrl, {
@@ -1267,7 +1270,7 @@
                     fetchNtfyRelayMessages(RELAY_TOPIC_ROSTER, "24h", 1048576),
                     fetchNtfyRelayMessages(RELAY_TOPIC_EVENTS, "15s"),
                     fetchNtfyRelayMessages(RELAY_TOPIC_CHAT, "15s"),
-                    fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, "15s")
+                    fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, "24h", 524288)
                 ]);
                 // If MQTT recovered during the HTTP requests, discard the fallback batch.
                 if (mqttConnected) return;
@@ -2713,11 +2716,14 @@
         function renderWorldLivePlayers() {
             const layer = document.getElementById("worldLivePlayersLayer");
             const onlineBadge = document.getElementById("chatOnlineBadge");
+            const now = Date.now();
             const entries = getMergedLeaderboardEntries();
-            if (onlineBadge) onlineBadge.textContent = `${entries.length} SYNCED`;
+            const onlineEntries = entries.filter(e => e.accountSlotId === state.accountSlotId ||
+                (Number.isFinite(Number(e.updatedAt)) && now - Number(e.updatedAt) <= 20000));
+            if (onlineBadge) onlineBadge.textContent = `${onlineEntries.length} ONLINE`;
             if (!layer) return;
 
-            const othersInWorld = entries.filter(e => e.accountSlotId !== state.accountSlotId && (e.currentWorld || 1) === state.currentWorld).slice(0, 5);
+            const othersInWorld = onlineEntries.filter(e => e.accountSlotId !== state.accountSlotId && (e.currentWorld || 1) === state.currentWorld).slice(0, 5);
             layer.innerHTML = othersInWorld.map((p, idx) => {
                 const leftPct = 14 + (idx * 18) % 72;
                 const topPct = 18 + (idx * 23) % 62;
@@ -3338,6 +3344,7 @@
            12. MAIN GAME LOOP & INITIALIZATION
            ========================================================================= */
         loadGame();
+        syncGlobalWeatherFromClock();
         document.body.classList.toggle("safe-visuals-mode", Boolean(state.safeVisualsMode));
         renderAll();
         renderGlobalChat();
