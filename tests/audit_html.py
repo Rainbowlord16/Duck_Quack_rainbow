@@ -115,7 +115,7 @@ assert "state.bossKills++" not in boss_attack
 assert "Rewards are paused until a trusted server can verify the raid" in boss_attack
 assert "updatedAt > now + 10000" in SOURCE
 assert "incomingUpdatedAt > Date.now() + 10000" in SOURCE
-assert "Player gifting is paused until gifts can be verified" in SOURCE
+assert "Transfers remain paused until the server-backed gift ledger is implemented" in SOURCE
 assert "safeAvatarDataUrl" in SOURCE
 assert "normalizePublicRosterEntry" in SOURCE
 assert "Object.keys(liveHttpEntries).length >= 100" in SOURCE
