@@ -679,9 +679,9 @@
             };
         }
 
-        function storePublicRosterEntry(data) {
+        function storePublicRosterEntry(data, expectedSlotId = "") {
             const entry = normalizePublicRosterEntry(data);
-            if (!entry) return false;
+            if (!entry || (expectedSlotId && entry.accountSlotId !== expectedSlotId)) return false;
             const previous = liveHttpEntries[entry.accountSlotId];
             if (previous && entry.updatedAt <= previous.updatedAt) return false;
             if (!previous && Object.keys(liveHttpEntries).length >= 100) {
@@ -1034,7 +1034,8 @@
                         if (topic.startsWith(`${MQTT_BASE_TOPIC}/roster/`)) {
                             if (data && data.accountSlotId) {
                                 const prev = liveHttpEntries[data.accountSlotId];
-                                if (storePublicRosterEntry(data)) {
+                                const expectedSlotId = topic.slice(`${MQTT_BASE_TOPIC}/roster/`.length);
+                                if (storePublicRosterEntry(data, expectedSlotId)) {
                                     renderLeaderboardUI();
                                     renderWorldLivePlayers();
                                 }
