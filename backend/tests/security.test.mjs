@@ -156,3 +156,14 @@ test("infinite Creator leaderboard stats are issued only for the passkey-bound C
   assert.match(frontend, /entry\.isCreator/);
   assert.match(frontend, /return "∞ MAX"/);
 });
+
+test("Creator game API returns capped maximum stats only for the passkey-bound player", () => {
+  assert.match(worker, /async function isCreatorPlayer\(env,id\)/);
+  assert.match(worker, /FROM creator_passkeys WHERE slot=1 AND player_id=\?/);
+  assert.match(worker, /function creatorGame\(\)/);
+  assert.match(worker, /if\(await isCreatorPlayer\(env,id\)\)return creatorGame\(\)/);
+  assert.match(worker, /if\(await isCreatorPlayer\(env,id\)\)\{/);
+  assert.match(worker, /quacks:GAME_CAP,lifetimeQuacks:GAME_CAP,rebirths:GAME_CAP/);
+  assert.match(worker, /upgrades,upgradesJson:JSON\.stringify\(upgrades\),clickPower:GAME_CAP,cps:GAME_CAP,creator:true/);
+  assert.match(worker, /if\(\(u\.pathname==="\/api\/game\/upgrade"\|\|u\.pathname==="\/api\/game\/rebirth"\)&&req\.method==="POST"\)return reply\(\{game\}\)/);
+});
