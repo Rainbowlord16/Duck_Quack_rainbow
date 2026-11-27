@@ -205,6 +205,10 @@ test("Creator-only controls require a live server-verified passkey session", () 
 
 test("Creator gifts are passkey-authorized, idempotent, rate-limited, and ledger-backed", () => {
   assert.match(worker, /u\.pathname==="\/api\/admin\/gifts"&&req\.method==="POST"/);
+  assert.match(worker, /u\.pathname==="\/api\/admin\/players"&&req\.method==="GET"/);
+  assert.match(worker, /creator-player-search/);
+  assert.match(client, /creatorPlayers\(query=""/);
+  assert.match(frontend, /creatorGiftSearch/);
   assert.match(worker, /getAdminSession\(req,env\)/);
   assert.match(worker, /creator-gift-send/);
   assert.match(worker, /Number\.isSafeInteger\(amount\)/);
