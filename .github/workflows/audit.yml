@@ -1,7 +1,7 @@
 name: Duck Quack audit
 on:
   pull_request:
-    branches: [main]
+    branches: [main, "audit/**", "backend/**"]
   push:
     branches: [main, "audit/**"]
 permissions:
@@ -19,3 +19,7 @@ jobs:
           node-version: "22"
       - name: Run HTML, security, and JavaScript checks
         run: python tests/audit_html.py
+      - name: Check backend JavaScript syntax
+        run: node --check backend/worker.js && node --check backend/client.js
+      - name: Run backend tests
+        run: node --test backend/tests/*.test.mjs
