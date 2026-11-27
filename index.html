@@ -1033,7 +1033,6 @@
 
                         if (topic.startsWith(`${MQTT_BASE_TOPIC}/roster/`)) {
                             if (data && data.accountSlotId) {
-                                const prev = liveHttpEntries[data.accountSlotId];
                                 const expectedSlotId = topic.slice(`${MQTT_BASE_TOPIC}/roster/`.length);
                                 if (storePublicRosterEntry(data, expectedSlotId)) {
                                     renderLeaderboardUI();
