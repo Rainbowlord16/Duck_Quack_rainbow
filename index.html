@@ -495,7 +495,7 @@
                     <input
                         id="globalChatInput"
                         type="text"
-                        maxlength="140"
+                        maxlength="280"
                         onkeydown="if(event.key==='Enter') sendGlobalChatMessage()"
                         placeholder="Chat globally or type /nuke, /jumpscare, /jail, /say..."
                         class="flex-1 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700/90 text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400"
@@ -957,6 +957,12 @@
         let liveHttpEntries = Object.create(null);
         let globalChatMessages = [];
         let seenChatIds = new Set();
+        let serverChatStatus = "Connecting to secure chat...";
+        let serverChatPollInFlight = false;
+        let serverLeaderboardEntries = null;
+        let serverLeaderboardStatus = "Connecting to verified leaderboard...";
+        let serverLeaderboardPollInFlight = false;
+        let lastServerLeaderboardFetchAt = 0;
         let inboundChatWindowAt = Date.now();
         let inboundChatCount = 0;
 
@@ -1069,7 +1075,6 @@
                     cloudSyncStatusText = "GLOBAL SYNC LIVE";
                     mqttClient.subscribe(`${MQTT_BASE_TOPIC}/roster/+`, { qos: 1 });
                     mqttClient.subscribe(`${MQTT_BASE_TOPIC}/events`, { qos: 1 });
-                    mqttClient.subscribe(`${MQTT_BASE_TOPIC}/chat`, { qos: 1 });
                     mqttClient.subscribe(`${MQTT_BASE_TOPIC}/boss`, { qos: 1 });
                     // Shared weather is deterministic from UTC; no public write topic is trusted.
 
@@ -1081,8 +1086,7 @@
                             body: JSON.stringify(coopBossState)
                         }).catch(() => {});
                     }
-                    flushPendingChatOutbox();
-                    renderLeaderboardUI();
+                            renderLeaderboardUI();
                 });
 
                 activeClient.on("message", (topic, messageBuf) => {
@@ -1103,14 +1107,6 @@
                         } else if (topic === `${MQTT_BASE_TOPIC}/events`) {
                             if (data && data.id) {
                                 applyAdminAbuseEvent(data, false);
-                            }
-                        } else if (topic === `${MQTT_BASE_TOPIC}/chat`) {
-                            const chatMessage = normalizePublicChatMessage(data);
-                            if (chatMessage && !seenChatIds.has(chatMessage.id) && allowIncomingChatPacket()) {
-                                rememberBoundedId(seenChatIds, chatMessage.id);
-                                globalChatMessages.push(chatMessage);
-                                globalChatMessages = globalChatMessages.slice(-60);
-                                renderGlobalChat();
                             }
                         } else if (topic === `${MQTT_BASE_TOPIC}/boss`) {
                             if (data && (data.updatedAt || 0) > coopBossState.updatedAt) {
@@ -1151,18 +1147,52 @@
             connectGlobalMqttSync();
             window.syncLeaderboardScore(true);
             pullHttpCloudRosterAndEvents();
-            flushPendingChatOutbox();
         });
         window.addEventListener("pageshow", () => {
             if (!mqttClient || !mqttConnected) connectGlobalMqttSync();
             window.syncLeaderboardScore(true);
         });
 
+        function mapServerChatMessage(message) {
+            if (!message || !message.id || typeof message.text !== "string") return null;
+            return {
+                id: String(message.id),
+                sender: String(message.username || "DuckGuest").slice(0, 22),
+                text: message.text.slice(0, 280),
+                timestamp: Math.max(0, Number(message.createdAt) || 0) * 1000,
+                isCreator: false,
+                isSystem: false
+            };
+        }
+
+        async function refreshServerChat() {
+            if (!window.DuckQuackApi || serverChatPollInFlight || !navigator.onLine) return;
+            serverChatPollInFlight = true;
+            try {
+                const result = await window.DuckQuackApi.chatHistory();
+                const messages = Array.isArray(result.messages) ? result.messages : [];
+                for (const item of messages) {
+                    const message = mapServerChatMessage(item);
+                    if (!message || seenChatIds.has(message.id)) continue;
+                    rememberBoundedId(seenChatIds, message.id);
+                    globalChatMessages.push(message);
+                }
+                globalChatMessages = globalChatMessages.slice(-60);
+                serverChatStatus = "SECURE SERVER CHAT";
+                renderGlobalChat();
+            } catch (error) {
+                serverChatStatus = "Chat temporarily unavailable";
+                renderGlobalChat();
+            } finally {
+                serverChatPollInFlight = false;
+            }
+        }
+
         function renderGlobalChat() {
             const feed = document.getElementById("globalChatFeed");
             if (!feed) return;
             if (globalChatMessages.length === 0) {
-                feed.innerHTML = `<div class="text-slate-500 italic">Global chat is ready. Messages from other players will appear here.</div>`;
+                feed.innerHTML = `<div class="text-slate-500 italic">${escapeHtmlText(serverChatStatus)}</div>`;
                 return;
             }
             feed.innerHTML = globalChatMessages.map(msg => {
@@ -1301,14 +1331,14 @@
             return msgObj;
         }
 
-        function sendGlobalChatMessage() {
+        async function sendGlobalChatMessage() {
             const input = document.getElementById("globalChatInput");
             if (!input) return;
             const messageText = input.value.trim();
             if (!messageText) return;
-            input.value = "";
 
             if (messageText.startsWith("/")) {
+                input.value = "";
                 if (!state.isAdminAuthenticated || !ADMIN_AUTH_BACKEND_ENABLED) {
                     showToast("Admin commands are disabled until server authorization is available.", "error");
                     return;
@@ -1317,9 +1347,25 @@
                 return;
             }
 
-            const msgObj = appendLocalChatMessage(state.playerName, messageText, false, false);
-            queuePendingChatMessage(msgObj);
-            flushPendingChatOutbox();
+            if (!window.DuckQuackApi) {
+                showToast("Secure chat is still connecting. Please try again in a moment.", "error");
+                return;
+            }
+            try {
+                const result = await window.DuckQuackApi.sendChat(messageText);
+                const message = mapServerChatMessage(result.message);
+                if (!message) throw new Error("The chat server returned an invalid message.");
+                if (!seenChatIds.has(message.id)) {
+                    rememberBoundedId(seenChatIds, message.id);
+                    globalChatMessages.push(message);
+                    globalChatMessages = globalChatMessages.slice(-60);
+                }
+                input.value = "";
+                serverChatStatus = "SECURE SERVER CHAT";
+                renderGlobalChat();
+            } catch (error) {
+                showToast(error?.message || "Message could not be sent. Please try again.", "error");
+            }
         }
 
         function pushHttpCloudRoster(entry) {
@@ -1402,10 +1448,9 @@
                 const rosterSince = "30s";
                 // Fetch a wider boss snapshot once per page session, then use short deltas.
                 const bossSince = relaySuccessfulTopics.has(RELAY_TOPIC_BOSS) ? "30s" : "24h";
-                const [rosterPackets, eventPackets, chatPackets, bossPackets] = await Promise.all([
+                const [rosterPackets, eventPackets, bossPackets] = await Promise.all([
                     fetchNtfyRelayMessages(RELAY_TOPIC_ROSTER, rosterSince, 1048576),
                     fetchNtfyRelayMessages(RELAY_TOPIC_EVENTS, "30s"),
-                    fetchNtfyRelayMessages(RELAY_TOPIC_CHAT, "30s"),
                     fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, bossSince, 524288)
                 ]);
                 const relayStatus = Date.now() - relayLastSuccessAt < 15000 ? "HTTP RELAY SYNC" : "SYNC OFFLINE";
@@ -1423,15 +1468,6 @@
                 }
                 for (const evt of eventPackets) {
                     if (evt && evt.id) applyAdminAbuseEvent(evt, false);
-                }
-                for (const packet of chatPackets) {
-                    const chatMessage = normalizePublicChatMessage(packet);
-                    if (chatMessage && !seenChatIds.has(chatMessage.id) && allowIncomingChatPacket()) {
-                        rememberBoundedId(seenChatIds, chatMessage.id);
-                        globalChatMessages.push(chatMessage);
-                        globalChatMessages = globalChatMessages.slice(-60);
-                        renderGlobalChat();
-                    }
                 }
                 for (const packet of bossPackets) {
                     applySharedCoopBossUpdate(packet);
@@ -2954,8 +2990,60 @@
             }).join("");
         }
 
+        async function refreshServerLeaderboard(force = false) {
+            if (!window.DuckQuackApi || serverLeaderboardPollInFlight || !navigator.onLine) return;
+            if (!force && Date.now() - lastServerLeaderboardFetchAt < 12000) return;
+            serverLeaderboardPollInFlight = true;
+            lastServerLeaderboardFetchAt = Date.now();
+            try {
+                const result = await window.DuckQuackApi.leaderboard();
+                serverLeaderboardEntries = (Array.isArray(result.entries) ? result.entries : []).map(entry => ({
+                    accountSlotId: String(entry.player_id || ""),
+                    playerName: String(entry.username || "DuckGuest"),
+                    lifetimeQuacks: Math.max(0, Number(entry.lifetime_quacks) || 0),
+                    rebirths: Math.max(0, Number(entry.rebirths) || 0),
+                    currentWorld: 1,
+                    bossKills: 0,
+                    profilePic: ""
+                })).filter(entry => entry.accountSlotId);
+                serverLeaderboardStatus = "VERIFIED SERVER RANKINGS";
+            } catch (error) {
+                serverLeaderboardStatus = "Leaderboard temporarily unavailable";
+            } finally {
+                serverLeaderboardPollInFlight = false;
+                renderLeaderboardUI();
+                if (activeModalId === "leaderboard") renderLeaderboardModal();
+            }
+        }
+
+        function renderLeaderboardModal() {
+            const title = document.getElementById("systemModalTitle");
+            const body = document.getElementById("systemModalBody");
+            if (!title || !body) return;
+            const entries = serverLeaderboardEntries || [];
+            title.textContent = "Global Hall of Fame";
+            body.innerHTML = `<div class="space-y-2.5">
+                <div class="flex items-center justify-between text-xs gap-2">
+                    <span class="text-emerald-300 font-bold">● ${escapeHtmlText(serverLeaderboardStatus)} (${entries.length} players)</span>
+                    <button onclick="refreshServerLeaderboard(true)" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold">↻ Refresh</button>
+                </div>
+                ${entries.length ? `<div class="space-y-1.5">
+                    ${entries.map((p, idx) => `<div class="p-3 rounded-2xl border panel-subcard flex items-center justify-between gap-3">
+                        <div class="min-w-0">
+                            <div class="font-extrabold text-xs sm:text-sm truncate text-white">#${idx + 1} · ${escapeHtmlText(p.playerName)}</div>
+                            <div class="text-[10px] text-slate-400">Player ID: ${escapeHtmlText(p.accountSlotId)} · Rebirths: ${formatNum(p.rebirths)}</div>
+                        </div>
+                        <div class="text-right shrink-0">
+                            <div class="font-display font-extrabold text-sm text-amber-300">${formatNum(p.lifetimeQuacks)}</div>
+                            <div class="text-[10px] text-slate-400">Quacks</div>
+                        </div>
+                    </div>`).join("")}
+                </div>` : `<div class="panel-subcard rounded-xl p-4 text-xs text-slate-400">${escapeHtmlText(serverLeaderboardStatus)}. Scores appear here only after the server accepts validated game progress.</div>`}
+            </div>`;
+        }
+
         function renderLeaderboardUI() {
-            const entries = getMergedLeaderboardEntries().sort((a, b) => (b.lifetimeQuacks || 0) - (a.lifetimeQuacks || 0));
+            const entries = (serverLeaderboardEntries || []).slice().sort((a, b) => (b.lifetimeQuacks || 0) - (a.lifetimeQuacks || 0));
             const mini = document.getElementById("miniLeaderboardList");
             if (mini) {
                 mini.innerHTML = entries.slice(0, 5).map((p, idx) => {
@@ -3282,39 +3370,8 @@
                     </div>
                 </div>`;
             } else if (id === "leaderboard") {
-                const entries = getMergedLeaderboardEntries().sort((a, b) => (b.lifetimeQuacks || 0) - (a.lifetimeQuacks || 0));
-                title.textContent = "Global Hall of Fame (Real-Time Multi-Device Sync)";
-                body.innerHTML = `<div class="space-y-2.5">
-                    <div class="flex items-center justify-between text-xs">
-                        <span class="text-emerald-300 font-bold">● ${cloudSyncStatusText} (${entries.length} Real Players)</span>
-                        <button onclick="window.syncLeaderboardScore(true);pullHttpCloudRosterAndEvents();openModal('leaderboard')" class="px-3 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 font-bold">↻ Refresh Sync</button>
-                    </div>
-                    <div class="space-y-1.5">
-                        ${entries.map((p, idx) => {
-                            // Public roster fields are unverified and cannot grant creator styling.
-                    const isCreator = false;
-                            return `<div class="p-3 rounded-2xl border ${isCreator ? "bg-gradient-to-r from-fuchsia-500/20 via-amber-500/15 to-cyan-500/20 border-amber-400/50" : "panel-subcard"} flex items-center justify-between gap-3">
-                                <div class="flex items-center gap-2.5 min-w-0">
-                                    <span class="font-display font-extrabold text-sm ${idx === 0 ? "text-amber-300" : "text-slate-400"}">#${idx + 1}</span>
-                                    <span class="w-8 h-8 rounded-full overflow-hidden bg-slate-800 border border-white/20 flex items-center justify-center shrink-0">
-                                        ${safeAvatarDataUrl(p.profilePic) ? `<img src="${safeAvatarDataUrl(p.profilePic)}" alt="" class="w-full h-full object-cover">` : buildMiniDuckBadgeSvg(isCreator ? "#ec4899" : "#facc15", "#38bdf8", "w-6 h-6")}
-                                    </span>
-                                    <div class="min-w-0">
-                                        <div class="font-extrabold text-xs sm:text-sm truncate ${isCreator ? "creator-name-glow" : "text-white"}">
-                                            ${escapeHtmlText(p.playerName)}
-                                            ${isCreator ? `<span class="ml-1 px-1.5 py-0.5 rounded bg-amber-400 text-slate-950 text-[9px] font-extrabold">CREATOR</span>` : ""}
-                                        </div>
-                                        <div class="text-[10px] text-slate-400">W${p.currentWorld || 1} • Rebirths: ${formatNum(p.rebirths || 0)} • Boss Slays: ${formatNum(p.bossKills || 0)}</div>
-                                    </div>
-                                </div>
-                                <div class="text-right shrink-0">
-                                    <div class="font-display font-extrabold text-sm text-amber-300">${formatNum(p.lifetimeQuacks)}</div>
-                                    <div class="text-[10px] text-slate-400">Quacks</div>
-                                </div>
-                            </div>`;
-                        }).join("")}
-                    </div>
-                </div>`;
+                renderLeaderboardModal();
+                refreshServerLeaderboard();
             } else if (id === "profile") {
                 const entries = getMergedLeaderboardEntries();
                 title.textContent = "Player Profile & RainbowLord16 Admin Vault";
@@ -3587,11 +3644,21 @@
            12. MAIN GAME LOOP & INITIALIZATION
            ========================================================================= */
         loadGame();
-        loadPendingChatOutbox();
         syncGlobalWeatherFromClock();
         document.body.classList.toggle("safe-visuals-mode", Boolean(state.safeVisualsMode));
         renderAll();
         renderGlobalChat();
+        window.addEventListener("duckquack:connected", () => {
+            serverChatStatus = "SECURE SERVER CHAT";
+            refreshServerChat();
+            refreshServerLeaderboard(true);
+        });
+        window.addEventListener("duckquack:connection-error", () => {
+            serverChatStatus = "Secure chat connection failed";
+            serverLeaderboardStatus = "Backend connection failed";
+            renderGlobalChat();
+            renderLeaderboardUI();
+        });
         connectGlobalMqttSync();
         pullHttpCloudRosterAndEvents();
         window.syncLeaderboardScore(true);
@@ -3632,7 +3699,8 @@
             window.syncLeaderboardScore(true);
             // Poll ntfy even while MQTT is live: some players may be on HTTP fallback.
             pullHttpCloudRosterAndEvents();
-            flushPendingChatOutbox();
+            refreshServerChat();
+            refreshServerLeaderboard();
         }, 4000);
     </script>
     <script type="module" src="./backend/recovery-bridge.js"></script>
