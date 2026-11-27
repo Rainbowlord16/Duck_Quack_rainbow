@@ -938,6 +938,19 @@
         let liveHttpEntries = Object.create(null);
         let globalChatMessages = [];
         let seenChatIds = new Set();
+        let inboundChatWindowAt = Date.now();
+        let inboundChatCount = 0;
+
+        function allowIncomingChatPacket() {
+            const now = Date.now();
+            if (now - inboundChatWindowAt >= 10000) {
+                inboundChatWindowAt = now;
+                inboundChatCount = 0;
+            }
+            if (inboundChatCount >= 30) return false;
+            inboundChatCount++;
+            return true;
+        }
 
         function rememberBoundedId(idSet, id, limit = 200) {
             if (!idSet || !id || idSet.has(id)) return;
@@ -1015,7 +1028,7 @@
                 mqttClient.on("message", (topic, messageBuf) => {
                     try {
                         const rawStr = messageBuf.toString();
-                        if (!rawStr) return;
+                        if (!rawStr || rawStr.length > 16384) return;
                         const data = JSON.parse(rawStr);
 
                         if (topic.startsWith(`${MQTT_BASE_TOPIC}/roster/`)) {
@@ -1032,7 +1045,7 @@
                             }
                         } else if (topic === `${MQTT_BASE_TOPIC}/chat`) {
                             const chatMessage = normalizePublicChatMessage(data);
-                            if (chatMessage && !seenChatIds.has(chatMessage.id)) {
+                            if (chatMessage && allowIncomingChatPacket() && !seenChatIds.has(chatMessage.id)) {
                                 rememberBoundedId(seenChatIds, chatMessage.id);
                                 globalChatMessages.push(chatMessage);
                                 globalChatMessages = globalChatMessages.slice(-60);
