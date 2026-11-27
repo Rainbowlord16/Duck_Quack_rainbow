@@ -1105,7 +1105,7 @@
                             }
                         } else if (topic === `${MQTT_BASE_TOPIC}/chat`) {
                             const chatMessage = normalizePublicChatMessage(data);
-                            if (chatMessage && allowIncomingChatPacket() && !seenChatIds.has(chatMessage.id)) {
+                            if (chatMessage && !seenChatIds.has(chatMessage.id) && allowIncomingChatPacket()) {
                                 rememberBoundedId(seenChatIds, chatMessage.id);
                                 globalChatMessages.push(chatMessage);
                                 globalChatMessages = globalChatMessages.slice(-60);
@@ -1201,7 +1201,7 @@
             try {
                 const saved = JSON.parse(localStorage.getItem("dq_sync_chat_outbox_v1") || "[]");
                 pendingChatOutbox = Array.isArray(saved)
-                    ? saved.map(item => {
+                    ? saved.slice(-50).map(item => {
                         const message = normalizePublicChatMessage(item);
                         if (!message || message.timestamp < Date.now() - 86400000 ||
                             message.timestamp > Date.now() + 60000) return null;
@@ -1414,7 +1414,7 @@
                 }
                 for (const packet of chatPackets) {
                     const chatMessage = normalizePublicChatMessage(packet);
-                    if (chatMessage && allowIncomingChatPacket() && !seenChatIds.has(chatMessage.id)) {
+                    if (chatMessage && !seenChatIds.has(chatMessage.id) && allowIncomingChatPacket()) {
                         rememberBoundedId(seenChatIds, chatMessage.id);
                         globalChatMessages.push(chatMessage);
                         globalChatMessages = globalChatMessages.slice(-60);
