@@ -6,3 +6,4 @@ CREATE INDEX IF NOT EXISTS sessions_expiry_idx ON sessions(expires_at);
 CREATE TABLE IF NOT EXISTS chat_messages(message_id TEXT PRIMARY KEY,player_id TEXT NOT NULL REFERENCES players(player_id),username TEXT NOT NULL,body TEXT NOT NULL CHECK(length(body) BETWEEN 1 AND 280),created_at INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS chat_created_idx ON chat_messages(created_at DESC);
 CREATE TABLE IF NOT EXISTS leaderboard(player_id TEXT PRIMARY KEY REFERENCES players(player_id) ON DELETE CASCADE,username TEXT NOT NULL,lifetime_quacks INTEGER NOT NULL DEFAULT 0 CHECK(lifetime_quacks>=0),rebirths INTEGER NOT NULL DEFAULT 0 CHECK(rebirths>=0),updated_at INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS leaderboard_score_idx ON leaderboard(lifetime_quacks DESC,updated_at ASC);
