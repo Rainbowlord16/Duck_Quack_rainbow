@@ -2362,9 +2362,14 @@
             return total;
         }
 
-        function buyUpgrade(id) {
+        async function buyUpgrade(id) {
             const u = UPGRADES.find(item => item.id === id);
             if (!u) return;
+            if (window.DuckQuackApi && serverIdentityReady) {
+                if (state.buyMult !== 1) { showToast("Use x1 purchases for verified leaderboard upgrades.", "error"); return; }
+                try { await window.DuckQuackApi.gameBuyUpgrade(id); }
+                catch (error) { showToast(error.message || "Server could not verify this upgrade.", "error"); return; }
+            }
             const cost = getUpgradeCost(u, state.buyMult);
             if (state.quacks < cost) {
                 showToast("Not enough Quacks!", "error");
@@ -2455,11 +2460,15 @@
             if (activeModalId === "pets") openModal("pets");
         }
 
-        function doRebirth() {
+        async function doRebirth() {
             const req = 50000 * Math.pow(2.4, state.rebirths);
             if (state.quacks < req) {
                 showToast(`Need ${formatNum(req)} Quacks to Rebirth!`, "error");
                 return;
+            }
+            if (window.DuckQuackApi && serverIdentityReady) {
+                try { await window.DuckQuackApi.gameRebirth(); }
+                catch (error) { showToast(error.message || "Server could not verify this rebirth.", "error"); return; }
             }
             state.quacks = 0;
             state.upgrades = {};
@@ -2854,6 +2863,7 @@
             serverLeaderboardPollInFlight = true;
             lastServerLeaderboardFetchAt = Date.now();
             try {
+                await window.DuckQuackApi.gameState();
                 const result = await window.DuckQuackApi.leaderboard();
                 serverLeaderboardEntries = (Array.isArray(result.entries) ? result.entries : []).map(entry => ({
                     accountSlotId: String(entry.player_id || ""),
