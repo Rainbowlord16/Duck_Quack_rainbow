@@ -1313,22 +1313,8 @@
                 updatedAt: Date.now()
             };
 
-            // Permanent Untouchable #1 RainbowLord16 Creator Throne
-            const creatorEntry = merged[CREATOR_SLOT_ID] || {};
-            merged[CREATOR_SLOT_ID] = {
-                ...creatorEntry,
-                accountSlotId: CREATOR_SLOT_ID,
-                playerName: CREATOR_USERNAME,
-                isAdmin: true,
-                lifetimeQuacks: 9.99e300,
-                rebirths: 999999999,
-                bossKills: 999999999,
-                eggsHatched: 999999999,
-                currentWorld: 21,
-                skin: state.isAdminAuthenticated ? state.skin : (creatorEntry.skin || "rainbow_creator"),
-                profilePic: state.isAdminAuthenticated ? (state.profilePic || state.tinyAvatar || "") : (creatorEntry.profilePic || ""),
-                updatedAt: Date.now()
-            };
+            // Creator status and scores must come from a trusted backend. Public roster data
+            // cannot reserve a privileged slot or fabricate an authenticated creator record.
 
             return Object.values(merged);
         }
@@ -1355,9 +1341,6 @@
                 pushHttpCloudRoster(entry);
             }
 
-            if (gunLeaderboardNode) {
-                try { gunLeaderboardNode.get(entry.accountSlotId).put(entry); } catch (e) {}
-            }
         };
 
         /* =========================================================================
@@ -1996,9 +1979,6 @@
             if (adminBroadcastChannel) adminBroadcastChannel.postMessage(payload);
             publishMqttPacket("events", payload, false);
             appendLocalChatMessage("ADMIN ABUSE", message, true, true);
-            if (gunAdminEventNode) {
-                try { gunAdminEventNode.put({ payloadJson: JSON.stringify(payload), updatedAt: Date.now() }); } catch (e) {}
-            }
             fetch(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}`, {
                 method: "POST",
                 body: JSON.stringify(payload)
