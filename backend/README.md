@@ -50,3 +50,8 @@ Creator access is separate from anonymous player sessions. The Worker uses WebAu
 - The passkey implementation currently supports ES256/P-256 authenticators. The relying-party ID and origin must be updated in the Worker if the public frontend hostname changes.
 
 This passkey authorizes the existing local visual/effect command engine. It does not turn client-only currencies or imported local saves into verified server balances. Creator gifting/administrative changes to authoritative player data require dedicated server-side handlers before those economy operations can be treated as authoritative.
+
+
+## Creator infinite server-side game stats
+
+The passkey-bound Creator player is identified only by the D1 `creator_passkeys.player_id` association written after successful Creator passkey authentication. The game API returns the maximum safe integer for verified Quacks, lifetime Quacks, rebirths, click power, and passive income, plus maximum upgrade levels. Creator click, upgrade, and rebirth requests keep those stats maxed and do not spend or reset them. Other players continue through the normal rate-limited, server-validated progression path. The leaderboard separately pins the verified Creator player above ordinary entries; it does not accept a client-supplied score.
