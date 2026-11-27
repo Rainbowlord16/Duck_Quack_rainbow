@@ -1717,6 +1717,13 @@
         }
 
         function performDuckQuack(isManual = true) {
+            // The server records each accepted click independently of browser-reported totals.
+            // Local save progression remains intact; leaderboard totals come only from this ledger.
+            if (window.DuckQuackApi && serverIdentityReady) {
+                window.DuckQuackApi.gameClick().catch(() => {
+                    serverLeaderboardStatus = "Leaderboard sync delayed";
+                });
+            }
             const now = Date.now();
             if (isManual) {
                 if (now - lastClickTime < 1400) {
