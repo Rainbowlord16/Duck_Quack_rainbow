@@ -167,3 +167,12 @@ test("Creator game API returns capped maximum stats only for the passkey-bound p
   assert.match(worker, /upgrades,upgradesJson:JSON\.stringify\(upgrades\),clickPower:GAME_CAP,cps:GAME_CAP,creator:true/);
   assert.match(worker, /if\(\(u\.pathname==="\/api\/game\/upgrade"\|\|u\.pathname==="\/api\/game\/rebirth"\)&&req\.method==="POST"\)return reply\(\{game\}\)/);
 });
+
+
+test("leaderboard exposes current verified Quacks separately from lifetime Quacks", () => {
+  assert.match(worker, /COALESCE\(g\.quacks,0\) AS quacks,l\.lifetime_quacks/);
+  assert.match(worker, /LEFT JOIN player_game_state g ON g\.player_id=l\.player_id/);
+  assert.match(frontend, /quacks: Math\.max\(0, Number\(entry\.quacks\) \|\| 0\)/);
+  assert.match(frontend, /Current Quacks/);
+  assert.match(frontend, /Lifetime:/);
+});
