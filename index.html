@@ -891,10 +891,6 @@
         let lastWorldSyncTs = 0;
 
         // MQTT WSS is the sole primary transport. HTTP polling is used only while MQTT is disconnected.
-        let gunInstance = null;
-        let gunLeaderboardNode = null;
-        let gunAdminEventNode = null;
-
         const adminBroadcastChannel = ("BroadcastChannel" in window)
             ? new BroadcastChannel("dq_gag_admin_abuse_v11")
             : null;
@@ -979,7 +975,7 @@
                             }
                         } else if (topic === `${MQTT_BASE_TOPIC}/chat`) {
                             if (data && data.id && !seenChatIds.has(data.id)) {
-                                seenChatIds.add(data.id);
+                                rememberBoundedId(seenChatIds, data.id);
                                 globalChatMessages.push(data);
                                 globalChatMessages = globalChatMessages.slice(-60);
                                 renderGlobalChat();
