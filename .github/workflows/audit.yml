@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [main, "audit/**", "backend/**"]
   push:
-    branches: [main, "audit/**"]
+    branches: [main, "audit/**", "backend/**"]
 permissions:
   contents: read
 jobs:
