@@ -839,6 +839,8 @@
             "set_weather_cyber", "set_weather_void", "say", "announce", "smite", "anvil", "lightning",
             "confetti", "hearts", "skull_rain", "matrix", "blur", "shake_screen", "reset_size", "clear"
         ];
+        const INTENSITY_COMMAND_FAMILIES = ["NUKE","TSAR_NUKE","ORBITAL_LASER","SUPERNOVA","ARMAGEDDON","METEOR","EARTHQUAKE","BLACKHOLE","JUMPSCARE","SCREAMER","DEMON_EYES","HAUNT","STATIC_CRASH","BSOD","FLASHBANG","BLIND","JAIL","FREEZE","FLIP","SPIN","TORNADO_SPIN","GIANT","TINY","ZERO_G","GLITCH","INVERT","ACID","RETRO","DISCO","RAINBOW_STORM","MEGA_STORM","DUCK_STAMPEDE"];
+        ALL_ADMIN_COMMANDS.push(...INTENSITY_COMMAND_FAMILIES.flatMap(family => Array.from({ length: 16 }, (_, index) => family.toLowerCase() + "_" + String(index + 1).padStart(2, "0"))));
 
         function adminCommandIcon(command) {
             const c = String(command || '').toLowerCase();
@@ -2149,8 +2151,11 @@ for (const packet of bossPackets) {
             if (!state.isAdminAuthenticated || !ADMIN_AUTH_BACKEND_ENABLED) return;
             const targetSel = document.getElementById("adminTargetSelect");
             const targetPlayer = targetSel ? targetSel.value : (state.adminTargetPlayer || "ALL");
+            const intensityInput = document.getElementById("adminIntensityInput");
+            const commandFamily = String(cmdType).toUpperCase().replace(/_\d{2}$/, "");
+            const outgoingArg = customArg !== "" ? customArg : (INTENSITY_COMMAND_FAMILIES.includes(commandFamily) ? (intensityInput?.value || "100") : "");
             try {
-                const result = await window.DuckQuackApi.adminCommand({ type: cmdType, arg: customArg, target: targetPlayer });
+                const result = await window.DuckQuackApi.adminCommand({ type: cmdType, arg: outgoingArg, target: targetPlayer });
                 if (result.event) {
                     const event = { ...result.event, sender: CREATOR_USERNAME, timestamp: Date.now() };
                     applyAdminAbuseEvent(event, true);
@@ -2203,7 +2208,11 @@ for (const packet of bossPackets) {
             // Ignore stale events even when they came from the trusted server ledger.
             if (evt.timestamp && Date.now() - evt.timestamp > 15000) return;
 
-            const type = (evt.type || "").toUpperCase();
+            const rawType = (evt.type || "").toUpperCase();
+            const type = rawType.replace(/_\d{2}$/, "");
+            const intensity = Math.max(1, Math.min(5000, Number.parseInt(evt.arg, 10) || 100));
+            const variantNumber = Number(rawType.match(/_(\\d{2})$/)?.[1] || 0);
+            const fxScale = Math.min(2.5, (0.75 + intensity / 2000) * (1 + Math.max(0, variantNumber - 1) * 0.015));
             const root = document.getElementById("gameAppRoot");
             const fxLayer = document.getElementById("adminFxOverlay");
             const banner = document.getElementById("globalEventBanner");
@@ -2236,8 +2245,8 @@ for (const packet of bossPackets) {
                         if (root) root.classList.add("screen-shaking");
                         fxLayer.innerHTML = `
                             <div style="position:fixed;inset:0;background:#ffffff;animation:nukeWhiteFlash 1.4s ease-out forwards;"></div>
-                            <div style="position:fixed;left:50%;top:50%;width:240px;height:240px;border-radius:50%;border:18px solid #facc15;animation:nukeShockwaveRing 1.8s ease-out forwards;"></div>
-                            <div style="position:fixed;left:50%;top:50%;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,#fff 0%,#facc15 28%,#ea580c 62%,#7f1d1d 88%,transparent 100%);animation:nukeFireballExpand 2.2s ease-out forwards;"></div>
+                            <div style="position:fixed;left:50%;top:50%;width:${Math.round(240*fxScale)}px;height:${Math.round(240*fxScale)}px;border-radius:50%;border:18px solid #facc15;animation:nukeShockwaveRing 1.8s ease-out forwards;"></div>
+                            <div style="position:fixed;left:50%;top:50%;width:${Math.round(320*fxScale)}px;height:${Math.round(320*fxScale)}px;border-radius:50%;background:radial-gradient(circle,#fff 0%,#facc15 28%,#ea580c 62%,#7f1d1d 88%,transparent 100%);animation:nukeFireballExpand 2.2s ease-out forwards;"></div>
                         `;
                     }, 1100);
                     setTimeout(() => {
@@ -2250,28 +2259,28 @@ for (const packet of bossPackets) {
                 playDramaticSfx("vine_boom");
                 if (fxLayer) {
                     fxLayer.classList.remove("hidden");
-                    fxLayer.innerHTML = `<div style="position:fixed;left:50%;top:50%;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,#000 35%,#7e22ce 68%,#38bdf8 85%,transparent 100%);box-shadow:0 0 90px #9333ea;animation:blackholeSpin 2.8s ease-in-out forwards;"></div>`;
+                    fxLayer.innerHTML = `<div style="position:fixed;left:50%;top:50%;width:${Math.round(260*fxScale)}px;height:${Math.round(260*fxScale)}px;border-radius:50%;background:radial-gradient(circle,#000 35%,#7e22ce 68%,#38bdf8 85%,transparent 100%);box-shadow:0 0 90px #9333ea;animation:blackholeSpin 2.8s ease-in-out forwards;"></div>`;
                     setTimeout(() => { fxLayer.classList.add("hidden"); fxLayer.innerHTML = ""; }, 2900);
                 }
             } else if (type === "EARTHQUAKE" || type === "SHAKE_SCREEN" || type === "SMITE" || type === "ANVIL" || type === "LIGHTNING") {
                 playDramaticSfx("vine_boom");
                 if (root) {
                     root.classList.add("screen-shaking");
-                    setTimeout(() => root.classList.remove("screen-shaking"), 2600);
+                    setTimeout(() => root.classList.remove("screen-shaking"), Math.min(4500, 1200 + intensity * 0.66));
                 }
             } else if (type === "JAIL") {
                 playDramaticSfx("vine_boom");
                 const jail = document.getElementById("duckJailOverlay");
                 if (jail) {
                     jail.classList.remove("hidden");
-                    setTimeout(() => jail.classList.add("hidden"), 6000);
+                    setTimeout(() => jail.classList.add("hidden"), Math.min(10000, 3000 + intensity * 1.4));
                 }
             } else if (type === "FREEZE") {
                 playDramaticSfx("siren");
                 const ice = document.getElementById("duckFreezeOverlay");
                 if (ice) {
                     ice.classList.remove("hidden");
-                    setTimeout(() => ice.classList.add("hidden"), 6000);
+                    setTimeout(() => ice.classList.add("hidden"), Math.min(10000, 3000 + intensity * 1.4));
                 }
             } else if (type === "UNFREEZE") {
                 const jail = document.getElementById("duckJailOverlay");
@@ -3440,9 +3449,14 @@ for (const packet of bossPackets) {
                                     <option value="ALL" ${state.adminTargetPlayer === "ALL" ? "selected" : ""}>Target: ALL PLAYERS</option>
                                     ${entries.map(p => `<option value="${escapeHtmlText(p.playerName)}" ${state.adminTargetPlayer === p.playerName ? "selected" : ""}>${escapeHtmlText(p.playerName)}</option>`).join("")}
                                 </select>
-                                <input id="adminCommandInput" type="text" onkeydown="if(event.key==='Enter') executeAdminCommandLine()" placeholder="Type command e.g. /nuke or /jumpscare" class="sm:col-span-2 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white">
+                                <input id="adminCommandInput" type="text" onkeydown="if(event.key==='Enter') executeAdminCommandLine()" placeholder="Type /nuke 750, /earthquake 1000, or /nuke_01" class="sm:col-span-2 px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-white">
                             </div>
 
+                            <div class="flex items-center gap-2 rounded-xl bg-slate-950/80 border border-fuchsia-500/30 px-3 py-2">
+                                <label for="adminIntensityInput" class="text-xs font-bold text-fuchsia-200 whitespace-nowrap">Effect intensity</label>
+                                <input id="adminIntensityInput" type="number" min="1" max="5000" step="1" value="750" class="w-full px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-white font-bold" aria-label="Admin effect intensity from 1 to 5000">
+                                <span class="text-[10px] text-slate-500 whitespace-nowrap">1 to 5000</span>
+                            </div>
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                                 <button onclick="triggerAdminCommand('nuke')" class="p-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("nuke")} NUKE</span></button>
                                 <button onclick="triggerAdminCommand('jumpscare')" class="p-2 rounded-xl bg-red-900 hover:bg-red-800 text-white font-extrabold text-xs"><span class="inline-flex items-center gap-2">${adminCommandIcon("jumpscare")} JUMPSCARE</span></button>
