@@ -489,9 +489,13 @@
                         <svg viewBox="0 0 24 24" class="w-4 h-4 text-fuchsia-300 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="20 12 20 22 4 22 4 12"/><rect x="2" y="7" width="20" height="5"/><line x1="12" y1="22" x2="12" y2="7"/></svg>
                         <span>Promo Codes</span>
                     </button>
-                    <button onclick="openModal('piano')" class="col-span-2 flex items-center justify-center gap-2 px-2.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 via-pink-500/20 to-cyan-500/20 hover:from-amber-500/30 hover:to-cyan-500/30 border border-amber-400/45 text-xs font-extrabold text-amber-200 transition">
+                    <button onclick="openModal('piano')" class="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/20 to-pink-500/20 hover:from-amber-500/30 hover:to-pink-500/30 border border-amber-400/45 text-xs font-extrabold text-amber-200 transition">
                         <svg viewBox="0 0 24 24" class="w-4 h-4 text-amber-300 shrink-0" fill="currentColor"><circle cx="12" cy="13" r="7"/><circle cx="14.5" cy="11" r="1.3" fill="#0f172a"/><path d="M17.5 13 L22 14.5 L17.5 16 Z" fill="#f97316"/></svg>
-                        <span>Duck Quack Choir</span>
+                        <span>Duck Choir</span>
+                    </button>
+                    <button onclick="openModal('trade')" class="flex items-center gap-2 px-2.5 py-2 rounded-xl bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 hover:from-emerald-500/30 hover:to-cyan-500/30 border border-emerald-400/45 text-xs font-extrabold text-emerald-200 transition">
+                        <svg viewBox="0 0 24 24" class="w-4 h-4 text-emerald-300 shrink-0" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>
+                        <span>Gift &amp; Trade</span>
                     </button>
                 </div>
             </div>
@@ -521,6 +525,22 @@
                     </button>
                 </div>
                 <div id="miniLeaderboardList" class="flex flex-col gap-1.5"></div>
+            </div>
+
+            <!-- Roblox-Style Global Live Chat & Admin Command Box -->
+            <div class="bg-slate-900/85 border border-slate-800 rounded-2xl p-3 shadow-xl flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <h2 class="font-display text-xs font-bold uppercase tracking-wider text-cyan-300 flex items-center gap-1.5">
+                        <svg viewBox="0 0 24 24" class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        <span>Global Live Chat</span>
+                    </h2>
+                    <span class="text-[10px] font-bold text-slate-400">Cross-Device</span>
+                </div>
+                <div id="globalChatFeed" class="h-32 overflow-y-auto rounded-xl bg-slate-950/90 border border-slate-800/90 p-2 flex flex-col gap-1 text-[11px]"></div>
+                <div class="flex gap-1.5">
+                    <input id="globalChatInput" onkeydown="if(event.key==='Enter') sendGlobalChatMessage()" type="text" maxlength="140" placeholder="Chat or type /nuke, /say..." class="flex-1 min-w-0 px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-700 text-xs text-white focus:outline-none focus:border-cyan-400">
+                    <button onclick="sendGlobalChatMessage()" class="px-3 py-1.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-extrabold shrink-0">Send</button>
+                </div>
             </div>
         </section>
     </main>
@@ -667,7 +687,13 @@
            ========================================================================= */
         const RELAY_TOPIC_ROSTER = "duck_quack_rainbowlord16_roster_v9";
         const RELAY_TOPIC_EVENTS = "duck_quack_rainbowlord16_events_v9";
+        const RELAY_TOPIC_CHAT = "duck_quack_rainbowlord16_chat_v9";
+        const RELAY_TOPIC_BOSS = "duck_quack_rainbowlord16_boss_v9";
         let liveHttpEntries = {};
+        let globalChatMessages = [];
+        let seenChatIds = new Set();
+        let coopBossState = { stage: 0, hp: 5000, maxHp: 5000, lastAttacker: "", updatedAt: 0 };
+        let lastBossDefeatEventId = "";
 
         let gunInstance = null;
         let gunLeaderboardNode = null;
@@ -764,6 +790,256 @@
                     }
                 }
             } catch (e) {}
+
+            try {
+                const chatRes = await fetch(`https://ntfy.sh/${RELAY_TOPIC_CHAT}/json?poll=1&since=6h`, { cache: "no-store" });
+                if (chatRes.ok) {
+                    const text = await chatRes.text();
+                    const lines = text.trim().split("\n");
+                    let chatAdded = false;
+                    lines.forEach(line => {
+                        if (!line) return;
+                        try {
+                            const wrapper = JSON.parse(line);
+                            if (wrapper && wrapper.message) {
+                                const msgObj = JSON.parse(wrapper.message);
+                                if (msgObj && msgObj.id && !seenChatIds.has(msgObj.id)) {
+                                    seenChatIds.add(msgObj.id);
+                                    globalChatMessages.push(msgObj);
+                                    chatAdded = true;
+                                }
+                            }
+                        } catch (err) {}
+                    });
+                    if (chatAdded) {
+                        globalChatMessages = globalChatMessages.slice(-45);
+                        renderGlobalChat();
+                    }
+                }
+            } catch (e) {}
+
+            try {
+                const bossRes = await fetch(`https://ntfy.sh/${RELAY_TOPIC_BOSS}/json?poll=1&since=1h`, { cache: "no-store" });
+                if (bossRes.ok) {
+                    const text = await bossRes.text();
+                    const lines = text.trim().split("\n");
+                    const lastLine = lines[lines.length - 1];
+                    if (lastLine) {
+                        const wrapper = JSON.parse(lastLine);
+                        if (wrapper && wrapper.message) {
+                            const bData = JSON.parse(wrapper.message);
+                            if (bData && (bData.updatedAt || 0) > coopBossState.updatedAt) {
+                                applySharedCoopBossUpdate(bData);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {}
+        }
+
+        function appendLocalChatMessage(sender, text, isAdmin = false, isSystem = false) {
+            const msgObj = {
+                id: "chat_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6),
+                sender,
+                text,
+                isAdmin,
+                isSystem,
+                ts: Date.now()
+            };
+            seenChatIds.add(msgObj.id);
+            globalChatMessages.push(msgObj);
+            globalChatMessages = globalChatMessages.slice(-45);
+            renderGlobalChat();
+            return msgObj;
+        }
+
+        function renderGlobalChat() {
+            const box = document.getElementById("globalChatFeed");
+            if (!box) return;
+            if (globalChatMessages.length === 0) {
+                box.innerHTML = `<div class="text-slate-500 italic">Welcome to Global Chat! Say hi to players on other devices...</div>`;
+                return;
+            }
+            box.innerHTML = globalChatMessages.map(m => {
+                if (m.isSystem) {
+                    return `<div class="text-fuchsia-300 font-bold">[SYSTEM] ${m.text}</div>`;
+                }
+                return `<div class="leading-snug break-words">
+                    <span class="font-extrabold ${m.isAdmin ? "text-amber-300" : "text-sky-300"}">${m.isAdmin ? "[CREATOR] " : ""}${m.sender}:</span>
+                    <span class="text-slate-200">${m.text}</span>
+                </div>`;
+            }).join("");
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function sendGlobalChatMessage() {
+            const input = document.getElementById("globalChatInput");
+            if (!input) return;
+            const raw = input.value.trim();
+            if (!raw) return;
+            input.value = "";
+
+            if (raw.startsWith("/") && state.isAdminAuthenticated) {
+                let cmdInput = document.getElementById("adminCommandInput");
+                if (!cmdInput) {
+                    const temp = document.createElement("input");
+                    temp.id = "adminCommandInput";
+                    temp.value = raw;
+                    temp.style.display = "none";
+                    document.body.appendChild(temp);
+                    executeAdminCommandLine();
+                    temp.remove();
+                } else {
+                    cmdInput.value = raw;
+                    executeAdminCommandLine();
+                }
+                return;
+            }
+
+            const safeText = raw.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            const msgObj = appendLocalChatMessage(state.playerName, safeText, Boolean(state.isAdminAuthenticated), false);
+            fetch(`https://ntfy.sh/${RELAY_TOPIC_CHAT}`, {
+                method: "POST",
+                body: JSON.stringify(msgObj)
+            }).catch(() => {});
+        }
+
+        function playSoundboardTone(soundId) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === "suspended") audioCtx.resume();
+                const now = audioCtx.currentTime;
+
+                if (soundId === "airhorn") {
+                    [440, 554.37, 659.25].forEach(f => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = "sawtooth";
+                        osc.frequency.setValueAtTime(f, now);
+                        gain.gain.setValueAtTime(0.22, now);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.75);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(now);
+                        osc.stop(now + 0.78);
+                    });
+                } else if (soundId === "siren") {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = "sawtooth";
+                    osc.frequency.setValueAtTime(380, now);
+                    osc.frequency.linearRampToValueAtTime(920, now + 0.6);
+                    osc.frequency.linearRampToValueAtTime(380, now + 1.2);
+                    gain.gain.setValueAtTime(0.28, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.25);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 1.28);
+                } else if (soundId === "vine_boom") {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = "sine";
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(28, now + 0.85);
+                    gain.gain.setValueAtTime(0.65, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.9);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now);
+                    osc.stop(now + 0.92);
+                } else if (soundId === "scream") {
+                    playDramaticSfx("jumpscare");
+                } else if (soundId === "choir_chord") {
+                    [261.63, 329.63, 392.00, 523.25].forEach((f, idx) => {
+                        setTimeout(() => playQuackSound(f), idx * 60);
+                    });
+                } else if (soundId === "troll_fanfare") {
+                    [523.25, 493.88, 466.16, 440.00].forEach((f, idx) => {
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = "square";
+                        osc.frequency.setValueAtTime(f, now + idx * 0.24);
+                        gain.gain.setValueAtTime(0.18, now + idx * 0.24);
+                        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.24 + 0.22);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start(now + idx * 0.24);
+                        osc.stop(now + idx * 0.24 + 0.23);
+                    });
+                }
+            } catch (e) {}
+        }
+
+        function applySharedCoopBossUpdate(bData) {
+            if (!bData) return;
+            coopBossState = { ...coopBossState, ...bData };
+            state.bossStage = bData.stage % BOSSES.length;
+            state.bossHp = bData.hp;
+            if (bData.defeatEventId && bData.defeatEventId !== lastBossDefeatEventId) {
+                lastBossDefeatEventId = bData.defeatEventId;
+                state.bossKills++;
+                state.gems += bData.rewardGems || 150;
+                state.shards += bData.rewardShards || 5;
+                showToast(`CO-OP BOSS DEFEATED by ${bData.lastAttacker || "Squad"}! +${bData.rewardGems || 150} Gems & +${bData.rewardShards || 5} Shards!`, "success");
+            }
+            renderHudAndStats();
+            if (activeModalId === "boss") openModal("boss");
+        }
+
+        function sendPlayerGift(giftType, isCreatorFree = false) {
+            const targetSel = document.getElementById("tradeTargetSelect");
+            const targetPlayer = targetSel ? targetSel.value : "";
+            if (!targetPlayer) {
+                showToast("Select a player to send a gift to!", "warn");
+                return;
+            }
+            if (giftType === "gems") {
+                if (!isCreatorFree) {
+                    if (state.gems < 100) { showToast("Need 100 Gems to send!", "warn"); return; }
+                    state.gems -= 100;
+                }
+                const amt = isCreatorFree ? 50000 : 100;
+                broadcastPlayerGift(targetPlayer, "gems", amt, `${formatNum(amt)} Gems`);
+            } else if (giftType === "egg") {
+                if (!isCreatorFree) {
+                    if (state.gems < 150) { showToast("Need 150 Gems to gift a Cyber Egg!", "warn"); return; }
+                    state.gems -= 150;
+                }
+                broadcastPlayerGift(targetPlayer, "egg", 1, isCreatorFree ? "Omniverse Creator Egg" : "Cyber Egg");
+            } else if (giftType === "pet") {
+                if (isCreatorFree) {
+                    broadcastPlayerGift(targetPlayer, "creator_pet", 1, "250x RainbowLord Mythic Pet");
+                } else {
+                    const sparePet = state.pets.find(p => !p.equipped) || state.pets[0];
+                    if (!sparePet) { showToast("No pet available to send!", "warn"); return; }
+                    state.pets = state.pets.filter(p => p.id !== sparePet.id);
+                    broadcastPlayerGift(targetPlayer, "pet_obj", sparePet, `${sparePet.name} (${sparePet.mult}x)`);
+                }
+            }
+            renderAll();
+            if (activeModalId === "trade") openModal("trade");
+        }
+
+        function broadcastPlayerGift(targetPlayer, kind, value, label) {
+            const payload = {
+                id: "gift_" + Date.now() + "_" + Math.random().toString(36).slice(2, 7),
+                type: "PLAYER_GIFT",
+                targetPlayer,
+                sender: state.playerName,
+                giftKind: kind,
+                giftValue: value,
+                message: `${state.playerName} gifted ${label} to ${targetPlayer}!`,
+                timestamp: Date.now()
+            };
+            appendLocalChatMessage("PLAZA", payload.message, false, true);
+            try { localStorage.setItem("dqLatestAdminEvent", JSON.stringify(payload)); } catch (e) {}
+            if (adminBroadcastChannel) adminBroadcastChannel.postMessage(payload);
+            fetch(`https://ntfy.sh/${RELAY_TOPIC_EVENTS}`, {
+                method: "POST",
+                body: JSON.stringify(payload)
+            }).catch(() => {});
+            showToast(`Sent ${label} to ${targetPlayer}!`, "success");
         }
 
         /* =========================================================================
@@ -2289,6 +2565,33 @@
                 renderHudAndStats();
             } else if (type === "MAX_ALL") {
                 adminMaxOutEverything(false);
+            } else if (type === "SOUNDBOARD") {
+                playSoundboardTone(evt.soundId || "airhorn");
+            } else if (type === "PLAYER_GIFT") {
+                playQuackSound(680);
+                if (evt.giftKind === "gems") {
+                    state.gems += Number(evt.giftValue) || 100;
+                } else if (evt.giftKind === "egg") {
+                    hatchEggById(evt.sender === "RainbowLord16" ? "omniverse_egg" : "cyber_egg", true);
+                } else if (evt.giftKind === "creator_pet") {
+                    state.pets.push({
+                        id: "gift_creator_" + Date.now(),
+                        name: "RainbowLord Gift Pet",
+                        rarity: "Creator",
+                        level: 50,
+                        mult: 250.0,
+                        color: "#ec4899",
+                        equipped: getEquippedPets().length < 3
+                    });
+                } else if (evt.giftKind === "pet_obj" && evt.giftValue) {
+                    state.pets.push({
+                        ...evt.giftValue,
+                        id: "traded_pet_" + Date.now(),
+                        equipped: getEquippedPets().length < 3
+                    });
+                }
+                showToast(`Received gift from ${evt.sender}!`, "success");
+                renderAll();
             } else if (type === "CLEAR") {
                 clearDirectDuckTroll();
             }
@@ -2603,18 +2906,42 @@
         }
 
         function attackBoss() {
-            const boss = BOSSES[state.bossStage % BOSSES.length];
+            const stageIdx = state.bossStage % BOSSES.length;
+            const boss = BOSSES[stageIdx];
             const dmg = Math.max(10, getClickPower() * 2);
             state.bossHp -= dmg;
             playQuackSound(260);
+
+            let defeatEventId = "";
             if (state.bossHp <= 0) {
+                defeatEventId = "bosskill_" + Date.now() + "_" + Math.random().toString(36).slice(2, 6);
+                lastBossDefeatEventId = defeatEventId;
                 state.bossKills++;
                 state.gems += boss.rewardGems;
                 state.shards += boss.rewardShards;
                 state.bossStage = (state.bossStage + 1) % BOSSES.length;
                 state.bossHp = BOSSES[state.bossStage].maxHp;
-                showToast(`Defeated ${boss.name}! +${boss.rewardGems} Gems & +${boss.rewardShards} Shards!`, "success");
+                showToast(`CO-OP BOSS SLAIN! +${boss.rewardGems} Gems & +${boss.rewardShards} Shards for everyone!`, "success");
             }
+
+            const nextBoss = BOSSES[state.bossStage % BOSSES.length];
+            const syncPayload = {
+                stage: state.bossStage,
+                hp: state.bossHp,
+                maxHp: nextBoss.maxHp,
+                lastAttacker: state.playerName,
+                lastDamage: dmg,
+                defeatEventId,
+                rewardGems: boss.rewardGems,
+                rewardShards: boss.rewardShards,
+                updatedAt: Date.now()
+            };
+            coopBossState = syncPayload;
+            fetch(`https://ntfy.sh/${RELAY_TOPIC_BOSS}`, {
+                method: "POST",
+                body: JSON.stringify(syncPayload)
+            }).catch(() => {});
+
             renderAll();
             if (activeModalId === "boss") openModal("boss");
         }
@@ -2818,16 +3145,44 @@
             } else if (id === "boss") {
                 const boss = BOSSES[state.bossStage % BOSSES.length];
                 const pct = Math.max(0, Math.min(100, (state.bossHp / boss.maxHp) * 100));
-                titleEl.textContent = `Boss Raid Arena (${state.bossKills} Slain)`;
+                titleEl.textContent = `Co-Op World Boss Raid (${state.bossKills} Slain)`;
                 bodyEl.innerHTML = `
                     <div class="flex flex-col items-center text-center gap-3 py-2">
+                        <span class="px-3 py-1 rounded-full bg-rose-500/20 border border-rose-400/40 text-[11px] font-extrabold text-rose-200">LIVE SHARED HP ACROSS ALL ONLINE PLAYERS</span>
                         ${getBossSvg(boss.color)}
                         <div class="font-display text-xl font-bold text-rose-300">${boss.name}</div>
+                        ${coopBossState.lastAttacker ? `<div class="text-xs text-amber-300 font-bold">Last Strike: ${coopBossState.lastAttacker} (-${formatNum(coopBossState.lastDamage || 0)} HP)</div>` : ""}
                         <div class="w-full max-w-md h-5 rounded-full bg-slate-950 border border-slate-800 overflow-hidden relative flex items-center justify-center">
                             <div class="absolute left-0 top-0 bottom-0 bg-rose-600 transition-all" style="width:${pct}%"></div>
                             <span class="relative z-10 text-xs font-extrabold text-white">${formatNum(Math.max(0, state.bossHp))} / ${formatNum(boss.maxHp)} HP</span>
                         </div>
-                        <button onclick="attackBoss()" class="px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-sm font-extrabold text-white shadow-lg">QUACK STRIKE (-${formatNum(Math.max(10, getClickPower() * 2))} HP)</button>
+                        <button onclick="attackBoss()" class="px-6 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-sm font-extrabold text-white shadow-lg">CO-OP QUACK STRIKE (-${formatNum(Math.max(10, getClickPower() * 2))} HP)</button>
+                    </div>`;
+            } else if (id === "trade") {
+                const onlineTargets = getMergedLeaderboardRows().filter(r => r.accountSlotId !== state.accountSlotId);
+                titleEl.textContent = "Duck Trading & Gift Plaza";
+                bodyEl.innerHTML = `
+                    <div class="space-y-4">
+                        <div class="rounded-2xl bg-slate-950/85 border border-slate-800 p-4 space-y-3">
+                            <div class="text-xs font-extrabold text-emerald-300">Send Gifts to Any Online Player</div>
+                            <select id="tradeTargetSelect" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs font-bold text-white">
+                                ${onlineTargets.length === 0 ? `<option value="">Waiting for another player to join...</option>` : onlineTargets.map(r => `<option value="${r.playerName}">${r.playerName} (World ${r.currentWorld || 1})</option>`).join("")}
+                            </select>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <button onclick="sendPlayerGift('gems', false)" class="py-2.5 px-3 rounded-xl bg-cyan-600/30 hover:bg-cyan-600/40 border border-cyan-400/50 text-xs font-extrabold text-cyan-200">Gift 100 Gems</button>
+                                <button onclick="sendPlayerGift('egg', false)" class="py-2.5 px-3 rounded-xl bg-emerald-600/30 hover:bg-emerald-600/40 border border-emerald-400/50 text-xs font-extrabold text-emerald-200">Gift Cyber Egg (150 Gems)</button>
+                                <button onclick="sendPlayerGift('pet', false)" class="py-2.5 px-3 rounded-xl bg-pink-600/30 hover:bg-pink-600/40 border border-pink-400/50 text-xs font-extrabold text-pink-200">Send Spare Pet</button>
+                            </div>
+                        </div>
+                        ${state.isAdminAuthenticated ? `
+                        <div class="rounded-2xl obsidian-neon-rainbow p-4 space-y-2.5">
+                            <div class="font-display text-sm font-bold text-cyan-200">INFINITE CREATOR GIFT SPAWNER (RAINBOWLORD16)</div>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                                <button onclick="sendPlayerGift('gems', true)" class="py-2.5 px-3 rounded-xl bg-amber-400 text-slate-950 text-xs font-extrabold">Spawn 50,000 Gems</button>
+                                <button onclick="sendPlayerGift('egg', true)" class="py-2.5 px-3 rounded-xl bg-fuchsia-500 text-white text-xs font-extrabold">Spawn Omniverse Egg</button>
+                                <button onclick="sendPlayerGift('pet', true)" class="py-2.5 px-3 rounded-xl bg-cyan-400 text-slate-950 text-xs font-extrabold">Spawn 250x Creator Pet</button>
+                            </div>
+                        </div>` : ""}
                     </div>`;
             } else if (id === "wheel") {
                 const wheelSlices = [
@@ -3071,6 +3426,19 @@
                                 <button onclick="triggerAdminAbuse('GIVE_PETS','RainbowLord16 bestowed a 250x Mythic Creator Pet!')" class="py-2 px-2 rounded-xl bg-pink-600/30 border border-pink-400/50 text-[11px] font-extrabold text-pink-200">Gift 250x Pet</button>
                                 <button onclick="triggerAdminAbuse('RAINBOW_STORM','RainbowLord16 summoned a 100x RAINBOW STORM!',{targetPlayer:'ALL'})" class="py-2 px-2 rounded-xl bg-indigo-500/30 border border-indigo-300/50 text-[11px] font-extrabold text-indigo-100">100x Storm</button>
                                 <button onclick="triggerAdminAbuse('CLEAR','RainbowLord16 cleared all active trolls.')" class="py-2 px-2 rounded-xl bg-slate-800 border border-slate-600 text-[11px] font-extrabold text-slate-200">Clear Trolls</button>
+                            </div>
+
+                            <!-- Live Speaker Troll Soundboard -->
+                            <div class="pt-2 border-t border-white/10">
+                                <div class="text-[11px] font-extrabold uppercase tracking-wider text-amber-300 mb-1.5">Live Speaker Troll Soundboard (Plays on Target's Speakers)</div>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                                    <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 blasted an MLG Airhorn!',{soundId:'airhorn'})" class="py-2 px-2 rounded-xl bg-amber-500/25 border border-amber-400/50 text-[11px] font-extrabold text-amber-200">Blast Airhorn</button>
+                                    <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 triggered a Nuclear Warning Siren!',{soundId:'siren'})" class="py-2 px-2 rounded-xl bg-rose-500/25 border border-rose-400/50 text-[11px] font-extrabold text-rose-200">Nuclear Siren</button>
+                                    <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 dropped a Mega Vine Boom!',{soundId:'vine_boom'})" class="py-2 px-2 rounded-xl bg-purple-500/25 border border-purple-400/50 text-[11px] font-extrabold text-purple-200">Vine Boom</button>
+                                    <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 played a Horror Scream!',{soundId:'scream'})" class="py-2 px-2 rounded-xl bg-red-600/30 border border-red-400/50 text-[11px] font-extrabold text-red-200">Horror Scream</button>
+                                    <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 played the 12-Duck Choir Chord!',{soundId:'choir_chord'})" class="py-2 px-2 rounded-xl bg-emerald-500/25 border border-emerald-400/50 text-[11px] font-extrabold text-emerald-200">Duck Choir Chord</button>
+                                    <button onclick="triggerAdminAbuse('SOUNDBOARD','RainbowLord16 played the Sad Trombone Troll!',{soundId:'troll_fanfare'})" class="py-2 px-2 rounded-xl bg-sky-500/25 border border-sky-400/50 text-[11px] font-extrabold text-sky-200">Sad Trombone</button>
+                                </div>
                             </div>
                         </div>` : `
                         <div class="rounded-2xl bg-slate-950/85 border border-fuchsia-500/30 p-4">
@@ -3337,6 +3705,7 @@
             renderOrbitingPets();
             renderLeaderboardUI();
             renderAutomationButtons();
+            renderGlobalChat();
             updateDynamicFavicon();
         }
 
