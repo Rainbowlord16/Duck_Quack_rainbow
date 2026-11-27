@@ -1156,7 +1156,7 @@
             const feed = document.getElementById("globalChatFeed");
             if (!feed) return;
             if (globalChatMessages.length === 0) {
-                feed.innerHTML = `<div class="text-slate-500 italic">Connected to global GAG-style chat & Admin Abuse stream...</div>`;
+                feed.innerHTML = `<div class="text-slate-500 italic">Global chat is ready. Messages from other players will appear here.</div>`;
                 return;
             }
             feed.innerHTML = globalChatMessages.map(msg => {
