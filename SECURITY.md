@@ -38,7 +38,7 @@ Please avoid posting exploitable details or credentials in public issues. If Git
 
 The client bridges public MQTT brokers over WSS and ntfy HTTP in both directions. Clients publish roster, chat, and co-op boss updates to both relays and listen to both, allowing MQTT-connected and HTTP-fallback players to exchange updates. WSS encrypts the connection but does not authenticate a player or make a public topic private. Anyone who discovers the topic names can publish forged roster, chat, or boss packets.
 
-Current client-side protections include payload size limits, schema normalization, timestamp checks, per-topic validation, bounded roster/chat caches, chat rate limiting, a bounded local chat outbox, MQTT broker failover, HTTP fallback polling, and deterministic UTC weather. Public weather packets are not accepted. Co-op boss packets can update display state but cannot grant local rewards.
+Current client-side protections include payload size limits, schema normalization, tighter future-timestamp checks, per-topic validation, bounded roster/chat caches, chat rate limiting, a bounded local chat outbox with separate delivery acknowledgements, MQTT broker failover, bidirectional MQTT/ntfy bridging, bounded HTTP polling, and deterministic UTC weather. Public weather packets are not accepted. Co-op boss packets can update display state but cannot grant local rewards; local boss progression rewards are paused until a trusted server can verify raid outcomes.
 
 These controls reduce accidental corruption, stale updates, and some abuse. They do not establish sender identity or stop a determined attacker from spoofing scores or boss state. Public roster and boss data must remain untrusted display data until a server validates it.
 
