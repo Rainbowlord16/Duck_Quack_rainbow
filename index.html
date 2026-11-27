@@ -1188,7 +1188,9 @@
                 text: String(message.text || "").slice(0, 280),
                 timestamp: Number(message.timestamp) || Date.now(),
                 isSystem: false,
-                isCreator: false
+                isCreator: false,
+                mqttDelivered: false,
+                ntfyDelivered: false
             });
             pendingChatOutbox = pendingChatOutbox.slice(-50);
             savePendingChatOutbox();
@@ -1198,10 +1200,16 @@
             try {
                 const saved = JSON.parse(localStorage.getItem("dq_sync_chat_outbox_v1") || "[]");
                 pendingChatOutbox = Array.isArray(saved)
-                    ? saved.map(normalizePublicChatMessage).filter(message =>
-                        message && message.timestamp >= Date.now() - 86400000 &&
-                        message.timestamp <= Date.now() + 60000
-                    ).slice(-50)
+                    ? saved.map(item => {
+                        const message = normalizePublicChatMessage(item);
+                        if (!message || message.timestamp < Date.now() - 86400000 ||
+                            message.timestamp > Date.now() + 60000) return null;
+                        return {
+                            ...message,
+                            mqttDelivered: Boolean(item.mqttDelivered),
+                            ntfyDelivered: Boolean(item.ntfyDelivered)
+                        };
+                    }).filter(Boolean).slice(-50)
                     : [];
                 savePendingChatOutbox();
             } catch (e) {
@@ -1215,9 +1223,14 @@
             try {
                 while (pendingChatOutbox.length) {
                     const message = pendingChatOutbox[0];
-                    let delivered = false;
-                    if (mqttConnected && mqttClient) {
-                        delivered = await new Promise(resolve => {
+                    if (message.timestamp < Date.now() - 86400000) {
+                        pendingChatOutbox.shift();
+                        savePendingChatOutbox();
+                        continue;
+                    }
+
+                    if (!message.mqttDelivered && mqttConnected && mqttClient) {
+                        const mqttDelivered = await new Promise(resolve => {
                             let settled = false;
                             const finish = value => {
                                 if (settled) return;
@@ -1232,7 +1245,13 @@
                                 finish(false);
                             }
                         });
-                    } else {
+                        if (mqttDelivered) {
+                            message.mqttDelivered = true;
+                            savePendingChatOutbox();
+                        }
+                    }
+
+                    if (!message.ntfyDelivered) {
                         const controller = new AbortController();
                         const timeoutId = setTimeout(() => controller.abort(), 6000);
                         try {
@@ -1241,14 +1260,16 @@
                                 body: JSON.stringify(message),
                                 signal: controller.signal
                             });
-                            delivered = response.ok;
+                            message.ntfyDelivered = response.ok;
+                            savePendingChatOutbox();
                         } catch (e) {
-                            delivered = false;
+                            message.ntfyDelivered = false;
                         } finally {
                             clearTimeout(timeoutId);
                         }
                     }
-                    if (!delivered) break;
+
+                    if (!message.mqttDelivered || !message.ntfyDelivered) break;
                     pendingChatOutbox.shift();
                     savePendingChatOutbox();
                 }
