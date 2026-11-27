@@ -115,7 +115,7 @@ assert "relayPollInFlight" in SOURCE
 assert "AbortController" in SOURCE
 assert "response.body.getReader()" in SOURCE
 assert "body.length > maxChars" in SOURCE
-assert "message.timestamp >= Date.now() - 86400000" in SOURCE
+assert "message.timestamp < Date.now() - 86400000" in SOURCE
 assert "fetchNtfyRelayMessages(RELAY_TOPIC_CHAT, \"30s\")" in SOURCE
 assert "fetchNtfyRelayMessages(RELAY_TOPIC_BOSS, bossSince, 524288)" in SOURCE
 assert "if (relayPollInFlight || !navigator.onLine) return" in SOURCE
