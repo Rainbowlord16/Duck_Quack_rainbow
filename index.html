@@ -2131,9 +2131,9 @@ for (const packet of bossPackets) {
             finally { adminEventPollInFlight = false; }
         }
 
-        function applyAdminAbuseEvent(evt, isSender = false) {
+        function applyAdminAbuseEvent(evt, isVerifiedServerEvent = false) {
             // MQTT and ntfy topics are public. Reject every remote admin/gift event until server signing exists.
-            if (state.safeVisualsMode || !isSender || !evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
+            if (state.safeVisualsMode || !isVerifiedServerEvent || !evt || !evt.id || processedAdminEventIds.has(evt.id)) return;
             rememberBoundedId(processedAdminEventIds, evt.id);
 
 
