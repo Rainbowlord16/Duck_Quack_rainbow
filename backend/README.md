@@ -5,7 +5,7 @@ Cloudflare Worker + D1 + Durable Objects. This first backend slice provides anon
 ## Anonymous identity
 
 - `POST /api/session` creates a cryptographically random `PLY-...` ID, a 256-bit recovery key, and a 30-day session token.
-- The existing Base64 recovery UI should export the returned `recoveryCode`. It is Base64URL-encoded JSON, not encryption. The high-entropy recovery key is a bearer credential: anyone holding it can recover the player.
+- The existing Base64 recovery UI should export the returned `recoveryCode`. It is standard Base64-encoded JSON, not encryption. The high-entropy recovery key is a bearer credential: anyone holding it can recover the player.
 - `POST /api/session/recover` restores the same ID and issues a new session. No signup, email, password, or ordinary player login.
 - `GET/POST /api/me` reads/changes a 2-22 character custom username. Reserved privileged names are blocked.
 - Session and recovery values must never enter MQTT, ntfy, chat, logs, or public roster packets.
