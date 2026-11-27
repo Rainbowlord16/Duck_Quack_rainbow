@@ -1349,7 +1349,6 @@
                     cache: "no-store"
                 });
                 if (!response.ok) return [];
-                relaySuccessfulTopics.add(topic);
                 let body = "";
                 if (response.body && typeof response.body.getReader === "function") {
                     const reader = response.body.getReader();
@@ -1379,6 +1378,7 @@
                         if (payload && typeof payload === "object" && !Array.isArray(payload)) messages.push(payload);
                     } catch (e) {}
                 }
+                relaySuccessfulTopics.add(topic);
                 return messages;
             } catch (e) {
                 return [];
